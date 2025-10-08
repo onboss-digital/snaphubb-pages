@@ -205,10 +205,10 @@ $gateway = config('services.default_payment_gateway', 'stripe');
                 <div id="payment-method-section" class="bg-[#1F1F1F] rounded-xl p-6 mb-6 scroll-mt-8">
                     <h2 class="text-xl font-semibold text-white mb-4">{{ __('payment.payment_method') }}</h2>
 
-                    <div class="grid grid-cols-1 gap-3">
+                    <div class="grid @if($selectedLanguage === 'br') grid-cols-2 @else grid-cols-1 @endif gap-3">
                         <div class="relative">
                             <input type="radio" id="payment-card" name="payment_method" value="credit_card"
-                                class="peer sr-only" checked />
+                                class="peer sr-only" wire:model.live="selectedPaymentMethod" />
                             <label for="payment-card"
                                 class="flex flex-col items-center justify-center p-4 rounded-lg border border-gray-700 bg-[#2D2D2D] cursor-pointer transition-all hover:bg-gray-800  peer-checked:bg-[#2D2D2D] h-24">
                                 <svg class="w-8 h-8 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"
@@ -220,9 +220,24 @@ $gateway = config('services.default_payment_gateway', 'stripe');
                             </label>
                         </div>
 
+                        @if($selectedLanguage === 'br')
+                        <div class="relative">
+                            <input type="radio" id="payment-pix" name="payment_method" value="pix"
+                                class="peer sr-only" wire:model.live="selectedPaymentMethod" />
+                            <label for="payment-pix"
+                                class="flex flex-col items-center justify-center p-4 rounded-lg border border-gray-700 bg-[#2D2D2D] cursor-pointer transition-all hover:bg-gray-800 peer-checked:bg-[#2D2D2D] h-24">
+                                <svg class="w-8 h-8 mb-2" fill="currentColor" viewBox="0 0 24 24">
+                                    <path d="M12 2L2 7v10c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-10-5zm0 18c-3.31 0-6-2.69-6-6s2.69-6 6-6 6 2.69 6 6-2.69 6-6 6z"/>
+                                </svg>
+                                <span class="text-sm font-medium text-white">PIX</span>
+                            </label>
+                        </div>
+                        @endif
+
                     </div>
 
                     <!-- Card payment form - shown conditionally -->
+                    @if($selectedPaymentMethod === 'credit_card')
                     <div id="card-payment-form" class="mt-6">
                         <div class="space-y-4">
                             @if($gateway !== 'stripe')
@@ -319,6 +334,45 @@ $gateway = config('services.default_payment_gateway', 'stripe');
                             @endif
                         </div>
                     </div>
+                    @endif
+
+                    <!-- PIX payment form - shown conditionally -->
+                    @if($selectedPaymentMethod === 'pix' && $selectedLanguage === 'br')
+                    <div id="pix-payment-form" class="mt-6">
+                        @if($pixData)
+                            <x-pix-card :pixData="$pixData" :pixStatus="$pixStatus" />
+                        @else
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.card_name') }}</label>
+                                    <input name="card_name" type="text" placeholder="{{ __('payment.card_name') }}" wire:model="cardName"
+                                        class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
+                                    @error('cardName')
+                                    <span class="text-red-500 text-xs mt-1">{{ $message }}</span>
+                                    @enderror
+                                </div>
+
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.email') }}</label>
+                                    <input name="email" type="email" placeholder="{{ __('payment.email') }}" wire:model.defer="email"
+                                        class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
+                                    @error('email')
+                                    <span class="text-red-500 text-xs mt-1">{{ $message }}</span>
+                                    @enderror
+                                </div>
+
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.cpf') }}</label>
+                                    <input name="cpf" type="text" id="cpf-pix" placeholder="000.000.000-00" x-mask="999.999.999-99" wire:model.defer="cpf"
+                                        class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
+                                    @error('cpf')
+                                    <span class="text-red-500 text-xs mt-1">{{ $message }}</span>
+                                    @enderror
+                                </div>
+                            </div>
+                        @endif
+                    </div>
+                    @endif
                 </div>
 
                 <!-- Order Bumps -->
