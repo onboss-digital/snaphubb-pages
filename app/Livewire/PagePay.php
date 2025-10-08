@@ -149,11 +149,21 @@ class PagePay extends Component
         $this->selectedPlan = Session::get('selectedPlan', 'monthly');
         $this->calculateTotals();
         $this->activityCount = rand(1, 50);
-        $this->product = [
-            'hash' => $this->plans[$this->selectedPlan]['hash'], // This hash might be gateway-specific
-            'title' => $this->plans[$this->selectedPlan]['label'],
-            'price_id' => $this->plans[$this->selectedPlan]['prices'][$this->selectedCurrency]['id'] ?? null,
-        ];
+        
+        // Inicializar product apenas se o plano existir
+        if (isset($this->plans[$this->selectedPlan])) {
+            $this->product = [
+                'hash' => $this->plans[$this->selectedPlan]['hash'] ?? null,
+                'title' => $this->plans[$this->selectedPlan]['label'] ?? '',
+                'price_id' => $this->plans[$this->selectedPlan]['prices'][$this->selectedCurrency]['id'] ?? null,
+            ];
+        } else {
+            $this->product = [
+                'hash' => null,
+                'title' => '',
+                'price_id' => null,
+            ];
+        }
     }
 
     public function getPlans()
