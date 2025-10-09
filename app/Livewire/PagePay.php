@@ -167,149 +167,73 @@ class PagePay extends Component
     }
 
     public function getPlans()
-{
-    $headers = [
-        'Accept' => 'application/json',
-        'Content-Type' => 'application/json'
-    ];
+    {
+        $headers = [
+            'Accept' => 'application/json',
+            'Content-Type' => 'application/json'
+        ];
 
-    $request = new Request(
-        'GET',
-        $this->apiUrl . '/get-plans',
-        $headers,
-    );
-    
-    try {
-        $result = $this->httpClient->sendAsync($request)
+        $request = new Request(
+            'GET',
+            $this->apiUrl . '/get-plans',
+            $headers,
+        );
+        return $this->httpClient->sendAsync($request)
             ->then(function ($res) {
                 $responseBody = $res->getBody()->getContents();
                 $dataResponse = json_decode($responseBody, true);
-                
-                // Verificar se a resposta é válida
-                if (empty($dataResponse) || !is_array($dataResponse)) {
-                    \Log::channel('GetPlans')->warning('PagePay: Resposta vazia ou inválida da API.');
-                    return $this->getFallbackPlans();
-                }
-                
                 $this->paymentGateway = PaymentGatewayFactory::create();
                 $result = $this->paymentGateway->formatPlans($dataResponse, $this->selectedCurrency);
-                
-                // Verificar se o resultado tem planos
-                if (empty($result) || !is_array($result)) {
-                    \Log::channel('GetPlans')->warning('PagePay: formatPlans retornou vazio.');
-                    return $this->getFallbackPlans();
-                }
-                
-                // Verificar se o plano selecionado existe antes de acessar order_bumps
-                if (isset($result[$this->selectedPlan]['order_bumps'])) {
-                    $this->bumps = $result[$this->selectedPlan]['order_bumps'];
-                } else {
-                    $this->bumps = [];
-                }
-                
+                $this->bumps = $result[$this->selectedPlan]['order_bumps'];
                 return $result;
             })
             ->otherwise(function ($e) {
-                \Log::channel('GetPlans')->error('PagePay: Erro ao buscar planos da API. Usando fallback.', [
+                \Log::channel('GetPlans')->info('PagePay: GetPlans from streamit.', [
                     'gateway' => $this->gateway,
                     'error' => $e->getMessage(),
-                    'api_url' => $this->apiUrl,
                 ]);
-                return $this->getFallbackPlans();
+                return [];
             })
             ->wait();
-            
-        return $result;
-        
-    } catch (\Exception $e) {
-        \Log::channel('GetPlans')->error('PagePay: Exceção ao buscar planos.', [
-            'error' => $e->getMessage(),
-            'trace' => $e->getTraceAsString(),
-        ]);
-        return $this->getFallbackPlans();
+
+        // // Plan hashes might need to be gateway-specific or mapped
+        // return \GuzzleHttp\Promise\promise_for([
+        //     'monthly' => [
+        //         'hash' => 'rwquocfj5c', // Gateway-specific?
+        //         'label' => __('payment.monthly'),
+        //         'nunber_months' => 1,
+        //         'prices' => [
+        //             'BRL' => ['origin_price' => 50.00, 'descont_price' => 39.90],
+        //             'USD' => ['origin_price' => 10.00, 'descont_price' => 7.90],
+        //             'EUR' => ['origin_price' => 9.00, 'descont_price' => 6.90],
+        //         ],
+        //     ],
+        //     'quarterly' => [
+        //         'hash' => 'velit nostrud dolor in deserunt', // Gateway-specific?
+        //         'label' => __('payment.quarterly'),
+        //         'nunber_months' => 3,
+        //         'prices' => [
+        //             'BRL' => ['origin_price' => 150.00, 'descont_price' => 109.90],
+        //             'USD' => ['origin_price' => 30.00, 'descont_price' => 21.90],
+        //             'EUR' => ['origin_price' => 27.00, 'descont_price' => 19.90],
+        //         ],
+        //     ],
+        //     'semi-annual' => [
+        //         'hash' => 'cupxl', // Gateway-specific?
+        //         'label' => __('payment.semi-annual'),
+        //         'nunber_months' => 6,
+        //         'prices' => [
+        //             'BRL' => ['origin_price' => 300.00, 'descont_price' => 199.90],
+        //             'USD' => ['origin_price' => 60.00, 'descont_price' => 39.90],
+        //             'EUR' => ['origin_price' => 54.00, 'descont_price' => 35.90],
+        //         ],
+        //     ]
+        // ]);
+        // Ensure getPlans returns the full structure as before
     }
-}
 
-// ===== MÉTODO AUXILIAR: PLANOS DE FALLBACK =====
-// Adicione este método novo no final da classe PagePay
-
-private function getFallbackPlans()
-{
-    \Log::channel('GetPlans')->info('PagePay: Usando planos de fallback (hardcoded).');
-    
-    return [
-        'monthly' => [
-            'hash' => 'rwquocfj5c',
-            'label' => __('payment.monthly'),
-            'nunber_months' => 1,
-            'order_bumps' => [],
-            'prices' => [
-                'BRL' => [
-                    'origin_price' => 50.00, 
-                    'descont_price' => 39.90,
-                    'id' => 'price_monthly_brl'
-                ],
-                'USD' => [
-                    'origin_price' => 10.00, 
-                    'descont_price' => 7.90,
-                    'id' => 'price_monthly_usd'
-                ],
-                'EUR' => [
-                    'origin_price' => 9.00, 
-                    'descont_price' => 6.90,
-                    'id' => 'price_monthly_eur'
-                ],
-            ],
-        ],
-        'quarterly' => [
-            'hash' => 'quarterly_hash',
-            'label' => __('payment.quarterly'),
-            'nunber_months' => 3,
-            'order_bumps' => [],
-            'prices' => [
-                'BRL' => [
-                    'origin_price' => 150.00, 
-                    'descont_price' => 109.90,
-                    'id' => 'price_quarterly_brl'
-                ],
-                'USD' => [
-                    'origin_price' => 30.00, 
-                    'descont_price' => 21.90,
-                    'id' => 'price_quarterly_usd'
-                ],
-                'EUR' => [
-                    'origin_price' => 27.00, 
-                    'descont_price' => 19.90,
-                    'id' => 'price_quarterly_eur'
-                ],
-            ],
-        ],
-        'semi-annual' => [
-            'hash' => 'semiannual_hash',
-            'label' => __('payment.semi-annual'),
-            'nunber_months' => 6,
-            'order_bumps' => [],
-            'prices' => [
-                'BRL' => [
-                    'origin_price' => 300.00, 
-                    'descont_price' => 199.90,
-                    'id' => 'price_semiannual_brl'
-                ],
-                'USD' => [
-                    'origin_price' => 60.00, 
-                    'descont_price' => 39.90,
-                    'id' => 'price_semiannual_usd'
-                ],
-                'EUR' => [
-                    'origin_price' => 54.00, 
-                    'descont_price' => 35.90,
-                    'id' => 'price_semiannual_eur'
-                ],
-            ],
-        ]
-    ];
-}
-
+    // calculateTotals, startCheckout, rejectUpsell, acceptUpsell remain largely the same
+    // but sendCheckout and prepareCheckoutData will be modified.
 
     public function calculateTotals()
 {
@@ -409,11 +333,14 @@ private function getFallbackPlans()
                 $rules['cpf'] = ['required', 'string', 'regex:/^\d{3}\.\d{3}\.\d{3}\-\d{2}$|^\d{11}$/'];
             }
 
-            // Add card-specific rules only if the gateway is not Stripe.
-            if ($this->gateway !== 'stripe') {
-                $rules['cardNumber'] = 'required|numeric|digits_between:13,19';
-                $rules['cardExpiry'] = ['required', 'string', 'regex:/^(0[1-9]|1[0-2])\/?([0-9]{2})$/'];
-                $rules['cardCvv'] = 'required|numeric|digits_between:3,4';
+            // ===== VALIDAÇÃO CONDICIONAL: Só exige campos de cartão se método for credit_card =====
+            if ($this->selectedPaymentMethod === 'credit_card') {
+                // Add card-specific rules only if the gateway is not Stripe.
+                if ($this->gateway !== 'stripe') {
+                    $rules['cardNumber'] = 'required|numeric|digits_between:13,19';
+                    $rules['cardExpiry'] = ['required', 'string', 'regex:/^(0[1-9]|1[0-2])\/?([0-9]{2})$/'];
+                    $rules['cardCvv'] = 'required|numeric|digits_between:3,4';
+                }
             }
 
             $this->validate($rules);
