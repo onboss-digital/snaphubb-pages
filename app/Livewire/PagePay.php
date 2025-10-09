@@ -755,4 +755,67 @@ class PagePay extends Component
             'canonical' => url()->current(),
         ]);
     }
+    /**
+     * Verifica o status do pagamento PIX
+     * Chamado via polling do JavaScript
+     */
+    public function checkPixStatus()
+    {
+        if (!$this->pixData || !isset($this->pixData['pix_id'])) {
+            Log::warning('checkPixStatus chamado sem pixData');
+            return;
+        }
+
+        try {
+            $response = Http::withHeaders([
+                'Authorization' => 'Bearer ' . config('services.abacatepay.api_key'),
+                'Content-Type' => 'application/json',
+            ])->get('https://api.abacatepay.com/v1/billing/' . $this->pixData['pix_id']);
+
+            if ($response->successful()) {
+                $result = $response->json();
+                $oldStatus = $this->pixStatus;
+                $this->pixStatus = $result['status'];
+
+                Log::info('PIX Status Check', [
+                    'pix_id' => $this->pixData['pix_id'],
+                    'old_status' => $oldStatus,
+                    'new_status' => $this->pixStatus,
+                ]);
+
+                if ($this->pixStatus === 'PAID' && $oldStatus !== 'PAID') {
+                    // Pagamento confirmado!
+                    Log::info('PIX PAID - Redirecionando', [
+                        'pix_id' => $this->pixData['pix_id'],
+                    ]);
+                    
+                    // Disparar evento para o JavaScript
+                    $this->dispatch('pix-paid');
+                    
+                    // Redirecionar
+                    return redirect()->to('/obg/');
+                }
+
+                if (in_array($this->pixStatus, ['EXPIRED', 'FAILED'])) {
+                    Log::warning('PIX expirado ou falhou', [
+                        'pix_id' => $this->pixData['pix_id'],
+                        'status' => $this->pixStatus,
+                    ]);
+                }
+            } else {
+                Log::error('Erro ao verificar status PIX', [
+                    'pix_id' => $this->pixData['pix_id'],
+                    'status_code' => $response->status(),
+                    'body' => $response->body(),
+                ]);
+            }
+        } catch (\Exception $e) {
+            Log::error('Exception ao verificar status PIX', [
+                'pix_id' => $this->pixData['pix_id'] ?? 'unknown',
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+        }
+    }
+
 }
