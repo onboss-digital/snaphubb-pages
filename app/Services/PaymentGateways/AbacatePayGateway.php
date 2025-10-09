@@ -229,5 +229,59 @@ class AbacatePayGateway implements PaymentGatewayInterface
             'message' => 'Estornos PIX devem ser processados manualmente.',
         ];
     }
+
+    /**
+     * Check payment status
+     *
+     * @param string $pixId
+     * @return array
+     */
+    public function checkPaymentStatus(string $pixId): array
+    {
+        try {
+            Log::channel('payment_checkout')->info('AbacatePay: Checking payment status', [
+                'pix_id' => $pixId,
+            ]);
+
+            $response = Http::withHeaders([
+                'Authorization' => 'Bearer ' . $this->apiKey,
+                'Content-Type' => 'application/json',
+            ])->get($this->apiUrl . '/billing/' . $pixId);
+
+            Log::channel('payment_checkout')->info('AbacatePay: Status check response', [
+                'status_code' => $response->status(),
+                'body' => $response->json(),
+            ]);
+
+            if ($response->successful()) {
+                $result = $response->json();
+                
+                return [
+                    'status' => 'success',
+                    'data' => [
+                        'status' => $result['status'] ?? 'UNKNOWN',
+                        'pix_id' => $pixId,
+                    ],
+                ];
+            }
+
+            return [
+                'status' => 'error',
+                'message' => 'Erro ao verificar status do pagamento.',
+            ];
+
+        } catch (\Exception $e) {
+            Log::channel('payment_checkout')->error('AbacatePay: Exception checking status', [
+                'pix_id' => $pixId,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return [
+                'status' => 'error',
+                'message' => 'Erro ao verificar status do pagamento.',
+            ];
+        }
+    }
 }
 
