@@ -10,8 +10,8 @@ use Illuminate\Support\Facades\Route;
 |--------------------------------------------------------------------------
 */
 
-// Página principal (checkout)
-Route::get('/', PagePay::class)->name('home');
+// Página principal (checkout) - Livewire Component
+Route::get('/', PagePay::class);
 
 // ===== WEBHOOK ABACATEPAY =====
 Route::post('/webhook/abacatepay', [AbacatePayWebhookController::class, 'handle'])
@@ -28,3 +28,4 @@ Route::get('/obg/', function () {
 Route::get('/fail-pix/', function () {
     return view('fail-pix');
 })->name('payment.failed');
+
