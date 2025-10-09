@@ -414,8 +414,6 @@ $gateway = config('services.default_payment_gateway', 'stripe');
                 </div>
                 @endif
 
-                </div>
-
                 <!-- Order Bumps -->
                 @if(!empty($bumps))
                 <div class="bg-[#1F1F1F] rounded-xl p-5 border border-gray-700">
