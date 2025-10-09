@@ -1,233 +1,197 @@
 <?php
 
-namespace App\Services\PaymentGateways;
+namespace App\Http\Controllers\Webhook;
 
-use App\Interfaces\PaymentGatewayInterface;
-use Illuminate\Support\Facades\Http;
+use App\Http\Controllers\Controller;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
-class AbacatePayGateway implements PaymentGatewayInterface
+class AbacatePayWebhookController extends Controller
 {
-    private string $apiKey;
-    private string $apiUrl;
-    private string $returnUrl;
-    private string $completionUrl;
-
-    public function __construct()
-    {
-        $this->apiKey = config('services.abacatepay.api_key');
-        $this->apiUrl = config('services.abacatepay.api_url', 'https://api.abacatepay.com/v1');
-        $this->returnUrl = config('services.abacatepay.return_url', 'https://web.snaphubb.online/obg/');
-        $this->completionUrl = config('services.abacatepay.completion_url', 'https://web.snaphubb.online/obg/');
-
-        if (!$this->apiKey) {
-            throw new \Exception('AbacatePay API Key not configured');
-        }
-    }
-
     /**
-     * Process payment via AbacatePay PIX
+     * Handle the incoming webhook from AbacatePay
      *
-     * @param array $data
-     * @return array
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
      */
-    public function processPayment(array $data): array
+    public function handle(Request $request)
     {
         try {
-            Log::channel('payment_checkout')->info('AbacatePay: Processing PIX payment', [
-                'customer' => $data['customer']['email'] ?? 'unknown',
-                'amount' => $data['amount'],
+            // Log da requisição recebida
+            Log::channel('webhooks')->info('AbacatePay: Webhook received', [
+                'headers' => $request->headers->all(),
+                'body' => $request->all(),
             ]);
 
-            // Preparar dados para AbacatePay
-            $pixData = $this->preparePixData($data);
-
-            // Fazer requisição para API
-            $response = Http::withHeaders([
-                'Authorization' => 'Bearer ' . $this->apiKey,
-                'Content-Type' => 'application/json',
-            ])->post($this->apiUrl . '/billing/create', $pixData);
-
-            // Log da resposta
-            Log::channel('payment_checkout')->info('AbacatePay: API Response', [
-                'status_code' => $response->status(),
-                'body' => $response->json(),
-            ]);
-
-            if ($response->successful()) {
-                $result = $response->json();
-                
-                return $this->formatSuccessResponse($result, $data);
+            // Validar assinatura do webhook (se configurado)
+            if (!$this->validateSignature($request)) {
+                Log::channel('webhooks')->error('AbacatePay: Invalid webhook signature');
+                return response()->json(['error' => 'Invalid signature'], 401);
             }
 
-            // Erro na API
-            return $this->formatErrorResponse($response);
+            // Obter dados do webhook
+            $payload = $request->all();
+            $event = $payload['event'] ?? null;
+            $billingData = $payload['data'] ?? [];
+
+            if (!$event) {
+                Log::channel('webhooks')->warning('AbacatePay: No event type in webhook');
+                return response()->json(['error' => 'No event type'], 400);
+            }
+
+            // Processar evento
+            switch ($event) {
+                case 'billing.paid':
+                case 'payment.success':
+                    $this->handlePaymentSuccess($billingData);
+                    break;
+
+                case 'billing.expired':
+                case 'payment.expired':
+                    $this->handlePaymentExpired($billingData);
+                    break;
+
+                case 'billing.failed':
+                case 'payment.failed':
+                    $this->handlePaymentFailed($billingData);
+                    break;
+
+                default:
+                    Log::channel('webhooks')->info('AbacatePay: Unhandled event type', [
+                        'event' => $event,
+                    ]);
+            }
+
+            return response()->json(['success' => true], 200);
 
         } catch (\Exception $e) {
-            Log::channel('payment_checkout')->error('AbacatePay: Exception', [
+            Log::channel('webhooks')->error('AbacatePay: Exception processing webhook', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
 
-            return [
-                'status' => 'error',
-                'message' => 'Erro ao processar pagamento PIX. Por favor, tente novamente.',
-            ];
+            return response()->json(['error' => 'Internal server error'], 500);
         }
     }
 
     /**
-     * Prepare PIX data for AbacatePay API
+     * Validate webhook signature
      *
-     * @param array $data
-     * @return array
-     */
-    private function preparePixData(array $data): array
-    {
-        // Preparar produtos
-        $products = [];
-        foreach ($data['cart'] as $item) {
-            $products[] = [
-                'externalId' => $item['product_hash'] ?? uniqid('prod_'),
-                'name' => $item['title'] ?? 'Produto',
-                'description' => $item['description'] ?? '',
-                'quantity' => $item['quantity'] ?? 1,
-                'price' => $item['price'], // em centavos
-            ];
-        }
-
-        // Limpar CPF (remover pontos e traços)
-        $cpf = isset($data['customer']['cpf']) 
-            ? preg_replace('/\D/', '', $data['customer']['cpf']) 
-            : '';
-
-        // Limpar telefone
-        $phone = isset($data['customer']['phone']) 
-            ? preg_replace('/\D/', '', $data['customer']['phone']) 
-            : '';
-
-        return [
-            'frequency' => 'ONE_TIME',
-            'methods' => ['PIX'],
-            'products' => $products,
-            'customer' => [
-                'name' => $data['customer']['name'] ?? 'Cliente',
-                'email' => $data['customer']['email'] ?? '',
-                'cellphone' => $phone,
-                'taxId' => $cpf,
-            ],
-            'returnUrl' => $this->returnUrl,
-            'completionUrl' => $this->completionUrl,
-            'metadata' => [
-                'source' => 'snaphubb',
-                'currency' => $data['currency_code'] ?? 'BRL',
-                'utm_source' => $data['utm_source'] ?? null,
-                'utm_campaign' => $data['utm_campaign'] ?? null,
-            ],
-        ];
-    }
-
-    /**
-     * Format success response
-     *
-     * @param array $result
-     * @param array $originalData
-     * @return array
-     */
-    private function formatSuccessResponse(array $result, array $originalData): array
-    {
-        // Extrair dados do QR Code
-        $qrCode = $result['pix']['qrcode'] ?? [];
-        $brCode = $qrCode['code'] ?? '';
-        $base64 = $qrCode['base64'] ?? '';
-
-        // Calcular data de expiração (30 minutos por padrão)
-        $expiresAt = isset($result['expiresAt']) 
-            ? $result['expiresAt'] 
-            : now()->addMinutes(30)->toIso8601String();
-
-        return [
-            'status' => 'success',
-            'data' => [
-                'pix_id' => $result['id'],
-                'brCode' => $brCode,
-                'brCodeBase64' => $base64 ? 'data:image/png;base64,' . $base64 : null,
-                'amount' => $originalData['amount'],
-                'status' => $result['status'] ?? 'PENDING',
-                'expires_at' => $expiresAt,
-                'url' => $result['url'] ?? null,
-                'customer' => [
-                    'name' => $originalData['customer']['name'] ?? '',
-                    'email' => $originalData['customer']['email'] ?? '',
-                ],
-            ],
-        ];
-    }
-
-    /**
-     * Format error response
-     *
-     * @param \Illuminate\Http\Client\Response $response
-     * @return array
-     */
-    private function formatErrorResponse($response): array
-    {
-        $statusCode = $response->status();
-        $body = $response->json();
-
-        $errorMessage = 'Erro ao gerar PIX.';
-
-        if (isset($body['message'])) {
-            $errorMessage = $body['message'];
-        } elseif (isset($body['error'])) {
-            $errorMessage = $body['error'];
-        }
-
-        Log::channel('payment_checkout')->error('AbacatePay: API Error', [
-            'status_code' => $statusCode,
-            'body' => $body,
-        ]);
-
-        return [
-            'status' => 'error',
-            'message' => $errorMessage,
-            'errors' => $body['errors'] ?? [],
-        ];
-    }
-
-    /**
-     * Get payment gateway name
-     *
-     * @return string
-     */
-    public function getName(): string
-    {
-        return 'AbacatePay';
-    }
-
-    /**
-     * Check if gateway supports refunds
-     *
+     * @param Request $request
      * @return bool
      */
-    public function supportsRefunds(): bool
+    private function validateSignature(Request $request): bool
     {
-        return false; // PIX não suporta estorno automático
+        $webhookSecret = config('services.abacatepay.webhook_secret');
+        
+        // Se não houver secret configurado, aceitar (para testes)
+        if (empty($webhookSecret)) {
+            Log::channel('webhooks')->warning('AbacatePay: Webhook secret not configured, skipping validation');
+            return true;
+        }
+
+        // Obter assinatura do header
+        $signature = $request->header('X-AbacatePay-Signature');
+        
+        if (!$signature) {
+            return false;
+        }
+
+        // Calcular hash esperado
+        $payload = $request->getContent();
+        $expectedSignature = hash_hmac('sha256', $payload, $webhookSecret);
+
+        return hash_equals($expectedSignature, $signature);
     }
 
     /**
-     * Process refund (not supported for PIX)
+     * Handle successful payment
      *
-     * @param string $transactionId
-     * @param float $amount
-     * @return array
+     * @param array $data
+     * @return void
      */
-    public function processRefund(string $transactionId, float $amount): array
+    private function handlePaymentSuccess(array $data): void
     {
-        return [
-            'status' => 'error',
-            'message' => 'Estornos PIX devem ser processados manualmente.',
-        ];
+        $billingId = $data['id'] ?? null;
+        $status = $data['status'] ?? null;
+        $customerEmail = $data['customer']['email'] ?? null;
+
+        Log::channel('webhooks')->info('AbacatePay: Payment successful', [
+            'billing_id' => $billingId,
+            'status' => $status,
+            'customer_email' => $customerEmail,
+        ]);
+
+        // TODO: Implementar lógica de negócio
+        // 1. Atualizar status da transação no banco de dados
+        // 2. Ativar assinatura do usuário
+        // 3. Enviar email de confirmação
+        // 4. Registrar no sistema de analytics
+        
+        // Exemplo:
+        // $transaction = Transaction::where('pix_id', $billingId)->first();
+        // if ($transaction) {
+        //     $transaction->update(['status' => 'PAID']);
+        //     $user = $transaction->user;
+        //     $user->activateSubscription();
+        //     Mail::to($user->email)->send(new PaymentConfirmed($transaction));
+        // }
+    }
+
+    /**
+     * Handle expired payment
+     *
+     * @param array $data
+     * @return void
+     */
+    private function handlePaymentExpired(array $data): void
+    {
+        $billingId = $data['id'] ?? null;
+        $status = $data['status'] ?? null;
+
+        Log::channel('webhooks')->info('AbacatePay: Payment expired', [
+            'billing_id' => $billingId,
+            'status' => $status,
+        ]);
+
+        // TODO: Implementar lógica de negócio
+        // 1. Atualizar status da transação no banco de dados
+        // 2. Enviar email notificando expiração
+        // 3. Registrar no sistema de analytics
+        
+        // Exemplo:
+        // $transaction = Transaction::where('pix_id', $billingId)->first();
+        // if ($transaction) {
+        //     $transaction->update(['status' => 'EXPIRED']);
+        // }
+    }
+
+    /**
+     * Handle failed payment
+     *
+     * @param array $data
+     * @return void
+     */
+    private function handlePaymentFailed(array $data): void
+    {
+        $billingId = $data['id'] ?? null;
+        $status = $data['status'] ?? null;
+
+        Log::channel('webhooks')->info('AbacatePay: Payment failed', [
+            'billing_id' => $billingId,
+            'status' => $status,
+        ]);
+
+        // TODO: Implementar lógica de negócio
+        // 1. Atualizar status da transação no banco de dados
+        // 2. Enviar email notificando falha
+        // 3. Registrar no sistema de analytics
+        
+        // Exemplo:
+        // $transaction = Transaction::where('pix_id', $billingId)->first();
+        // if ($transaction) {
+        //     $transaction->update(['status' => 'FAILED']);
+        // }
     }
 }
 
