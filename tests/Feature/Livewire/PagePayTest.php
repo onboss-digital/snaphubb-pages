@@ -71,8 +71,9 @@ class PagePayTest extends TestCase
 
         $component = $this->getFilledPagePayComponent()->call('startCheckout');
 
-        $component->assertDispatched('pix-generated')
-            ->call('checkPixStatus')
+        $component->assertDispatched('pix-generated');
+
+        $component->call('checkPixStatus')
             ->assertRedirect('https://web.snaphubb.online/obg-br/');
     }
 
@@ -83,8 +84,9 @@ class PagePayTest extends TestCase
 
         $component = $this->getFilledPagePayComponent()->call('startCheckout');
 
-        $component->assertDispatched('pix-generated')
-            ->call('checkPixStatus')
+        $component->assertDispatched('pix-generated');
+
+        $component->call('checkPixStatus')
             ->assertRedirect('https://web.snaphubb.online/fail-br');
     }
 
@@ -95,8 +97,9 @@ class PagePayTest extends TestCase
 
         $component = $this->getFilledPagePayComponent()->call('startCheckout');
 
-        $component->assertDispatched('pix-generated')
-            ->call('checkPixStatus')
+        $component->assertDispatched('pix-generated');
+
+        $component->call('checkPixStatus')
             ->assertRedirect('https://web.snaphubb.online/fail-br');
     }
 

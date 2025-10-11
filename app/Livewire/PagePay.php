@@ -710,7 +710,9 @@ class PagePay extends Component
             }
             
             // Recalculate plans and totals as language might affect labels (though prices should be language-agnostic)
-            $this->plans = $this->getPlans(); // Re-fetch plans to update labels
+            if ($this->selectedPaymentMethod !== 'pix') {
+                $this->plans = $this->getPlans(); // Re-fetch plans to update labels
+            }
             $this->testimonials = trans('checkout.testimonials');
             $this->calculateTotals();
             // Dispatch an event if JS needs to react to language change for UI elements not covered by Livewire re-render
