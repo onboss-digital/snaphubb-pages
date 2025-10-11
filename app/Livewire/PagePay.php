@@ -445,7 +445,7 @@ class PagePay extends Component
         //$this->showDownsellModal = $this->showUpsellModal = false;        
 
         $checkoutData = $this->prepareCheckoutData();
-        $this->paymentGateway = PaymentGatewayFactory::create();
+        $this->paymentGateway = app(PaymentGatewayFactory::class)->create();
         $response = $this->paymentGateway->processPayment($checkoutData);
 
         // ===== FLUXO PIX =====

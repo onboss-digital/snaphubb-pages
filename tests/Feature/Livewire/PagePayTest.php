@@ -69,9 +69,9 @@ class PagePayTest extends TestCase
     {
         $this->mockAbacatePayGateway('PAID');
 
-        $this->getFilledPagePayComponent()
-            ->call('startCheckout')
-            ->assertDispatched('pix-generated')
+        $component = $this->getFilledPagePayComponent()->call('startCheckout');
+
+        $component->assertDispatched('pix-generated')
             ->call('checkPixStatus')
             ->assertRedirect('https://web.snaphubb.online/obg-br/');
     }
@@ -81,9 +81,9 @@ class PagePayTest extends TestCase
     {
         $this->mockAbacatePayGateway('FAILED');
 
-        $this->getFilledPagePayComponent()
-            ->call('startCheckout')
-            ->assertDispatched('pix-generated')
+        $component = $this->getFilledPagePayComponent()->call('startCheckout');
+
+        $component->assertDispatched('pix-generated')
             ->call('checkPixStatus')
             ->assertRedirect('https://web.snaphubb.online/fail-br');
     }
@@ -93,9 +93,9 @@ class PagePayTest extends TestCase
     {
         $this->mockAbacatePayGateway('EXPIRED');
 
-        $this->getFilledPagePayComponent()
-            ->call('startCheckout')
-            ->assertDispatched('pix-generated')
+        $component = $this->getFilledPagePayComponent()->call('startCheckout');
+
+        $component->assertDispatched('pix-generated')
             ->call('checkPixStatus')
             ->assertRedirect('https://web.snaphubb.online/fail-br');
     }
