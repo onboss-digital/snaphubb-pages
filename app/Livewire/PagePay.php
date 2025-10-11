@@ -182,7 +182,7 @@ class PagePay extends Component
             ->then(function ($res) {
                 $responseBody = $res->getBody()->getContents();
                 $dataResponse = json_decode($responseBody, true);
-                $this->paymentGateway = PaymentGatewayFactory::create();
+                $this->paymentGateway = app(PaymentGatewayFactory::class)->create();
                 $result = $this->paymentGateway->formatPlans($dataResponse, $this->selectedCurrency);
                 $this->bumps = $result[$this->selectedPlan]['order_bumps'];
                 return $result;
@@ -455,6 +455,9 @@ class PagePay extends Component
                 $this->pixStatus = $response['data']['status'] ?? 'PENDING';
                 $this->showProcessingModal = false;
                 
+                // Dispara o evento para o frontend começar o polling
+                $this->dispatch('pix-generated');
+
                 Log::channel('payment_checkout')->info('PIX criado', [
                     'pix_id' => $this->pixData['pix_id'],
                 ]);
@@ -761,8 +764,11 @@ class PagePay extends Component
                 $this->pixStatus = $response['data']['status'];
 
                 if ($this->pixStatus === 'PAID') {
-                    // Redirecionar para página de obrigado
-                    return redirect()->to('https://web.snaphubb.online/obg/');
+                    return redirect()->to('https://web.snaphubb.online/obg-br/');
+                }
+
+                if (in_array($this->pixStatus, ['EXPIRED', 'FAILED'])) {
+                    return redirect()->to('https://web.snaphubb.online/fail-br');
                 }
             }
         } catch (\Exception $e) {
