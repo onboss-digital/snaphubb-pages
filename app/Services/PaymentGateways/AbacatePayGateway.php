@@ -283,5 +283,25 @@ class AbacatePayGateway implements PaymentGatewayInterface
             ];
         }
     }
+
+    // Métodos da interface que não são usados pelo fluxo PIX do AbacatePay
+    public function createCardToken(array $cardDetails): array
+    {
+        // Não aplicável para o fluxo PIX
+        return [];
+    }
+
+    public function handleResponse($response): array
+    {
+        // A lógica de formatação já está em formatSuccessResponse e formatErrorResponse
+        // Este método pode ser um placeholder
+        return (array) $response;
+    }
+
+    public function formatPlans(mixed $plans, string $currency): array
+    {
+        // Não aplicável, já que os planos do PIX são fixos no front-end
+        return (array) $plans;
+    }
 }
 

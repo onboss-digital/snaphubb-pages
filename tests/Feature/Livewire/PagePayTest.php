@@ -217,4 +217,51 @@ class PagePayTest extends TestCase
         Mockery::close();
         parent::tearDown();
     }
+
+    #[Test]
+    public function it_processes_pix_payment_correctly()
+    {
+        // 1. Configurar o gateway para AbacatePay (ou o gateway de PIX)
+        Config::set('services.default_payment_gateway', 'abacatepay');
+
+        // 2. Mock do AbacatePayGateway
+        $this->instance(
+            \App\Services\PaymentGateways\AbacatePayGateway::class,
+            Mockery::mock(\App\Services\PaymentGateways\AbacatePayGateway::class, function (MockInterface $mock) {
+                $mock->shouldReceive('processPayment')
+                    ->once()
+                    ->with(Mockery::on(function ($data) {
+                        // 3. Verificar se os dados corretos do PIX estão sendo enviados
+                        return $data['payment_method'] === 'pix'
+                            && $data['amount'] === 3990 // R$ 39,90 em centavos
+                            && $data['cart'][0]['product_hash'] === 'prod_LPxgasTBExfHKZKmmT4jR4gf'
+                            && $data['cart'][0]['title'] === 'Streaming Snaphubb - BR';
+                    }))
+                    ->andReturn([
+                        'status' => 'success',
+                        'data' => [
+                            'pix_id' => 'pix_12345',
+                            'status' => 'PENDING',
+                            'brCode' => '00020126...brcode',
+                            'brCodeBase64' => 'iVBORw0KGgoAAAANSUhEUgAA...',
+                        ]
+                    ]);
+            })
+        );
+
+        // 4. Montar o componente e simular a seleção do PIX
+        Livewire::test(PagePay::class)
+            ->set('selectedPaymentMethod', 'pix')
+            ->set('selectedLanguage', 'br') // PIX só está disponível para 'br'
+            ->set('cardName', 'Consumidor PIX')
+            ->set('email', 'pix@teste.com')
+            ->set('cpf', '111.222.333-44')
+            ->set('phone', '11987654321')
+            ->call('startCheckout')
+            ->assertHasNoErrors()
+            // 5. Verificar se os dados do PIX foram recebidos e o modal de processamento foi fechado
+            ->assertSet('pixData.pix_id', 'pix_12345')
+            ->assertSet('pixStatus', 'PENDING')
+            ->assertSet('showProcessingModal', false);
+    }
 }
