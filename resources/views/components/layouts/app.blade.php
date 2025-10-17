@@ -11,7 +11,6 @@
     @vite(['resources/css/app.css', 'resources/js/app.js', 'resources/js/pages/pay.js'])
 
     @yield('head')
-
     @livewireStyles
 
 </head>
