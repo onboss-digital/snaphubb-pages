@@ -17,15 +17,4 @@ Route::get('/', PagePay::class);
 Route::post('/webhook/abacatepay', [AbacatePayWebhookController::class, 'handle'])
     ->name('webhook.abacatepay');
 
-// ===== PÁGINAS DE RETORNO PIX =====
-
-// Página de sucesso após pagamento PIX
-Route::get('/obg/', function () {
-    return view('obg');
-})->name('payment.success');
-
-// Página de falha/expiração PIX (opcional)
-Route::get('/fail-pix/', function () {
-    return view('fail-pix');
-})->name('payment.failed');
 

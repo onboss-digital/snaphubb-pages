@@ -4,13 +4,6 @@ namespace App\Livewire;
 
 use App\Factories\PaymentGatewayFactory; // Added
 use App\Interfaces\PaymentGatewayInterface; // Added
-use Esign\ConversionsApi\Facades\ConversionsApi;
-use FacebookAds\Object\ServerSide\ActionSource;
-use FacebookAds\Object\ServerSide\Content;
-use FacebookAds\Object\ServerSide\CustomData;
-use FacebookAds\Object\ServerSide\Event;
-use FacebookAds\Object\ServerSide\EventRequest;
-use FacebookAds\Object\ServerSide\UserData;
 use GuzzleHttp\Client;
 use GuzzleHttp\Psr7\Request;
 use Livewire\Component;
@@ -24,10 +17,7 @@ class PagePay extends Component
         $plans, $modalData, $product, $testimonials = [],
         $utm_source, $utm_medium, $utm_campaign, $utm_id, $utm_term, $utm_content;
 
-    // ===== NOVAS PROPRIEDADES PARA PIX =====
-    public $selectedPaymentMethod = 'credit_card'; // 'credit_card' ou 'pix'
-    public $pixData = null; // Dados do PIX (QR Code, brCode, etc)
-    public $pixStatus = null; // Status do pagamento PIX (PENDING, PAID, EXPIRED, FAILED)
+    public $selectedPaymentMethod = 'credit_card';
 
     // Modais
     public $showSuccessModal = false;
@@ -105,13 +95,10 @@ class PagePay extends Component
             $rules['cpf'] = ['required', 'string', 'regex:/^\d{3}\.\d{3}\.\d{3}\-\d{2}$|^\d{11}$/'];
         }
 
-        // ===== VALIDAÇÃO CONDICIONAL BASEADA NO MÉTODO DE PAGAMENTO =====
-        if ($this->selectedPaymentMethod === 'credit_card') {
-            if ($this->gateway !== 'stripe') {
-                $rules['cardNumber'] = 'required|numeric|digits_between:13,19';
-                $rules['cardExpiry'] = ['required', 'string', 'regex:/^(0[1-9]|1[0-2])\/?([0-9]{2})$/'];
-                $rules['cardCvv'] = 'required|numeric|digits_between:3,4';
-            }
+        if ($this->gateway !== 'stripe') {
+            $rules['cardNumber'] = 'required|numeric|digits_between:13,19';
+            $rules['cardExpiry'] = ['required', 'string', 'regex:/^(0[1-9]|1[0-2])\/?([0-9]{2})$/'];
+            $rules['cardCvv'] = 'required|numeric|digits_between:3,4';
         }
 
         return $rules;
@@ -333,75 +320,58 @@ class PagePay extends Component
             $this->showSecure = true;
             $this->showLodingModal = true;
 
-            // ===== SEPARAÇÃO DOS FLUXOS DE VALIDAÇÃO E PAGAMENTO =====
+            // --- FLUXO CARTÃO ---
+            $rules = [
+                'cardName' => 'required|string|max:255',
+                'email' => 'required|email',
+            ];
 
-            if ($this->selectedPaymentMethod === 'pix') {
-                // --- FLUXO PIX ---
-                $this->validate([
-                    'cardName' => 'required|string|max:255',
-                    'email' => 'required|email',
-                    'cpf' => ['required', 'string', 'regex:/^\d{3}\.\d{3}\.\d{3}\-\d{2}$|^\d{11}$/'],
-                ]);
+            if ($this->selectedLanguage === 'br') {
+                $rules['cpf'] = ['required', 'string', 'regex:/^\d{3}\.\d{3}\.\d{3}\-\d{2}$|^\d{11}$/'];
+            }
 
-                $this->showProcessingModal = true;
-                $this->sendCheckout();
-                $this->showLodingModal = false;
-                return;
+            if ($this->gateway !== 'stripe') {
+                $rules['cardNumber'] = 'required|numeric|digits_between:13,19';
+                $rules['cardExpiry'] = ['required', 'string', 'regex:/^(0[1-9]|1[0-2])\/?([0-9]{2})$/'];
+                $rules['cardCvv'] = 'required|numeric|digits_between:3,4';
+            }
+            $this->validate($rules);
 
-            } else {
-                // --- FLUXO CARTÃO ---
-                $rules = [
-                    'cardName' => 'required|string|max:255',
-                    'email' => 'required|email',
-                ];
+            // Lógica de Upsell/Downsell para cartão
+            switch ($this->selectedPlan) {
+                case 'monthly':
+                case 'quarterly':
+                    if (isset($this->plans['semi-annual'])) {
+                        $this->showUpsellModal = true;
+                        $offerValue = round(
+                            $this->plans['semi-annual']['prices'][$this->selectedCurrency]['descont_price']
+                                / $this->plans['semi-annual']['nunber_months'],
+                            1
+                        );
 
-                if ($this->selectedLanguage === 'br') {
-                    $rules['cpf'] = ['required', 'string', 'regex:/^\d{3}\.\d{3}\.\d{3}\-\d{2}$|^\d{11}$/'];
-                }
+                        $offerDiscont = (
+                            $this->plans[$this->selectedPlan]['prices'][$this->selectedCurrency]['origin_price']
+                            * $this->plans['semi-annual']['nunber_months']
+                        ) - ($offerValue * $this->plans['semi-annual']['nunber_months']);
 
-                if ($this->gateway !== 'stripe') {
-                    $rules['cardNumber'] = 'required|numeric|digits_between:13,19';
-                    $rules['cardExpiry'] = ['required', 'string', 'regex:/^(0[1-9]|1[0-2])\/?([0-9]{2})$/'];
-                    $rules['cardCvv'] = 'required|numeric|digits_between:3,4';
-                }
-                $this->validate($rules);
-
-                // Lógica de Upsell/Downsell para cartão
-                switch ($this->selectedPlan) {
-                    case 'monthly':
-                    case 'quarterly':
-                        if (isset($this->plans['semi-annual'])) {
-                            $this->showUpsellModal = true;
-                            $offerValue = round(
-                                $this->plans['semi-annual']['prices'][$this->selectedCurrency]['descont_price']
-                                    / $this->plans['semi-annual']['nunber_months'],
-                                1
-                            );
-
-                            $offerDiscont = (
-                                $this->plans[$this->selectedPlan]['prices'][$this->selectedCurrency]['origin_price']
-                                * $this->plans['semi-annual']['nunber_months']
-                            ) - ($offerValue * $this->plans['semi-annual']['nunber_months']);
-
-                            $this->modalData = [
-                                'actual_month_value'    => $this->totals['month_price_discount'],
-                                'offer_month_value'     => number_format($offerValue, 2, ',', '.'),
-                                'offer_total_discount'  => number_format($offerDiscont, 2, ',', '.'),
-                                'offer_total_value'     => number_format(
-                                    $this->plans['semi-annual']['prices'][$this->selectedCurrency]['descont_price'],
-                                    2,
-                                    ',',
-                                    '.'
-                                ),
-                            ];
-                            break;
-                        }
-                    default:
-                        $this->showProcessingModal = true;
-                        $this->sendCheckout();
-                        $this->showLodingModal = false;
-                        return;
-                }
+                        $this->modalData = [
+                            'actual_month_value'    => $this->totals['month_price_discount'],
+                            'offer_month_value'     => number_format($offerValue, 2, ',', '.'),
+                            'offer_total_discount'  => number_format($offerDiscont, 2, ',', '.'),
+                            'offer_total_value'     => number_format(
+                                $this->plans['semi-annual']['prices'][$this->selectedCurrency]['descont_price'],
+                                2,
+                                ',',
+                                '.'
+                            ),
+                        ];
+                        break;
+                    }
+                default:
+                    $this->showProcessingModal = true;
+                    $this->sendCheckout();
+                    $this->showLodingModal = false;
+                    return;
             }
         } catch (\Illuminate\Validation\ValidationException $e) {
             $this->showLodingModal = false;
@@ -455,35 +425,6 @@ class PagePay extends Component
         $this->paymentGateway = app(PaymentGatewayFactory::class)->create();
         $response = $this->paymentGateway->processPayment($checkoutData);
 
-        // ===== FLUXO PIX =====
-        if ($this->selectedPaymentMethod === 'pix') {
-            if ($response['status'] === 'success') {
-                $this->pixData = $response['data'];
-                $this->pixStatus = $response['data']['status'] ?? 'PENDING';
-                $this->showProcessingModal = false;
-
-                session([
-                    'checkout_totals' => $this->totals,
-                    'checkout_product' => $this->product,
-                ]);
-                
-                // Dispara o evento para o frontend começar o polling
-                $this->dispatch('pix-generated');
-
-                Log::channel('payment_checkout')->info('PIX criado', [
-                    'pix_id' => $this->pixData['pix_id'],
-                ]);
-            } else {
-                $this->showProcessingModal = false;
-                $this->showErrorModal = true;
-                $this->modalData = [
-                    'message' => $response['message'] ?? 'Erro ao gerar PIX.',
-                ];
-            }
-            return;
-        }
-
-        // ===== FLUXO CARTÃO (ORIGINAL) =====
         if ($response['status'] === 'success') {
             Log::channel('payment_checkout')->info('PagePay: Payment successful via gateway.', [
                 'gateway' => get_class($this->paymentGateway),
@@ -507,7 +448,6 @@ class PagePay extends Component
 
             // Dispatch the event to the browser
             $this->dispatch('checkout-success', purchaseData: $purchaseData);
-            $this->sendPurchaseEvent();
             if (isset($response['data']) && !empty($response['data'])) {
                 // data existe e não está vazia
                 $customerId = $response['data']['customerId'];
@@ -550,40 +490,6 @@ class PagePay extends Component
             $customerData['document'] = preg_replace('/\D/', '', $this->cpf);
         }
 
-        // --- FLUXO PIX ---
-        if ($this->selectedPaymentMethod === 'pix') {
-            $cartItems[] = [
-                'product_hash' => 'prod_LPxgasTBExfHKZKmmT4jR4gf',
-                'title' => 'Streaming Snaphubb - BR',
-                'price' => (int)round(floatval(39.90) * 100),
-                'recurring' => null,
-                'quantity' => 1,
-                'operation_type' => 1,
-            ];
-
-            return [
-                'amount' => (int)round(39.90 * 100),
-                'currency_code' => 'BRL',
-                'offer_hash' => 'prod_LPxgasTBExfHKZKmmT4jR4gf',
-                'payment_method' => 'pix',
-                'customer' => $customerData,
-                'cart' => $cartItems,
-                'installments' => 1,
-                'selected_plan_key' => 'monthly',
-                'language' => 'br',
-                'expiresIn' => config('services.abacatepay.pix_expiration', 1800),
-                 'metadata' => [
-                    'utm_source' => $this->utm_source,
-                    'utm_medium' => $this->utm_medium,
-                    'utm_campaign' => $this->utm_campaign,
-                    'utm_id' => $this->utm_id,
-                    'utm_term' => $this->utm_term,
-                    'utm_content' => $this->utm_content,
-                ]
-            ];
-        }
-
-        // --- FLUXO CARTÃO (LÓGICA ORIGINAL) ---
         $numeric_final_price = floatval(str_replace(',', '.', str_replace('.', '', $this->totals['final_price'])));
 
         $expMonth = null;
@@ -714,12 +620,6 @@ class PagePay extends Component
                 : ($lang === 'en' ? 'USD'
                     : ($lang === 'es' ? 'EUR' : 'BRL'));
             
-            // ===== RESETAR PARA CARTÃO SE NÃO FOR BRASIL =====
-            if ($lang !== 'br' && $this->selectedPaymentMethod === 'pix') {
-                $this->selectedPaymentMethod = 'credit_card';
-                $this->pixData = null;
-                $this->pixStatus = null;
-            }
             
             // Recalculate plans and totals as language might affect labels (though prices should be language-agnostic)
             $this->plans = $this->getPlans(); // Re-fetch plans to update labels
@@ -759,74 +659,6 @@ class PagePay extends Component
         }
 
         $this->changeLanguage($this->selectedLanguage);
-    }
-
-    // ===== MÉTODO PARA VERIFICAR STATUS DO PIX (POLLING) =====
-    public function checkPixStatus()
-    {
-        if (!$this->pixData || !isset($this->pixData['pix_id'])) {
-            return;
-        }
-
-        try {
-            $pixGateway = app(PaymentGatewayFactory::class)->create('abacatepay');
-            $response = $pixGateway->checkPaymentStatus($this->pixData['pix_id']);
-
-            if ($response['status'] === 'success') {
-                $this->pixStatus = $response['data']['status'];
-
-                if ($this->pixStatus === 'PAID') {
-                    $this->totals = session('checkout_totals', []);
-                    $this->product = session('checkout_product', []);
-                    $this->sendPurchaseEvent();
-                    session()->forget(['checkout_totals', 'checkout_product']);
-                    return redirect()->to('https://web.snaphubb.online/obg-br/');
-                }
-
-                if (in_array($this->pixStatus, ['EXPIRED', 'FAILED'])) {
-                    return redirect()->to('https://web.snaphubb.online/fail-br');
-                }
-            }
-        } catch (\Exception $e) {
-            Log::error('Erro ao verificar status do PIX', [
-                'pix_id' => $this->pixData['pix_id'],
-                'error' => $e->getMessage(),
-            ]);
-        }
-    }
-
-    private function sendPurchaseEvent()
-    {
-        if (empty($this->totals) || empty($this->product)) {
-            return;
-        }
-
-        $userData = (new UserData())
-            ->setEmails([hash('sha256', $this->email)])
-            ->setPhones([hash('sha256', $this->phone)])
-            ->setClientIpAddress(request()->ip())
-            ->setClientUserAgent(request()->userAgent());
-
-        $content = (new Content())
-            ->setProductId($this->product['hash'])
-            ->setQuantity(1)
-            ->setDeliveryCategory('home_delivery');
-
-        $customData = (new CustomData())
-            ->setContents([$content])
-            ->setCurrency('BRL')
-            ->setValue(floatval(str_replace(',', '.', $this->totals['final_price'])));
-
-        $event = (new Event())
-            ->setEventName('Purchase')
-            ->setEventTime(time())
-            ->setEventSourceUrl(url()->current())
-            ->setUserData($userData)
-            ->setCustomData($customData)
-            ->setActionSource(ActionSource::WEBSITE);
-
-        ConversionsApi::addEvent($event);
-        ConversionsApi::sendEvents();
     }
 
     public function render()

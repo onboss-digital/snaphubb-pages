@@ -15,6 +15,7 @@
     },
     "dependencies": {
         "@alpinejs/mask": "^3.14.9",
-        "alpinejs": "^3.14.9"
+        "alpinejs": "^3.14.9",
+        "playwright": "^1.56.1"
     }
 }

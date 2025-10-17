@@ -30,7 +30,6 @@ return [
 
     // Payment
     'payment_method' => 'Método de pago',
-    'pix' => 'PIX',
     'card' => 'Tarjeta',
     'expiry_date' => 'Fecha de expiración',
     'security_code' => 'Código de seguridad',
