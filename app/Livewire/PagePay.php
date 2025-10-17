@@ -4,6 +4,13 @@ namespace App\Livewire;
 
 use App\Factories\PaymentGatewayFactory; // Added
 use App\Interfaces\PaymentGatewayInterface; // Added
+use Esign\ConversionsApi\Facades\ConversionsApi;
+use FacebookAds\Object\ServerSide\ActionSource;
+use FacebookAds\Object\ServerSide\Content;
+use FacebookAds\Object\ServerSide\CustomData;
+use FacebookAds\Object\ServerSide\Event;
+use FacebookAds\Object\ServerSide\EventRequest;
+use FacebookAds\Object\ServerSide\UserData;
 use GuzzleHttp\Client;
 use GuzzleHttp\Psr7\Request;
 use Livewire\Component;
@@ -454,6 +461,11 @@ class PagePay extends Component
                 $this->pixData = $response['data'];
                 $this->pixStatus = $response['data']['status'] ?? 'PENDING';
                 $this->showProcessingModal = false;
+
+                session([
+                    'checkout_totals' => $this->totals,
+                    'checkout_product' => $this->product,
+                ]);
                 
                 // Dispara o evento para o frontend começar o polling
                 $this->dispatch('pix-generated');
@@ -495,7 +507,7 @@ class PagePay extends Component
 
             // Dispatch the event to the browser
             $this->dispatch('checkout-success', purchaseData: $purchaseData);
-
+            $this->sendPurchaseEvent();
             if (isset($response['data']) && !empty($response['data'])) {
                 // data existe e não está vazia
                 $customerId = $response['data']['customerId'];
@@ -757,13 +769,17 @@ class PagePay extends Component
         }
 
         try {
-            $pixGateway = PaymentGatewayFactory::create('abacatepay');
+            $pixGateway = app(PaymentGatewayFactory::class)->create('abacatepay');
             $response = $pixGateway->checkPaymentStatus($this->pixData['pix_id']);
 
             if ($response['status'] === 'success') {
                 $this->pixStatus = $response['data']['status'];
 
                 if ($this->pixStatus === 'PAID') {
+                    $this->totals = session('checkout_totals', []);
+                    $this->product = session('checkout_product', []);
+                    $this->sendPurchaseEvent();
+                    session()->forget(['checkout_totals', 'checkout_product']);
                     return redirect()->to('https://web.snaphubb.online/obg-br/');
                 }
 
@@ -777,6 +793,40 @@ class PagePay extends Component
                 'error' => $e->getMessage(),
             ]);
         }
+    }
+
+    private function sendPurchaseEvent()
+    {
+        if (empty($this->totals) || empty($this->product)) {
+            return;
+        }
+
+        $userData = (new UserData())
+            ->setEmails([hash('sha256', $this->email)])
+            ->setPhones([hash('sha256', $this->phone)])
+            ->setClientIpAddress(request()->ip())
+            ->setClientUserAgent(request()->userAgent());
+
+        $content = (new Content())
+            ->setProductId($this->product['hash'])
+            ->setQuantity(1)
+            ->setDeliveryCategory('home_delivery');
+
+        $customData = (new CustomData())
+            ->setContents([$content])
+            ->setCurrency('BRL')
+            ->setValue(floatval(str_replace(',', '.', $this->totals['final_price'])));
+
+        $event = (new Event())
+            ->setEventName('Purchase')
+            ->setEventTime(time())
+            ->setEventSourceUrl(url()->current())
+            ->setUserData($userData)
+            ->setCustomData($customData)
+            ->setActionSource(ActionSource::WEBSITE);
+
+        ConversionsApi::addEvent($event);
+        ConversionsApi::sendEvents();
     }
 
     public function render()
