@@ -15,7 +15,7 @@ class PagePay extends Component
 
     public $paymentMethodId, $cardName, $cardNumber, $cardExpiry, $cardCvv, $email, $phone, $cpf,
         $plans, $modalData, $product, $testimonials = [],
-        $utm_source, $utm_medium, $utm_campaign, $utm_id, $utm_term, $utm_content;
+        $utm_source, $utm_medium, $utm_campaign, $utm_id, $utm_term, $utm_content, $src, $sck;
 
     public $selectedPaymentMethod = 'credit_card';
 
@@ -124,6 +124,8 @@ class PagePay extends Component
         $this->utm_id = request()->query('utm_id');
         $this->utm_term = request()->query('utm_term');
         $this->utm_content = request()->query('utm_content');
+        $this->src = request()->query('src');
+        $this->sck = request()->query('sck');
 
         if (env('APP_DEBUG')) {
             $this->debug();
@@ -561,6 +563,8 @@ class PagePay extends Component
                 'utm_id' => $this->utm_id,
                 'utm_term' => $this->utm_term,
                 'utm_content' => $this->utm_content,
+                'src' => $this->src,
+                'sck' => $this->sck,
             ]
         ];
 

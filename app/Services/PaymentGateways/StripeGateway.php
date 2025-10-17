@@ -136,11 +136,11 @@ class StripeGateway implements PaymentGatewayInterface
                         'payment_behavior' => 'allow_incomplete', // ⚡ permite criar e cobrar
                         'collection_method' => 'charge_automatically',
                         'expand' => ['latest_invoice.payment_intent'],
-                        'metadata' => [
+                        'metadata' => array_merge($paymentData['metadata'] ?? [], [
                             'price_id' => $product['price_id'],
                             'product_id' => $product['product_hash'],
                             'title' => $product['title']
-                        ]
+                        ])
                     ];
 
                     $sub = $this->request('post', '/subscriptions', $subscriptionData);
