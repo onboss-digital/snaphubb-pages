@@ -238,7 +238,7 @@ $gateway = config('services.default_payment_gateway', 'stripe');
                         <div>
                             <label class="block text-sm font-medium text-gray-300 mb-1">E-mail</label>
                             <input name="email" type="email" placeholder="seu@email.com"
-                                wire:model.defer="email"
+                                wire:model.live.debounce.500ms="email"
                                 class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
                             @error('email')
                             <span class="text-red-500 text-xs mt-1">{{ $message }}</span>
@@ -248,8 +248,8 @@ $gateway = config('services.default_payment_gateway', 'stripe');
                         <div>
                             <label
                                 class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.phone') }}</label>
-                            <input name="phone" type="tel" placeholder="+55 (11) 99999-9999"
-                                wire:model.defer="phone"
+                            <input name="phone" type="tel" placeholder=""
+                                wire:model="phone"
                                 class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
                             @error('phone')
                             <span class="text-red-500 text-xs mt-1">{{ $message }}</span>
@@ -592,7 +592,7 @@ $gateway = config('services.default_payment_gateway', 'stripe');
                 class="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-[#E50914] border-r-2 border-b-2 border-transparent">
             </div>
         </div>
-        <h3 class="text-xl font-bold text-white mb-2">{{ __('payment.processing_payment') }}</h3>
+        <h3 class="text-xl font-bold text-white mb-2">{{ $loadingMessage }}</h3>
         <p class="text-gray-300">{{ __('payment.please_wait') }}</p>
     </div>
 </div>
@@ -705,6 +705,7 @@ $gateway = config('services.default_payment_gateway', 'stripe');
 </div>
 <!-- Stripe JS -->
 @push('scripts')
+@vite('resources/js/pages/pay.js')
 @if($gateway === 'stripe')
 <script src="https://js.stripe.com/v3/"></script>
 <script>
