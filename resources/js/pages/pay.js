@@ -1,4 +1,3 @@
-import 'intl-tel-input/build/css/intlTelInput.css';
 import intlTelInput from 'intl-tel-input';
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -13,15 +12,13 @@ document.addEventListener('DOMContentLoaded', function() {
                     .then(function(data) { callback(data.country_code); })
                     .catch(function() { callback("us"); });
             },
-            utilsScript: "/build/js/utils.js" // for formatting/validation etc.
+            utilsScript: "/build/js/utils.js"
         });
 
         phoneInput.addEventListener('change', function() {
-            if (typeof iti.getNumber === 'function') {
+            if (typeof iti.getNumber === 'function' && iti.isValidNumber()) {
                 const fullNumber = iti.getNumber();
-                if (iti.isValidNumber()) {
-                    Livewire.dispatch('updatePhone', { phone: fullNumber });
-                }
+                Livewire.dispatch('updatePhone', { phone: fullNumber });
             }
         });
     }
