@@ -5,8 +5,6 @@ namespace App\Rules;
 use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
 use libphonenumber\PhoneNumberUtil;
-use libphonenumber\PhoneNumberToCarrierMapper;
-
 
 class ValidPhoneNumber implements ValidationRule
 {
