@@ -1,4 +1,13 @@
+@import 'intl-tel-input/build/css/intlTelInput.css';
 @import 'tailwindcss';
+
+.iti {
+    width: 100% !important;
+}
+
+.iti__country-list {
+    z-index: 100 !important;
+}
 
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';

@@ -106,15 +106,13 @@ return [
     'want_offer' => 'Quiero esta oferta',
 
     // Processing
-    'processing_payment' => 'Procesando pago',
-    'please_wait' => 'Por favor, espera mientras completamos tu suscripción...',
-    'processing_error' => 'Error de pago',
-    'error' => 'Verifique su tarjeta',
-    'éxito' => 'Pago realizado con éxito',
-    
+    'processing_payment' => 'Procesando pago...',
+    'generating_pix' => 'Generando PIX...',
+    'please_wait' => 'Un momento',
+
     // Customization
-    'customizing' => 'Personalizando tu experiencia premium...',
-    'optimizing' => 'Optimizando catálogo y recomendaciones 🔍',
+    'customizing' => 'Personalizando tu experiencia...',
+    'optimizing' => 'Optimizando tu acceso... 🔍',
 
     // Chat
     'help' => '¿Ayuda?',

@@ -10,6 +10,7 @@ return [
     'digits_between' => 'The :attribute field must be between :min and :max digits.',
     'regex' => 'The :attribute field format is invalid.',
     'email' => 'The :attribute field must be a valid email address.',
+    'phone_invalid' => 'The :attribute field is not a valid phone number.',
 
     /*
     |--------------------------------------------------------------------------

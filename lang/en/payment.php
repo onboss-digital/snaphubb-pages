@@ -106,16 +106,14 @@ return [
     'want_offer' => 'I want this offer',
 
     // Processing
-    'processing_payment' => 'Processing payment',
-    'please_wait' => 'Please wait while we complete your subscription...',
-    'processing_error' => 'Payment error',
-    'error' => 'check your card',
-    'success' => 'Payment made successfully',
+    'processing_payment' => 'Processing payment...',
+    'generating_pix' => 'Generating PIX...',
+    'please_wait' => 'Just a moment',
 
 
     // Customization
-    'customizing' => 'Customizing your premium experience...',
-    'optimizing' => 'Optimizing catalog and recommendations 🔍',
+    'customizing' => 'Customizing your experience...',
+    'optimizing' => 'Optimizing your access... 🔍',
 
     // Chat
     'help' => 'Help?',
