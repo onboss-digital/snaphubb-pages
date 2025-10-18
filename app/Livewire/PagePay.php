@@ -4,6 +4,7 @@ namespace App\Livewire;
 
 use App\Factories\PaymentGatewayFactory; // Added
 use App\Interfaces\PaymentGatewayInterface; // Added
+use App\Rules\ValidPhoneNumber;
 use GuzzleHttp\Client;
 use GuzzleHttp\Psr7\Request;
 use Livewire\Component;
@@ -27,6 +28,7 @@ class PagePay extends Component
     public $showDownsellModal = false;
     public $showUpsellModal = false;
     public $showProcessingModal = false;
+    public $loadingMessage = '';
 
     public $selectedCurrency = 'BRL';
     public $selectedLanguage = 'br';
@@ -88,7 +90,7 @@ class PagePay extends Component
         $rules = [
             'cardName' => 'required|string|max:255',
             'email' => 'required|email',
-            'phone' => ['nullable', 'string', 'regex:/^\+?[0-9\s\-\(\)]{7,20}$/'],
+            'phone' => ['nullable', 'string', new ValidPhoneNumber],
         ];
 
         if ($this->selectedLanguage === 'br') {
@@ -322,6 +324,12 @@ class PagePay extends Component
             $this->showSecure = true;
             $this->showLodingModal = true;
 
+            if ($this->selectedPaymentMethod === 'pix') {
+                $this->loadingMessage = __('payment.generating_pix');
+            } else {
+                $this->loadingMessage = __('payment.processing_payment');
+            }
+
             // --- FLUXO CARTÃO ---
             $rules = [
                 'cardName' => 'required|string|max:255',
@@ -421,7 +429,8 @@ class PagePay extends Component
 
     public function sendCheckout()
     {
-        //$this->showDownsellModal = $this->showUpsellModal = false;        
+        //$this->showDownsellModal = $this->showUpsellModal = false;
+        $this->loadingMessage = __('payment.processing_payment');
 
         $checkoutData = $this->prepareCheckoutData();
         $this->paymentGateway = app(PaymentGatewayFactory::class)->create();
@@ -606,7 +615,12 @@ class PagePay extends Component
 
     public function getListeners()
     {
-        return []; // Removed Echo listeners
+        return ['updatePhone' => 'updatePhone'];
+    }
+
+    public function updatePhone($event)
+    {
+        $this->phone = $event['phone'];
     }
 
     public function updateActivityCount()
