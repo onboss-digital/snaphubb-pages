@@ -123,13 +123,14 @@ return [
     'cancellation' => '🧾 Cancellation',
 
     // PIX
-    'pix_title' => 'Pay with PIX',
-    'pix_instructions' => 'Scan the QR Code or copy the code below to pay.',
-    'copy_code' => 'Copy Code',
-    'pay_with_card' => 'Pay with Card',
+    'pix' => 'PIX',
     'generate_pix' => 'Generate PIX',
-    'full_name' => 'Full Name',
-    'credit_card' => 'Credit Card',
-    'cancel' => 'Cancel',
-    'secure_data' => 'Don\'t worry, your data is encrypted to maintain confidentiality.',
+    'pix_almost_done' => 'Almost there!',
+    'pix_scan_qr' => 'Scan the QR Code below with your banking app to pay.',
+    'pix_or_copy' => 'Or copy the code and pay in your app:',
+    'pix_copied' => 'PIX code copied!',
+    'pix_waiting_payment' => 'Waiting for payment...',
+    'pix_wrong_data' => 'Incorrect data? Go back and correct.',
+    'complete_to_generate_pix' => 'Fill in your details to generate the PIX',
+    'pix_access_for_life' => 'Lifetime access for just one payment.',
 ];

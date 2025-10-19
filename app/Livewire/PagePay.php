@@ -23,7 +23,6 @@ class PagePay extends Component
     // PIX Properties
     public $pix_name, $pix_email, $pix_phone;
     public $showPixModal = false;
-    public $showPixFormModal = false;
     public $pixQrCode;
     public $pixQrCodeBase64;
     public $pixTransactionId;
@@ -314,6 +313,14 @@ class PagePay extends Component
 
     public function startCheckout()
     {
+        // If PIX is selected, the main button should just open the modal.
+        if ($this->selectedPaymentMethod === 'pix') {
+            $this->resetPixModal();
+            $this->showPixModal = true;
+            return;
+        }
+
+        // Proceed with credit card logic
         if ($this->cardNumber) {
             $this->cardNumber = preg_replace('/\D/', '', $this->cardNumber);
         }
@@ -333,12 +340,8 @@ class PagePay extends Component
         try {
             $this->showSecure = true;
             $this->showLodingModal = true;
+            $this->loadingMessage = __('payment.processing_payment');
 
-            if ($this->selectedPaymentMethod === 'pix') {
-                $this->loadingMessage = __('payment.generating_pix');
-            } else {
-                $this->loadingMessage = __('payment.processing_payment');
-            }
 
             // --- FLUXO CARTÃO ---
             $rules = [
@@ -469,19 +472,24 @@ class PagePay extends Component
 
             // Dispatch the event to the browser
             $this->dispatch('checkout-success', purchaseData: $purchaseData);
-            if (isset($response['data']) && !empty($response['data'])) {
-                // data existe e não está vazia
-                $customerId = $response['data']['customerId'];
+
+            if (isset($response['data']['redirect_url']) && !empty($response['data']['redirect_url'])) {
+                $customerId = $response['data']['customerId'] ?? null;
+                $upsell_productId = $response['data']['upsell_productId'] ?? null;
                 $redirectUrl = $response['data']['redirect_url'];
-                $upsell_productId = $response['data']['upsell_productId'];
-                if (!empty($redirectUrl)) {
-                return redirect()->to($redirectUrl . "?customerId=" . $customerId . "&upsell_productId=" . $upsell_productId);
-                } else {
-                    return;
-                }
+
+                // Construir a URL de redirecionamento com os parâmetros, se existirem
+                $queryParams = http_build_query(array_filter([
+                    'customerId' => $customerId,
+                    'upsell_productId' => $upsell_productId,
+                ]));
+
+                return redirect()->to($redirectUrl . '?' . $queryParams);
+            } else {
+                // Fallback para o caso de a URL de redirecionamento não estar no data
+                $redirectUrl = $response['redirect_url'] ?? "https://web.snaphubb.online/obg/";
+                return redirect()->to($redirectUrl);
             }
-            $redirectUrl = $response['redirect_url'] ?? "https://web.snaphubb.online/obg/"; // Default or from response
-            return redirect()->to($redirectUrl);
         } else {
             Log::channel('payment_checkout')->error('PagePay: Payment failed via gateway.', [
                 'gateway' => get_class($this->paymentGateway),
@@ -518,6 +526,7 @@ class PagePay extends Component
             }
         }
 
+        // Lógica existente para cartão de crédito
         $numeric_final_price = floatval(str_replace(',', '.', str_replace('.', '', $this->totals['final_price'])));
 
         $expMonth = null;
@@ -602,12 +611,6 @@ class PagePay extends Component
         return $baseData;
     }
 
-    public function updatedSelectedPaymentMethod($value)
-    {
-        if ($value === 'pix') {
-            $this->showPixFormModal = true;
-        }
-    }
 
     public function startPixCheckout()
     {
@@ -617,7 +620,6 @@ class PagePay extends Component
             'pix_phone' => ['required', 'string', new ValidPhoneNumber],
         ]);
 
-        $this->showPixFormModal = false;
         $this->loadingMessage = __('payment.generating_pix');
         $this->showLodingModal = true;
 
@@ -640,9 +642,9 @@ class PagePay extends Component
                 'message' => $e->getMessage(),
             ]);
             $this->showErrorModal = true;
+        } finally {
+            $this->showLodingModal = false;
         }
-
-        $this->showLodingModal = false;
     }
 
     public function checkPixPaymentStatus()
@@ -656,6 +658,18 @@ class PagePay extends Component
                 if ($status === 'approved') {
                     $this->showPixModal = false;
                     $this->showSuccessModal = true;
+
+                    // 🎯 Dispara evento Purchase para PIX
+                    $purchaseData = [
+                        'transaction_id' => $this->pixTransactionId,
+                        'value' => floatval(str_replace(',', '.', str_replace('.', '', $this->totals['final_price']))),
+                        'currency' => 'BRL',
+                        'content_ids' => [$this->product['hash']],
+                        'content_type' => 'product',
+                    ];
+
+                    $this->dispatch('pix-paid', pixData: $purchaseData);
+
                     return redirect()->to('https://web.snaphubb.online/obg-br');
                 } elseif (in_array($status, ['rejected', 'cancelled'])) {
                     $this->showPixModal = false;
@@ -668,13 +682,12 @@ class PagePay extends Component
 
     public function closeModal()
     {
-        if ($this->showPixModal || $this->showPixFormModal) {
+        if ($this->showPixModal) {
             $this->selectedPaymentMethod = 'credit_card';
         }
         $this->showErrorModal = false;
         $this->showSuccessModal = false;
         $this->showPixModal = false;
-        $this->showPixFormModal = false;
     }
 
     public function decrementTimer()
@@ -782,4 +795,5 @@ class PagePay extends Component
             'canonical' => url()->current(),
         ]);
     }
+
 }
