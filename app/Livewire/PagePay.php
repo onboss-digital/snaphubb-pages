@@ -20,6 +20,14 @@ class PagePay extends Component
 
     public $selectedPaymentMethod = 'credit_card';
 
+    // PIX Properties
+    public $pix_name, $pix_email, $pix_phone;
+    public $showPixModal = false;
+    public $showPixFormModal = false;
+    public $pixQrCode;
+    public $pixQrCodeBase64;
+    public $pixTransactionId;
+
     // Modais
     public $showSuccessModal = false;
     public $showErrorModal = false;
@@ -288,9 +296,11 @@ class PagePay extends Component
 
     $finalPrice = $prices['descont_price'];
 
-    foreach ($this->bumps as $bump) {
-        if (!empty($bump['active'])) {
-            $finalPrice += floatval($bump['price']);
+    if ($this->selectedPaymentMethod !== 'pix') {
+        foreach ($this->bumps as $bump) {
+            if (!empty($bump['active'])) {
+                $finalPrice += floatval($bump['price']);
+            }
         }
     }
 
@@ -500,14 +510,21 @@ class PagePay extends Component
 
     private function prepareCheckoutData()
     {
-        // customer
-        $customerData = [
-            'name' => $this->cardName,
-            'email' => $this->email,
-            'phone_number' => preg_replace('/[^0-9+]/', '', $this->phone),
-        ];
-        if ($this->selectedLanguage === 'br' && $this->cpf) {
-            $customerData['document'] = preg_replace('/\D/', '', $this->cpf);
+        if ($this->selectedPaymentMethod === 'pix') {
+            $customerData = [
+                'name' => $this->pix_name,
+                'email' => $this->pix_email,
+                'phone_number' => preg_replace('/[^0-9+]/', '', $this->pix_phone),
+            ];
+        } else {
+            $customerData = [
+                'name' => $this->cardName,
+                'email' => $this->email,
+                'phone_number' => preg_replace('/[^0-9+]/', '', $this->phone),
+            ];
+            if ($this->selectedLanguage === 'br' && $this->cpf) {
+                $customerData['document'] = preg_replace('/\D/', '', $this->cpf);
+            }
         }
 
         // Lógica existente para cartão de crédito
@@ -537,17 +554,19 @@ class PagePay extends Component
             'operation_type' => 1,
         ];
 
-        foreach ($this->bumps as $bump) {
-            if (!empty($bump['active'])) {
-                $cartItems[] = [
-                    'product_hash' => $bump['hash'],
-                    'price_id' => $bump['price_id'] ?? null,
-                    'title' => $bump['title'],
-                    'price' => (int)round(floatval($bump['price']) * 100),
-                    'recurring' => $bump['recurring'] ?? null,
-                    'quantity' => 1,
-                    'operation_type' => 2,
-                ];
+        if ($this->selectedPaymentMethod !== 'pix') {
+            foreach ($this->bumps as $bump) {
+                if (!empty($bump['active'])) {
+                    $cartItems[] = [
+                        'product_hash' => $bump['hash'],
+                        'price_id' => $bump['price_id'] ?? null,
+                        'title' => $bump['title'],
+                        'price' => (int)round(floatval($bump['price']) * 100),
+                        'recurring' => $bump['recurring'] ?? null,
+                        'quantity' => 1,
+                        'operation_type' => 2,
+                    ];
+                }
             }
         }
 
@@ -593,10 +612,79 @@ class PagePay extends Component
         return $baseData;
     }
 
+    public function updatedSelectedPaymentMethod($value)
+    {
+        if ($value === 'pix') {
+            $this->showPixFormModal = true;
+        }
+    }
+
+    public function startPixCheckout()
+    {
+        $this->validate([
+            'pix_name' => 'required|string|max:255',
+            'pix_email' => 'required|email',
+            'pix_phone' => ['required', 'string', new ValidPhoneNumber],
+        ]);
+
+        $this->showPixFormModal = false;
+        $this->loadingMessage = __('payment.generating_pix');
+        $this->showLodingModal = true;
+
+        try {
+            $checkoutData = $this->prepareCheckoutData();
+            $paymentGateway = app(PaymentGatewayFactory::class)->create('mercadopago');
+            $response = $paymentGateway->processPayment($checkoutData);
+
+            if ($response['status'] === 'success') {
+                $this->pixQrCode = $response['data']['qr_code'];
+                $this->pixQrCodeBase64 = $response['data']['qr_code_base64'];
+                $this->pixTransactionId = $response['data']['transaction_id'];
+                $this->showPixModal = true;
+                $this->dispatch('pix-generated');
+            } else {
+                $this->showErrorModal = true;
+            }
+        } catch (\Exception $e) {
+            Log::channel('payment_checkout')->error('PIX Checkout Error:', [
+                'message' => $e->getMessage(),
+            ]);
+            $this->showErrorModal = true;
+        }
+
+        $this->showLodingModal = false;
+    }
+
+    public function checkPixPaymentStatus()
+    {
+        if ($this->pixTransactionId) {
+            $paymentGateway = app(PaymentGatewayFactory::class)->create('mercadopago');
+            $response = $paymentGateway->getPaymentStatus($this->pixTransactionId);
+
+            if ($response['status'] === 'success') {
+                $status = $response['data']['status'];
+                if ($status === 'approved') {
+                    $this->showPixModal = false;
+                    $this->showSuccessModal = true;
+                    return redirect()->to('https://web.snaphubb.online/obg-br');
+                } elseif (in_array($status, ['rejected', 'cancelled'])) {
+                    $this->showPixModal = false;
+                    $this->showErrorModal = true;
+                    return redirect()->to('https://web.snaphubb.online/fail-br');
+                }
+            }
+        }
+    }
+
     public function closeModal()
     {
+        if ($this->showPixModal || $this->showPixFormModal) {
+            $this->selectedPaymentMethod = 'credit_card';
+        }
         $this->showErrorModal = false;
         $this->showSuccessModal = false;
+        $this->showPixModal = false;
+        $this->showPixFormModal = false;
     }
 
     public function decrementTimer()
@@ -625,12 +713,20 @@ class PagePay extends Component
 
     public function getListeners()
     {
-        return ['updatePhone' => 'updatePhone'];
+        return [
+            'updatePhone' => 'updatePhone',
+            'updatePixPhone' => 'updatePixPhone'
+        ];
     }
 
     public function updatePhone($event)
     {
         $this->phone = $event['phone'];
+    }
+
+    public function updatePixPhone($event)
+    {
+        $this->pix_phone = $event['phone'];
     }
 
     public function updateActivityCount()
