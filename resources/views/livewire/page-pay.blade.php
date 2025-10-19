@@ -211,7 +211,7 @@ $gateway = config('services.default_payment_gateway', 'stripe');
                             <div class="space-y-4 mt-4">
                                 @if($gateway !== 'stripe')
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-300 mb-1">{{ __('checkout.card_number') }}</label>
+                                    <label class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.card_number') }}</label>
                                     <input name="card_number" type="text" id="card-number" x-mask="9999 9999 9999 9999" placeholder="0000 0000 0000 0000" wire:model.defer="cardNumber" class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
                                     @error('cardNumber')<span class="text-red-500 text-xs mt-1">{{ $message }}</span>@enderror
                                 </div>
@@ -229,7 +229,7 @@ $gateway = config('services.default_payment_gateway', 'stripe');
                                 </div>
                                 @else
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-300 mb-1">{{ __('checkout.card_number') }}</label>
+                                    <label class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.card_number') }}</label>
                                     <div id="card-element" class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" wire:ignore></div>
                                     <div id="card-errors"></div>
                                     <input name="payment_method_id" type="hidden" wire:model.defer="paymentMethodId" id="payment-method-id">
@@ -694,48 +694,43 @@ $gateway = config('services.default_payment_gateway', 'stripe');
 </div>
 
 <!-- PIX Form Modal -->
-<div id="pix-form-modal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50" x-show="selectedPaymentMethod === 'pix'" @click.away="selectedPaymentMethod = 'credit_card'">
-    <div class="bg-[#1F1F1F] rounded-xl max-w-3xl w-full mx-4 p-8"> <!-- Increased padding and max-width -->
+@if ($selectedPaymentMethod === 'pix')
+<div id="pix-form-modal"
+    class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50"
+    @keydown.escape.window="$wire.set('selectedPaymentMethod', 'credit_card')">
+    <div class="fixed inset-0" @click="$wire.set('selectedPaymentMethod', 'credit_card')"></div>
+    <div class="bg-[#1F1F1F] rounded-xl max-w-3xl w-full mx-4 p-8 z-10 relative">
         <div class="flex flex-col md:flex-row gap-8">
             <!-- Left side: Form -->
             <div class="w-full md:w-1/2">
-                <h3 class="text-2xl font-bold text-white mb-6">{{ __('payment.pix_title') }}</h3>
+                <h3 class="text-2xl font-bold text-white mb-6">Pague com PIX e libere seu acesso!</h3>
                 <div class="space-y-4">
                     <div>
-                        <label class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.full_name') }}</label>
-                        <input name="pix_name" type="text" placeholder="{{ __('payment.full_name') }}" wire:model.defer="pix_name"
+                        <label class="block text-sm font-medium text-gray-300 mb-1">Nome Completo</label>
+                        <input name="pix_name" type="text" placeholder="Nome Completo" wire:model.defer="pix_name"
                             class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
-                        @error('pix_name')
-                        <span class="text-red-500 text-xs mt-1">{{ $message }}</span>
-                        @enderror
+                        @error('pix_name')<span class="text-red-500 text-xs mt-1">{{ $message }}</span>@enderror
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-300 mb-1">E-mail</label>
                         <input name="pix_email" type="email" placeholder="seu@email.com" wire:model.defer="pix_email"
                             class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
-                        @error('pix_email')
-                        <span class="text-red-500 text-xs mt-1">{{ $message }}</span>
-                        @enderror
+                        @error('pix_email')<span class="text-red-500 text-xs mt-1">{{ $message }}</span>@enderror
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-300 mb-1">CPF</label>
                         <input name="pix_cpf" type="text" placeholder="000.000.000-00" wire:model.defer="pix_cpf"
                             class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
-                        @error('pix_cpf')
-                        <span class="text-red-500 text-xs mt-1">{{ $message }}</span>
-                        @enderror
+                        @error('pix_cpf')<span class="text-red-500 text-xs mt-1">{{ $message }}</span>@enderror
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.phone') }}</label>
-                        <input name="pix_phone" type="tel" placeholder="" wire:model.defer="pix_phone"
+                        <label class="block text-sm font-medium text-gray-300 mb-1">Telefone (Opcional)</label>
+                        <input name="pix_phone" type="tel" wire:model.defer="pix_phone"
                             class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
-                        @error('pix_phone')
-                        <span class="text-red-500 text-xs mt-1">{{ $message }}</span>
-                        @enderror
+                        @error('pix_phone')<span class="text-red-500 text-xs mt-1">{{ $message }}</span>@enderror
                     </div>
                 </div>
             </div>
-
             <!-- Right side: Order Summary -->
             <div class="w-full md:w-1/2 bg-[#2D2D2D] p-6 rounded-lg flex flex-col justify-between">
                 <div>
@@ -743,23 +738,25 @@ $gateway = config('services.default_payment_gateway', 'stripe');
                     <img src="https://web.snaphubb.online/wp-content/uploads/2025/10/capa-brasil.jpg" alt="Product Image" class="w-full h-auto rounded-lg object-cover border-2 border-gray-700 mb-4">
                     <div class="border-t border-gray-600 pt-4 space-y-3">
                         <div class="flex justify-between items-center text-gray-300">
-                            <del>R$49,90</del>
-                            <span class="font-bold text-green-400 text-2xl">R$24,90</span>
+                            <span class="text-lg">Plano Mensal</span>
+                            <div class="text-right">
+                                <del>R$49,90</del>
+                                <p class="font-bold text-green-400 text-2xl">R$24,90</p>
+                            </div>
                         </div>
-                        <div class="text-green-400">
+                        <div class="text-green-400 font-semibold text-center bg-green-900 bg-opacity-50 rounded-md py-2">
                             💰 Você está economizando R$25,00 (50%)
                         </div>
                     </div>
                 </div>
                 <div class="text-center text-xs text-gray-400 mt-4">
-                    <p>ambiente 100% seguro.</p>
+                    <p>🔒 Ambiente 100% seguro.</p>
                 </div>
             </div>
-
         </div>
         <div class="mt-8 flex justify-between items-center">
-            <button wire:click.prevent="closeModal" class="py-2 px-6 text-white font-medium rounded-lg border border-gray-600 hover:bg-[#2D2D2D] transition-colors">
-                {{ __('payment.cancel') }}
+            <button wire:click.prevent="$set('selectedPaymentMethod', 'credit_card')" class="py-2 px-6 text-white font-medium rounded-lg border border-gray-600 hover:bg-[#2D2D2D] transition-colors">
+                Cancelar
             </button>
             <button wire:click.prevent="startPixCheckout" class="py-3 px-8 bg-[#E50914] hover:bg-[#B8070F] text-white font-bold rounded-lg transition-colors text-lg">
                 Gerar PIX
@@ -767,6 +764,7 @@ $gateway = config('services.default_payment_gateway', 'stripe');
         </div>
     </div>
 </div>
+@endif
 
 <!-- PIX Modal -->
 <div id="pix-modal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 @if (!$showPixModal) hidden @endif"
@@ -815,9 +813,6 @@ $gateway = config('services.default_payment_gateway', 'stripe');
 </div>
 
 
-@if ($selectedPaymentMethod === 'pix')
-    <livewire:pix-payment />
-@endif
 <!-- Stripe JS -->
 @push('scripts')
 @vite('resources/js/pages/pay.js')

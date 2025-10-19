@@ -313,12 +313,7 @@ class PagePay extends Component
 
     public function startCheckout()
     {
-        // If PIX is selected, the main button should just open the modal.
-        if ($this->selectedPaymentMethod === 'pix') {
-            $this->resetPixModal();
-            $this->showPixModal = true;
-            return;
-        }
+        Log::debug('startCheckout called', ['selectedPaymentMethod' => $this->selectedPaymentMethod]);
 
         // Proceed with credit card logic
         if ($this->cardNumber) {
@@ -627,8 +622,12 @@ class PagePay extends Component
 
         try {
             $checkoutData = $this->prepareCheckoutData();
+            Log::debug('PIX Checkout Data', $checkoutData);
+
             $paymentGateway = app(PaymentGatewayFactory::class)->create('mercadopago');
             $response = $paymentGateway->processPayment($checkoutData);
+
+            Log::debug('PIX Gateway Response', $response);
 
             if ($response['status'] === 'success') {
                 $this->pixQrCode = $response['data']['qr_code'];
@@ -647,6 +646,17 @@ class PagePay extends Component
         } finally {
             $this->showLodingModal = false;
         }
+    }
+
+    public function resetPixModal()
+    {
+        $this->pix_name = '';
+        $this->pix_email = '';
+        $this->pix_phone = '';
+        $this->pix_cpf = '';
+        $this->pixQrCode = null;
+        $this->pixQrCodeBase64 = null;
+        $this->pixTransactionId = null;
     }
 
     public function checkPixPaymentStatus()

@@ -132,4 +132,7 @@ return [
     'pix_wrong_data' => '¿Datos incorrectos? Volver y corregir.',
     'complete_to_generate_pix' => 'Complete sus datos para generar el PIX',
     'pix_access_for_life' => 'Acceso de por vida por un solo pago.',
+    'full_name' => 'Nombre completo',
+    'pix_title' => 'Pago vía PIX',
+    'cancel' => 'Cancelar',
 ];

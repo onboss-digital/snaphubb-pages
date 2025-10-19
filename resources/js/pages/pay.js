@@ -1,6 +1,8 @@
 import intlTelInput from 'intl-tel-input';
 import 'intl-tel-input/build/css/intlTelInput.css';
 import utilsScript from 'intl-tel-input/build/js/utils.js';
+import IMask from 'imask';
+import EmailValidator from 'email-deep-validator';
 
 function setupIntlTelInput(selector, livewireEventName) {
     const inputs = document.querySelectorAll(selector);
@@ -34,12 +36,10 @@ function setupIntlTelInput(selector, livewireEventName) {
         });
 
         input.addEventListener('change', () => {
-            if (iti.isValidNumber()) {
-                const fullNumber = iti.getNumber();
-                Livewire.dispatch(livewireEventName, {
-                    phone: fullNumber
-                });
-            }
+            const fullNumber = iti.isValidNumber() ? iti.getNumber() : '';
+            Livewire.dispatch(livewireEventName, {
+                phone: fullNumber
+            });
         });
     });
 }
