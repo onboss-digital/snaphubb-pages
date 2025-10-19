@@ -120,4 +120,13 @@ return [
     'billing' => '📌 Facturación',
     'release' => '⏳ Liberación',
     'cancellation' => '🧾 Cancelación',
+
+    // PIX
+    'pix_title' => 'Pagar con PIX',
+    'pix_instructions' => 'Escanee el código QR o copie el código a continuación para pagar.',
+    'copy_code' => 'Copiar código',
+    'pay_with_card' => 'Pagar con tarjeta',
+    'generate_pix' => 'Generar PIX',
+    'full_name' => 'Nombre completo',
+    'credit_card' => 'Tarjeta de crédito',
 ];

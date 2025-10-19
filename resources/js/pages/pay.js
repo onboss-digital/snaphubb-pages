@@ -1,4 +1,5 @@
 import intlTelInput from 'intl-tel-input';
+import './pix-form.js';
 
 document.addEventListener('livewire:init', () => {
     let iti = null;

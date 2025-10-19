@@ -126,4 +126,13 @@ return [
     'billing' => '📌 Cobrança',
     'release' => '⏳ Liberação',
     'cancellation' => '🧾 Cancelamento',
+
+    // PIX
+    'pix_title' => 'Pague com PIX',
+    'pix_instructions' => 'Escaneie o QR Code ou copie o código abaixo para pagar.',
+    'copy_code' => 'Copiar Código',
+    'pay_with_card' => 'Pagar com Cartão',
+    'generate_pix' => 'Gerar PIX',
+    'full_name' => 'Nome Completo',
+    'credit_card' => 'Cartão de Crédito',
 ];
