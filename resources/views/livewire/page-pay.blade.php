@@ -207,7 +207,7 @@ $gateway = config('services.default_payment_gateway', 'stripe');
                         </div>
 
                         <!-- Credit Card Form -->
-                        <div x-show="'{{ $selectedPaymentMethod }}' === 'credit_card'" style="display: none;">
+                        <div x-show="selectedPaymentMethod === 'credit_card'">
                             <div class="space-y-4 mt-4">
                                 @if($gateway !== 'stripe')
                                 <div>
