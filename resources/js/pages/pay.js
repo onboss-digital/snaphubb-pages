@@ -2,15 +2,12 @@ import intlTelInput from 'intl-tel-input';
 import 'intl-tel-input/build/css/intlTelInput.css';
 import utilsScript from 'intl-tel-input/build/js/utils.js';
 
-document.addEventListener('livewire:init', () => {
-    let iti = null;
-    const phoneInput = document.querySelector("input[name='phone']");
-    let pixPollingInterval = null;
-
-    // Check if the instance already exists and destroy it
-    if (input.iti) {
-        input.iti.destroy();
-    }
+function setupIntlTelInput(selector, livewireEventName) {
+    const inputs = document.querySelectorAll(selector);
+    inputs.forEach(input => {
+        if (input.iti) {
+            input.iti.destroy();
+        }
 
         const iti = intlTelInput(input, {
             initialCountry: "auto",
