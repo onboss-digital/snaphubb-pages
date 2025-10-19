@@ -1,6 +1,6 @@
 import 'intl-tel-input/build/css/intlTelInput.css';
 import intlTelInput from 'intl-tel-input';
-import EmailValidator from 'email-deep-validator';
+import Mailcheck from 'mailcheck';
 
 document.addEventListener('livewire:init', () => {
     const phoneInput = document.querySelector('input[name="pix_phone"]');
@@ -24,18 +24,27 @@ document.addEventListener('livewire:init', () => {
     }
 
     const emailInput = document.querySelector('input[name="pix_email"]');
+    const emailSuggestion = document.createElement('div');
+    emailSuggestion.className = 'text-xs text-gray-400 mt-1';
+    emailInput.parentElement.appendChild(emailSuggestion);
+
     if (emailInput) {
-        emailInput.addEventListener('blur', async () => {
-            const emailValidator = new EmailValidator();
-            const { wellFormed, validDomain, validMailbox } = await emailValidator.verify(emailInput.value);
-            if (wellFormed && validDomain && !validMailbox) {
-                // This is a simplified example. A real implementation would need a more robust suggestion engine.
-                const suggestion = emailInput.value.replace(/gmial\.com$/, 'gmail.com');
-                if (suggestion !== emailInput.value) {
-                    // You could display a suggestion to the user here.
-                    console.log(`Did you mean ${suggestion}?`);
+        emailInput.addEventListener('blur', () => {
+            emailSuggestion.textContent = '';
+            Mailcheck.run({
+                email: emailInput.value,
+                suggested: function(suggestion) {
+                    emailSuggestion.innerHTML = `Did you mean <a href="#" class="text-blue-400">${suggestion.full}</a>?`;
+                    emailSuggestion.querySelector('a').addEventListener('click', (e) => {
+                        e.preventDefault();
+                        emailInput.value = suggestion.full;
+                        emailSuggestion.textContent = '';
+                    });
+                },
+                empty: function() {
+                    // email is empty or no suggestion was found
                 }
-            }
+            });
         });
     }
 });

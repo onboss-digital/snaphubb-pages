@@ -130,4 +130,6 @@ return [
     'generate_pix' => 'Generate PIX',
     'full_name' => 'Full Name',
     'credit_card' => 'Credit Card',
+    'cancel' => 'Cancel',
+    'secure_data' => 'Don\'t worry, your data is encrypted to maintain confidentiality.',
 ];
