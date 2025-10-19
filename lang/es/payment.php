@@ -129,4 +129,6 @@ return [
     'generate_pix' => 'Generar PIX',
     'full_name' => 'Nombre completo',
     'credit_card' => 'Tarjeta de crédito',
+    'cancel' => 'Cancelar',
+    'secure_data' => 'No se preocupe, sus datos están encriptados para mantener la confidencialidad.',
 ];

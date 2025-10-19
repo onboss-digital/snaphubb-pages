@@ -178,6 +178,10 @@ $gateway = config('services.default_payment_gateway', 'stripe');
 
                 <!-- Payment Methods -->
                 <div class="bg-[#1F1F1F] rounded-xl p-6 mb-6">
+                    <div class="flex items-center justify-center text-sm text-gray-400 mb-4">
+                        <svg class="w-4 h-4 mr-2 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm-1-9a1 1 0 011-1h2a1 1 0 110 2h-2a1 1 0 01-1-1z" clip-rule="evenodd"></path></svg>
+                        <span>{{ __('payment.secure_data') }}</span>
+                    </div>
                     <h2 class="text-xl font-semibold text-white mb-4">{{ __('payment.payment_method') }}</h2>
                     <div class="flex flex-col md:flex-row gap-4 mb-6">
                         <div
@@ -288,38 +292,10 @@ $gateway = config('services.default_payment_gateway', 'stripe');
                     </div>
                 </div>
 
-                <!-- PIX Form -->
-                <div id="pix-form" class="space-y-4" @if($selectedPaymentMethod !== 'pix') style="display: none;" @endif>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.full_name') }}</label>
-                        <input type="text" placeholder="{{ __('payment.full_name') }}" wire:model.defer="pix_name"
-                            class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
-                        @error('pix_name')
-                        <span class="text-red-500 text-xs mt-1">{{ $message }}</span>
-                        @enderror
-                    </div>
-
-                    <div>
-                        <label class="block text-sm font-medium text-gray-300 mb-1">E-mail</label>
-                        <input type="email" placeholder="seu@email.com" wire:model.defer="pix_email"
-                            class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
-                        @error('pix_email')
-                        <span class="text-red-500 text-xs mt-1">{{ $message }}</span>
-                        @enderror
-                    </div>
-
-                    <div>
-                        <label class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.phone') }}</label>
-                        <input type="tel" placeholder="" wire:model.defer="pix_phone"
-                            class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
-                        @error('pix_phone')
-                        <span class="text-red-500 text-xs mt-1">{{ $message }}</span>
-                        @enderror
-                    </div>
-                </div>
+                <!-- This empty div is a placeholder for the old PIX form -->
 
                 <!-- Order Bumps -->
-                @if(!empty($bumps))
+                @if(!empty($bumps) && $selectedPaymentMethod !== 'pix')
                 <div class="bg-[#1F1F1F] rounded-xl p-5 border border-gray-700">
                     @foreach ($bumps as $index => $bump)
                     <div class="flex items-start mb-4 last:mb-0">
@@ -504,9 +480,9 @@ $gateway = config('services.default_payment_gateway', 'stripe');
             <button
                 id="checkout-button"
                 type="button"
-                wire:click.prevent="{{ $selectedPaymentMethod === 'pix' ? 'startPixCheckout' : 'startCheckout' }}"
-                class="w-full bg-[#E50914] hover:bg-[#B8070F] text-white py-3 text-lg font-bold rounded-xl transition-all block cursor-pointer transform hover:scale-105">
-                {{ $selectedPaymentMethod === 'pix' ? __('payment.generate_pix') : __('checkout.cta_button') }}
+                wire:click.prevent="startCheckout"
+                class="w-full bg-[#E50914] hover:bg-[#B8070F] text-white py-3 text-lg font-bold rounded-xl transition-all block cursor-pointer transform hover:scale-105 @if($selectedPaymentMethod === 'pix') hidden @endif">
+                {{ __('checkout.cta_button') }}
             </button>
 
             <!-- Trust badges -->
@@ -737,6 +713,47 @@ $gateway = config('services.default_payment_gateway', 'stripe');
                     {{ __('payment.want_offer') }}
                 </button>
             </div>
+        </div>
+    </div>
+</div>
+
+<!-- PIX Form Modal -->
+<div id="pix-form-modal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 @if (!$showPixFormModal) hidden @endif">
+    <div class="bg-[#1F1F1F] rounded-xl max-w-md w-full mx-4 p-6">
+        <h3 class="text-2xl font-bold text-white mb-4">{{ __('payment.pix_title') }}</h3>
+        <div class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.full_name') }}</label>
+                <input name="pix_name" type="text" placeholder="{{ __('payment.full_name') }}" wire:model.defer="pix_name"
+                    class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
+                @error('pix_name')
+                <span class="text-red-500 text-xs mt-1">{{ $message }}</span>
+                @enderror
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-300 mb-1">E-mail</label>
+                <input name="pix_email" type="email" placeholder="seu@email.com" wire:model.defer="pix_email"
+                    class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
+                @error('pix_email')
+                <span class="text-red-500 text-xs mt-1">{{ $message }}</span>
+                @enderror
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.phone') }}</label>
+                <input name="pix_phone" type="tel" placeholder="" wire:model.defer="pix_phone"
+                    class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
+                @error('pix_phone')
+                <span class="text-red-500 text-xs mt-1">{{ $message }}</span>
+                @enderror
+            </div>
+        </div>
+        <div class="mt-6 flex justify-end gap-4">
+            <button wire:click.prevent="closeModal" class="py-2 px-4 text-white font-medium rounded-lg border border-gray-600 hover:bg-[#2D2D2D] transition-colors">
+                {{ __('payment.cancel') }}
+            </button>
+            <button wire:click.prevent="startPixCheckout" class="py-2 px-4 bg-[#E50914] hover:bg-[#B8070F] text-white font-bold rounded-lg transition-colors">
+                {{ __('payment.generate_pix') }}
+            </button>
         </div>
     </div>
 </div>

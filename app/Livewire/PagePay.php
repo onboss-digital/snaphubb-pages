@@ -23,6 +23,7 @@ class PagePay extends Component
     // PIX Properties
     public $pix_name, $pix_email, $pix_phone;
     public $showPixModal = false;
+    public $showPixFormModal = false;
     public $pixQrCode;
     public $pixQrCodeBase64;
     public $pixTransactionId;
@@ -295,9 +296,11 @@ class PagePay extends Component
 
     $finalPrice = $prices['descont_price'];
 
-    foreach ($this->bumps as $bump) {
-        if (!empty($bump['active'])) {
-            $finalPrice += floatval($bump['price']);
+    if ($this->selectedPaymentMethod !== 'pix') {
+        foreach ($this->bumps as $bump) {
+            if (!empty($bump['active'])) {
+                $finalPrice += floatval($bump['price']);
+            }
         }
     }
 
@@ -541,17 +544,19 @@ class PagePay extends Component
             'operation_type' => 1,
         ];
 
-        foreach ($this->bumps as $bump) {
-            if (!empty($bump['active'])) {
-                $cartItems[] = [
-                    'product_hash' => $bump['hash'],
-                    'price_id' => $bump['price_id'] ?? null,
-                    'title' => $bump['title'],
-                    'price' => (int)round(floatval($bump['price']) * 100),
-                    'recurring' => $bump['recurring'] ?? null,
-                    'quantity' => 1,
-                    'operation_type' => 2,
-                ];
+        if ($this->selectedPaymentMethod !== 'pix') {
+            foreach ($this->bumps as $bump) {
+                if (!empty($bump['active'])) {
+                    $cartItems[] = [
+                        'product_hash' => $bump['hash'],
+                        'price_id' => $bump['price_id'] ?? null,
+                        'title' => $bump['title'],
+                        'price' => (int)round(floatval($bump['price']) * 100),
+                        'recurring' => $bump['recurring'] ?? null,
+                        'quantity' => 1,
+                        'operation_type' => 2,
+                    ];
+                }
             }
         }
 
@@ -597,6 +602,13 @@ class PagePay extends Component
         return $baseData;
     }
 
+    public function updatedSelectedPaymentMethod($value)
+    {
+        if ($value === 'pix') {
+            $this->showPixFormModal = true;
+        }
+    }
+
     public function startPixCheckout()
     {
         $this->validate([
@@ -605,6 +617,7 @@ class PagePay extends Component
             'pix_phone' => ['required', 'string', new ValidPhoneNumber],
         ]);
 
+        $this->showPixFormModal = false;
         $this->loadingMessage = __('payment.generating_pix');
         $this->showLodingModal = true;
 
@@ -655,12 +668,13 @@ class PagePay extends Component
 
     public function closeModal()
     {
-        if ($this->showPixModal) {
+        if ($this->showPixModal || $this->showPixFormModal) {
             $this->selectedPaymentMethod = 'credit_card';
         }
         $this->showErrorModal = false;
         $this->showSuccessModal = false;
         $this->showPixModal = false;
+        $this->showPixFormModal = false;
     }
 
     public function decrementTimer()
