@@ -1,8 +1,6 @@
 import intlTelInput from 'intl-tel-input';
 import 'intl-tel-input/build/css/intlTelInput.css';
 import utilsScript from 'intl-tel-input/build/js/utils.js';
-import IMask from 'imask';
-import EmailValidator from 'email-deep-validator';
 
 function setupIntlTelInput(selector, livewireEventName) {
     const inputs = document.querySelectorAll(selector);

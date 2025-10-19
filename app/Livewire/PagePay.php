@@ -649,17 +649,6 @@ class PagePay extends Component
         }
     }
 
-    public function resetPixModal()
-    {
-        $this->pix_name = '';
-        $this->pix_email = '';
-        $this->pix_phone = '';
-        $this->pix_cpf = '';
-        $this->pixQrCode = null;
-        $this->pixQrCodeBase64 = null;
-        $this->pixTransactionId = null;
-    }
-
     public function checkPixPaymentStatus()
     {
         if ($this->pixTransactionId) {
