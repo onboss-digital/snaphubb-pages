@@ -658,7 +658,7 @@ class PagePay extends Component
                 if ($status === 'approved') {
                     $this->showPixModal = false;
                     $this->showSuccessModal = true;
-
+                    
                     // 🎯 Dispara evento Purchase para PIX
                     $purchaseData = [
                         'transaction_id' => $this->pixTransactionId,
@@ -667,9 +667,9 @@ class PagePay extends Component
                         'content_ids' => [$this->product['hash']],
                         'content_type' => 'product',
                     ];
-
+                    
                     $this->dispatch('pix-paid', pixData: $purchaseData);
-
+                    
                     return redirect()->to('https://web.snaphubb.online/obg-br');
                 } elseif (in_array($status, ['rejected', 'cancelled'])) {
                     $this->showPixModal = false;
