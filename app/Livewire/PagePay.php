@@ -21,7 +21,7 @@ class PagePay extends Component
     public $selectedPaymentMethod = 'credit_card';
 
     // PIX Properties
-    public $pix_name, $pix_email, $pix_phone;
+    public $pix_name, $pix_email, $pix_phone, $pix_cpf;
     public $showPixModal = false;
     public $pixQrCode;
     public $pixQrCodeBase64;
@@ -514,6 +514,7 @@ class PagePay extends Component
                 'name' => $this->pix_name,
                 'email' => $this->pix_email,
                 'phone_number' => preg_replace('/[^0-9+]/', '', $this->pix_phone),
+                'document' => preg_replace('/\D/', '', $this->pix_cpf),
             ];
         } else {
             $customerData = [
@@ -617,7 +618,8 @@ class PagePay extends Component
         $this->validate([
             'pix_name' => 'required|string|max:255',
             'pix_email' => 'required|email',
-            'pix_phone' => ['required', 'string', new ValidPhoneNumber],
+            'pix_cpf' => ['required', 'string', 'regex:/^\d{3}\.\d{3}\.\d{3}\-\d{2}$/'],
+            'pix_phone' => ['nullable', 'string', new ValidPhoneNumber],
         ]);
 
         $this->loadingMessage = __('payment.generating_pix');

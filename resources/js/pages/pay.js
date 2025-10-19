@@ -72,4 +72,28 @@ document.addEventListener('livewire:init', () => {
             clearInterval(pixPollingInterval);
         }
     });
+
+    const emailValidator = new EmailValidator();
+    const emailInput = document.querySelector('input[name="pix_email"]');
+    const emailSuggestion = document.createElement('div');
+    emailSuggestion.className = 'text-xs text-yellow-400 mt-1';
+    emailInput.parentNode.appendChild(emailSuggestion);
+
+    emailInput.addEventListener('blur', async () => {
+        const email = emailInput.value;
+        if (email) {
+            const { wellFormed, validDomain, validMailbox } = await emailValidator.verify(email);
+            if (wellFormed && validDomain && !validMailbox) {
+                emailSuggestion.textContent = 'Did you mean a different email?';
+            } else {
+                emailSuggestion.textContent = '';
+            }
+        }
+    });
+
+    const cpfInput = document.querySelector('input[name="pix_cpf"]');
+    const cpfMask = {
+        mask: '000.000.000-00'
+    };
+    const mask = IMask(cpfInput, cpfMask);
 });

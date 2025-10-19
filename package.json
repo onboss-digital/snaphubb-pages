@@ -19,6 +19,8 @@
     "dependencies": {
         "@alpinejs/mask": "^3.14.9",
         "alpinejs": "^3.14.9",
+        "email-deep-validator": "^3.3.0",
+        "imask": "^7.6.1",
         "playwright": "^1.56.1"
     }
 }
