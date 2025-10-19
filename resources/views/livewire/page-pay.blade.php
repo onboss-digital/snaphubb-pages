@@ -178,98 +178,93 @@ $gateway = config('services.default_payment_gateway', 'stripe');
 
                 <!-- Payment Methods -->
                 <div id="payment-method-section" class="bg-[#1F1F1F] rounded-xl p-6 mb-6 scroll-mt-8">
+                    <h2 class="text-xl font-semibold text-white mb-4">{{ __('payment.payment_method') }}</h2>
                     <div class="space-y-4">
-                        @if($gateway !== 'stripe')
-                        <div>
-                            <label
-                                class="block text-sm font-medium text-gray-300 mb-1">{{ __('checkout.card_number') }}</label>
-                            <input name="card_number" type="text" id="card-number"
-                                x-mask="9999 9999 9999 9999" placeholder="0000 0000 0000 0000"
-                                wire:model.defer="cardNumber"
-                                class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
-                            @error('cardNumber')
-                            <span class="text-red-500 text-xs mt-1">{{ $message }}</span>
-                            @enderror
-                        </div>
-
-                        <div class="grid grid-cols-2 gap-4">
-                            <div>
-                                <label
-                                    class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.expiry_date') }}</label>
-                                <input name="card_expiry" type="text" id="card-expiry" x-mask="99/99"
-                                    placeholder="MM/YY" wire:model.defer="cardExpiry"
-                                    class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
-                                @error('cardExpiry')
-                                <span class="text-red-500 text-xs mt-1">{{ $message }}</span>
-                                @enderror
-                            </div>
-                            <div>
-                                <label
-                                    class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.security_code') }}</label>
-                                <input name="card_cvv" type="text" id="card-cvv" placeholder="CVV"
-                                    x-mask="9999" wire:model.defer="cardCvv"
-                                    class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
-                                @error('cardCvv')
-                                <span class="text-red-500 text-xs mt-1">{{ $message }}</span>
-                                @enderror
+                        <div class="flex items-center justify-start p-2 rounded-lg border border-gray-700">
+                            <span class="text-xs font-semibold text-gray-400 uppercase mr-4">{{__('payment.safe_environment')}}</span>
+                            <div class="flex items-center" bis_skin_checked="1">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="text-green-500 mr-1 bi bi-lock" viewBox="0 0 16 16">
+                                    <path d="M8 1a2 2 0 0 1 2 2v4H6V3a2 2 0 0 1 2-2zm3 6V3a3 3 0 0 0-6 0v4a2 2 0 0 0-2 2v5a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2zM5 8h6a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"></path>
+                                </svg>
+                                <span class="text-xs text-gray-400">{{__('payment.your_data_is_safe')}}</span>
                             </div>
                         </div>
-                        @else
-                        <div>
-                            <label
-                                class="block text-sm font-medium text-gray-300 mb-1">{{ __('checkout.card_number') }}</label>
-                            <div id="card-element" class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" wire:ignore></div>
-                            <div id="card-errors"></div>
-                            <input name="payment_method_id" type="hidden" wire:model.defer="paymentMethodId" id="payment-method-id">
-                        </div>
-                        @endif
 
-                        <div>
-                            <label
-                                class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.card_name') }}</label>
-                            <input name="card_name" type="text"
-                                placeholder="{{ __('payment.card_name') }}" wire:model.defer="cardName"
-                                class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
-                            @error('cardName')
-                            <span class="text-red-500 text-xs mt-1">{{ $message }}</span>
-                            @enderror
+                        <!-- Payment Method Selector -->
+                        <div class="flex rounded-lg bg-[#2D2D2D] p-1">
+                            <button type="button" wire:click="$set('selectedPaymentMethod', 'credit_card')" class="w-1/2 py-2 px-4 rounded-md text-sm font-medium transition-colors " :class="{
+                                'bg-[#E50914] text-white': '{{ $selectedPaymentMethod }}' === 'credit_card', 'text-gray-400 hover:bg-gray-700': '{{ $selectedPaymentMethod }}' !== 'credit_card'
+                            }">
+                                💳 {{ __('payment.credit_card') }}
+                            </button>
+                            @if ($selectedLanguage === 'br')
+                            <button type="button" wire:click="$set('selectedPaymentMethod', 'pix')" class="w-1/2 py-2 px-4 rounded-md text-sm font-medium transition-colors" :class="{
+                                'bg-[#E50914] text-white': '{{ $selectedPaymentMethod }}' === 'pix', 'text-gray-400 hover:bg-gray-700': '{{ $selectedPaymentMethod }}' !== 'pix'
+                            }">
+                                ⚡ PIX
+                            </button>
+                            @endif
                         </div>
 
-                        <div>
-                            <label class="block text-sm font-medium text-gray-300 mb-1">E-mail</label>
-                            <input name="email" type="email" placeholder="seu@email.com"
-                                wire:model.live.debounce.500ms="email"
-                                class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
-                            @error('email')
-                            <span class="text-red-500 text-xs mt-1">{{ $message }}</span>
-                            @enderror
-                        </div>
+                        <!-- Credit Card Form -->
+                        <div x-show="'{{ $selectedPaymentMethod }}' === 'credit_card'" style="display: none;">
+                            <div class="space-y-4 mt-4">
+                                @if($gateway !== 'stripe')
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-300 mb-1">{{ __('checkout.card_number') }}</label>
+                                    <input name="card_number" type="text" id="card-number" x-mask="9999 9999 9999 9999" placeholder="0000 0000 0000 0000" wire:model.defer="cardNumber" class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
+                                    @error('cardNumber')<span class="text-red-500 text-xs mt-1">{{ $message }}</span>@enderror
+                                </div>
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.expiry_date') }}</label>
+                                        <input name="card_expiry" type="text" id="card-expiry" x-mask="99/99" placeholder="MM/YY" wire:model.defer="cardExpiry" class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
+                                        @error('cardExpiry')<span class="text-red-500 text-xs mt-1">{{ $message }}</span>@enderror
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.security_code') }}</label>
+                                        <input name="card_cvv" type="text" id="card-cvv" placeholder="CVV" x-mask="9999" wire:model.defer="cardCvv" class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
+                                        @error('cardCvv')<span class="text-red-500 text-xs mt-1">{{ $message }}</span>@enderror
+                                    </div>
+                                </div>
+                                @else
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-300 mb-1">{{ __('checkout.card_number') }}</label>
+                                    <div id="card-element" class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" wire:ignore></div>
+                                    <div id="card-errors"></div>
+                                    <input name="payment_method_id" type="hidden" wire:model.defer="paymentMethodId" id="payment-method-id">
+                                </div>
+                                @endif
 
-                        <div>
-                            <label
-                                class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.phone') }}</label>
-                            <input name="phone" type="tel" placeholder=""
-                                wire:model="phone"
-                                class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
-                            @error('phone')
-                            <span class="text-red-500 text-xs mt-1">{{ $message }}</span>
-                            @enderror
-                        </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.card_name') }}</label>
+                                    <input name="card_name" type="text" placeholder="{{ __('payment.card_name') }}" wire:model.defer="cardName" class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
+                                    @error('cardName')<span class="text-red-500 text-xs mt-1">{{ $message }}</span>@enderror
+                                </div>
 
-                        @if($selectedLanguage === 'br')
-                        <div>
-                            <label class="block text-sm font-medium text-gray-300 mb-1">CPF (obrigatório para
-                                pagamentos no Brasil)</label>
-                            <input name="cpf" type="text" x-mask="999.999.999-99"
-                                placeholder="000.000.000-00" wire:model.defer="cpf"
-                                class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
-                            @error('cpf')
-                            <span class="text-red-500 text-xs mt-1">{{ $message }}</span>
-                            @enderror
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-300 mb-1">E-mail</label>
+                                    <input name="email" type="email" placeholder="seu@email.com" wire:model.live.debounce.500ms="email" class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
+                                    <div id="email-suggestion" class="text-xs text-yellow-400 mt-1"></div>
+                                    @error('email')<span class="text-red-500 text-xs mt-1">{{ $message }}</span>@enderror
+                                </div>
+
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.phone') }}</label>
+                                    <input name="phone" id="phone" type="tel" placeholder="" wire:model="phone" class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
+                                    @error('phone')<span class="text-red-500 text-xs mt-1">{{ $message }}</span>@enderror
+                                </div>
+
+                                @if($selectedLanguage === 'br')
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-300 mb-1">CPF</label>
+                                    <input name="cpf" type="text" x-mask="999.999.999-99" placeholder="000.000.000-00" wire:model.defer="cpf" class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
+                                    @error('cpf')<span class="text-red-500 text-xs mt-1">{{ $message }}</span>@enderror
+                                </div>
+                                @endif
+                            </div>
                         </div>
-                        @endif
                     </div>
-
                 </div>
 
                 <!-- Order Bumps -->
@@ -703,6 +698,11 @@ $gateway = config('services.default_payment_gateway', 'stripe');
     <p class="text-lg">{{ __('payment.customizing') }}</p>
     <p class="text-sm mt-2 text-gray-400">{{ __('payment.optimizing') }}</p>
 </div>
+
+
+@if ($selectedPaymentMethod === 'pix')
+    <livewire:pix-payment />
+@endif
 <!-- Stripe JS -->
 @push('scripts')
 @vite('resources/js/pages/pay.js')

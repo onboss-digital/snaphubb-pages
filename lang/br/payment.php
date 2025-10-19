@@ -126,4 +126,16 @@ return [
     'billing' => '📌 Cobrança',
     'release' => '⏳ Liberação',
     'cancellation' => '🧾 Cancelamento',
+
+    // PIX
+    'pix' => 'PIX',
+    'generate_pix' => 'Gerar PIX',
+    'pix_almost_done' => 'Quase pronto!',
+    'pix_scan_qr' => 'Escaneie o QR Code abaixo com o app do seu banco para pagar.',
+    'pix_or_copy' => 'Ou copie o código e pague no seu app:',
+    'pix_copied' => 'Código PIX copiado!',
+    'pix_waiting_payment' => 'Aguardando o pagamento...',
+    'pix_wrong_data' => 'Dados incorretos? Voltar e corrigir.',
+    'complete_to_generate_pix' => 'Preencha seus dados para gerar o PIX',
+    'pix_access_for_life' => 'Acesso vitalício por apenas um pagamento.',
 ];

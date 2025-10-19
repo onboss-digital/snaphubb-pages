@@ -121,4 +121,16 @@ return [
     'billing' => '📌 Billing',
     'release' => '⏳ Release',
     'cancellation' => '🧾 Cancellation',
+
+    // PIX
+    'pix' => 'PIX',
+    'generate_pix' => 'Generate PIX',
+    'pix_almost_done' => 'Almost there!',
+    'pix_scan_qr' => 'Scan the QR Code below with your banking app to pay.',
+    'pix_or_copy' => 'Or copy the code and pay in your app:',
+    'pix_copied' => 'PIX code copied!',
+    'pix_waiting_payment' => 'Waiting for payment...',
+    'pix_wrong_data' => 'Incorrect data? Go back and correct.',
+    'complete_to_generate_pix' => 'Fill in your details to generate the PIX',
+    'pix_access_for_life' => 'Lifetime access for just one payment.',
 ];
