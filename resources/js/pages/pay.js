@@ -1,64 +1,61 @@
 import intlTelInput from 'intl-tel-input';
+import 'intl-tel-input/build/css/intlTelInput.css';
+import utilsScript from 'intl-tel-input/build/js/utils.js';
+import IMask from 'imask';
+import EmailValidator from 'email-deep-validator';
 
-document.addEventListener('livewire:init', () => {
-    let iti = null;
-    const phoneInput = document.querySelector("input[name='phone']");
-    let pixPollingInterval = null;
+function setupIntlTelInput(selector, livewireEventName) {
+    const inputs = document.querySelectorAll(selector);
+    inputs.forEach(input => {
+        if (input.iti) {
+            input.iti.destroy();
+        }
 
-    // Check if the instance already exists and destroy it
-    if (input.iti) {
-        input.iti.destroy();
-    }
+        const iti = intlTelInput(input, {
+            initialCountry: "auto",
+            geoIpLookup: function(callback) {
+                fetch("https://ipapi.co/json")
+                    .then(res => res.json())
+                    .then(data => callback(data.country_code))
+                    .catch(() => callback("br"));
+            },
+            utilsScript: utilsScript,
+            nationalMode: true,
+            formatOnDisplay: true,
+        });
 
-    const iti = intlTelInput(input, {
-        initialCountry: "auto",
-        geoIpLookup: function(callback) {
-            fetch("https://ipapi.co/json")
-                .then(res => res.json())
-                .then(data => callback(data.country_code))
-                .catch(() => callback("br")); // Default to Brazil on failure
-        },
-        utilsScript: "/build/js/utils.js",
-        nationalMode: true, // Use national formatting
-        formatOnDisplay: true, // Format the number on initialization
-    });
+        input.iti = iti;
 
-    // Store the instance on the element itself
-    input.iti = iti;
-
-    // Format as user types
-    input.addEventListener('input', () => {
-        // utilsScript is loaded asynchronously, so we need to check for window.intlTelInputUtils
-        if (window.intlTelInputUtils) {
-            const currentNumber = iti.getNumber(window.intlTelInputUtils.numberFormat.NATIONAL);
-            if (typeof currentNumber === 'string') {
-                // To prevent cursor jumping, only set the value if it's different
+        input.addEventListener('input', () => {
+            if (typeof intlTelInputUtils !== 'undefined') {
+                const currentNumber = iti.getNumber(intlTelInputUtils.numberFormat.NATIONAL);
                 if (input.value !== currentNumber) {
                     input.value = currentNumber;
                 }
             }
-        }
-    });
+        });
 
-    // Send the full international number to Livewire on change
-    input.addEventListener('change', () => {
-        if (iti.isValidNumber()) {
-            const fullNumber = iti.getNumber(); // Gets E.164 format
-            Livewire.dispatch(livewireEventName, { phone: fullNumber });
-        }
+        input.addEventListener('change', () => {
+            if (iti.isValidNumber()) {
+                const fullNumber = iti.getNumber();
+                Livewire.dispatch(livewireEventName, {
+                    phone: fullNumber
+                });
+            }
+        });
     });
 }
 
 document.addEventListener('livewire:init', () => {
+    let pixPollingInterval = null;
+
     function initializeAllPhoneInputs() {
         setupIntlTelInput("input[name='phone']", 'updatePhone');
-        setupIntlTelInput("input[name='pix_phone']", 'updatePixPhone'); // Assuming a new event for pix phone
+        setupIntlTelInput("input[name='pix_phone']", 'updatePixPhone');
     }
 
-    // Initial call
     initializeAllPhoneInputs();
 
-    // Re-initialize on every Livewire update
     Livewire.hook('message.processed', (message, component) => {
         initializeAllPhoneInputs();
     });
@@ -77,4 +74,28 @@ document.addEventListener('livewire:init', () => {
             clearInterval(pixPollingInterval);
         }
     });
+
+    const emailValidator = new EmailValidator();
+    const emailInput = document.querySelector('input[name="pix_email"]');
+    const emailSuggestion = document.createElement('div');
+    emailSuggestion.className = 'text-xs text-yellow-400 mt-1';
+    emailInput.parentNode.appendChild(emailSuggestion);
+
+    emailInput.addEventListener('blur', async () => {
+        const email = emailInput.value;
+        if (email) {
+            const { wellFormed, validDomain, validMailbox } = await emailValidator.verify(email);
+            if (wellFormed && validDomain && !validMailbox) {
+                emailSuggestion.textContent = 'Did you mean a different email?';
+            } else {
+                emailSuggestion.textContent = '';
+            }
+        }
+    });
+
+    const cpfInput = document.querySelector('input[name="pix_cpf"]');
+    const cpfMask = {
+        mask: '000.000.000-00'
+    };
+    const mask = IMask(cpfInput, cpfMask);
 });

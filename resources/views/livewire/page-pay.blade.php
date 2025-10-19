@@ -207,7 +207,7 @@ $gateway = config('services.default_payment_gateway', 'stripe');
                         </div>
 
                         <!-- Credit Card Form -->
-                        <div x-show="'{{ $selectedPaymentMethod }}' === 'credit_card'" style="display: none;">
+                        <div x-show="selectedPaymentMethod === 'credit_card'">
                             <div class="space-y-4 mt-4">
                                 @if($gateway !== 'stripe')
                                 <div>
@@ -456,7 +456,8 @@ $gateway = config('services.default_payment_gateway', 'stripe');
                 id="checkout-button"
                 type="button"
                 wire:click.prevent="startCheckout"
-                class="w-full bg-[#E50914] hover:bg-[#B8070F] text-white py-3 text-lg font-bold rounded-xl transition-all block cursor-pointer transform hover:scale-105 @if($selectedPaymentMethod === 'pix') hidden @endif">
+                x-show="selectedPaymentMethod !== 'pix'"
+                class="w-full bg-[#E50914] hover:bg-[#B8070F] text-white py-3 text-lg font-bold rounded-xl transition-all block cursor-pointer transform hover:scale-105">
                 {{ __('checkout.cta_button') }}
             </button>
 
@@ -693,10 +694,9 @@ $gateway = config('services.default_payment_gateway', 'stripe');
 </div>
 
 <!-- PIX Form Modal -->
-<div id="pix-form-modal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 @if (!$showPixFormModal) hidden @endif">
+<div id="pix-form-modal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50" x-show="selectedPaymentMethod === 'pix'" @click.away="selectedPaymentMethod = 'credit_card'">
     <div class="bg-[#1F1F1F] rounded-xl max-w-3xl w-full mx-4 p-8"> <!-- Increased padding and max-width -->
         <div class="flex flex-col md:flex-row gap-8">
-
             <!-- Left side: Form -->
             <div class="w-full md:w-1/2">
                 <h3 class="text-2xl font-bold text-white mb-6">{{ __('payment.pix_title') }}</h3>
@@ -718,9 +718,16 @@ $gateway = config('services.default_payment_gateway', 'stripe');
                         @enderror
                     </div>
                     <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-1">CPF</label>
+                        <input name="pix_cpf" type="text" placeholder="000.000.000-00" wire:model.defer="pix_cpf"
+                            class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
+                        @error('pix_cpf')
+                        <span class="text-red-500 text-xs mt-1">{{ $message }}</span>
+                        @enderror
+                    </div>
+                    <div>
                         <label class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.phone') }}</label>
                         <input name="pix_phone" type="tel" placeholder="" wire:model.defer="pix_phone"
-                            x-mask="(99) 99999-9999"
                             class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
                         @error('pix_phone')
                         <span class="text-red-500 text-xs mt-1">{{ $message }}</span>
@@ -732,23 +739,17 @@ $gateway = config('services.default_payment_gateway', 'stripe');
             <!-- Right side: Order Summary -->
             <div class="w-full md:w-1/2 bg-[#2D2D2D] p-6 rounded-lg flex flex-col justify-between">
                 <div>
-                    <h3 class="text-xl font-bold text-white mb-4">{{ __('checkout.order_summary_title') }}</h3>
-
-                    @if(isset($plans[$selectedPlan]))
-                    <div class="flex items-center space-x-4 mb-4">
-                        <img src="{{ asset('imgs/mini_logo.png') }}" alt="Product Image" class="w-20 h-20 rounded-lg object-cover border-2 border-gray-700">
-                        <div>
-                            <p class="text-white font-semibold text-lg">{{ $plans[$selectedPlan]['label'] }}</p>
-                        </div>
-                    </div>
-
+                    <h3 class="text-xl font-bold text-white mb-4">Streaming Snaphubb</h3>
+                    <img src="https://web.snaphubb.online/wp-content/uploads/2025/10/capa-brasil.jpg" alt="Product Image" class="w-full h-auto rounded-lg object-cover border-2 border-gray-700 mb-4">
                     <div class="border-t border-gray-600 pt-4 space-y-3">
                         <div class="flex justify-between items-center text-gray-300">
-                            <span>{{ __('payment.total_to_pay') }}:</span>
-                            <span class="font-bold text-white text-2xl">{{ $currencies[$selectedCurrency]['symbol'] }} {{ $totals['final_price'] ?? '0.00' }}</span>
+                            <del>R$49,90</del>
+                            <span class="font-bold text-green-400 text-2xl">R$24,90</span>
+                        </div>
+                        <div class="text-green-400">
+                            💰 Você está economizando R$25,00 (50%)
                         </div>
                     </div>
-                    @endif
                 </div>
                 <div class="text-center text-xs text-gray-400 mt-4">
                     <p>ambiente 100% seguro.</p>
@@ -761,7 +762,7 @@ $gateway = config('services.default_payment_gateway', 'stripe');
                 {{ __('payment.cancel') }}
             </button>
             <button wire:click.prevent="startPixCheckout" class="py-3 px-8 bg-[#E50914] hover:bg-[#B8070F] text-white font-bold rounded-lg transition-colors text-lg">
-                {{ __('payment.generate_pix') }}
+                Gerar PIX
             </button>
         </div>
     </div>

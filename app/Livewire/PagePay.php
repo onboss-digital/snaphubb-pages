@@ -21,9 +21,8 @@ class PagePay extends Component
     public $selectedPaymentMethod = 'credit_card';
 
     // PIX Properties
-    public $pix_name, $pix_email, $pix_phone;
+    public $pix_name, $pix_email, $pix_phone, $pix_cpf;
     public $showPixModal = false;
-    public $showPixFormModal = false;
     public $pixQrCode;
     public $pixQrCodeBase64;
     public $pixTransactionId;
@@ -515,6 +514,7 @@ class PagePay extends Component
                 'name' => $this->pix_name,
                 'email' => $this->pix_email,
                 'phone_number' => preg_replace('/[^0-9+]/', '', $this->pix_phone),
+                'document' => preg_replace('/\D/', '', $this->pix_cpf),
             ];
         } else {
             $customerData = [
@@ -612,22 +612,16 @@ class PagePay extends Component
         return $baseData;
     }
 
-    public function updatedSelectedPaymentMethod($value)
-    {
-        if ($value === 'pix') {
-            $this->showPixFormModal = true;
-        }
-    }
 
     public function startPixCheckout()
     {
         $this->validate([
             'pix_name' => 'required|string|max:255',
             'pix_email' => 'required|email',
-            'pix_phone' => ['required', 'string', new ValidPhoneNumber],
+            'pix_cpf' => ['required', 'string', 'regex:/^\d{3}\.\d{3}\.\d{3}\-\d{2}$/'],
+            'pix_phone' => ['nullable', 'string', new ValidPhoneNumber],
         ]);
 
-        $this->showPixFormModal = false;
         $this->loadingMessage = __('payment.generating_pix');
         $this->showLodingModal = true;
 
@@ -650,9 +644,20 @@ class PagePay extends Component
                 'message' => $e->getMessage(),
             ]);
             $this->showErrorModal = true;
+        } finally {
+            $this->showLodingModal = false;
         }
+    }
 
-        $this->showLodingModal = false;
+    public function resetPixModal()
+    {
+        $this->pix_name = '';
+        $this->pix_email = '';
+        $this->pix_phone = '';
+        $this->pix_cpf = '';
+        $this->pixQrCode = null;
+        $this->pixQrCodeBase64 = null;
+        $this->pixTransactionId = null;
     }
 
     public function checkPixPaymentStatus()
@@ -690,13 +695,12 @@ class PagePay extends Component
 
     public function closeModal()
     {
-        if ($this->showPixModal || $this->showPixFormModal) {
+        if ($this->showPixModal) {
             $this->selectedPaymentMethod = 'credit_card';
         }
         $this->showErrorModal = false;
         $this->showSuccessModal = false;
         $this->showPixModal = false;
-        $this->showPixFormModal = false;
     }
 
     public function decrementTimer()
