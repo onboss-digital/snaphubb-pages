@@ -703,12 +703,20 @@ class PagePay extends Component
 
     public function getListeners()
     {
-        return ['updatePhone' => 'updatePhone'];
+        return [
+            'updatePhone' => 'updatePhone',
+            'updatePixPhone' => 'updatePixPhone'
+        ];
     }
 
     public function updatePhone($event)
     {
         $this->phone = $event['phone'];
+    }
+
+    public function updatePixPhone($event)
+    {
+        $this->pix_phone = $event['phone'];
     }
 
     public function updateActivityCount()
