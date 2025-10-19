@@ -9,6 +9,7 @@
         "@tailwindcss/vite": "^4.1.10",
         "axios": "^1.8.2",
         "concurrently": "^9.0.1",
+        "email-deep-validator": "^3.3.0",
         "intl-tel-input": "^25.11.3",
         "laravel-vite-plugin": "^1.2.0",
         "tailwindcss": "^4.1.10",

@@ -121,4 +121,13 @@ return [
     'billing' => '📌 Billing',
     'release' => '⏳ Release',
     'cancellation' => '🧾 Cancellation',
+
+    // PIX
+    'pix_title' => 'Pay with PIX',
+    'pix_instructions' => 'Scan the QR Code or copy the code below to pay.',
+    'copy_code' => 'Copy Code',
+    'pay_with_card' => 'Pay with Card',
+    'generate_pix' => 'Generate PIX',
+    'full_name' => 'Full Name',
+    'credit_card' => 'Credit Card',
 ];

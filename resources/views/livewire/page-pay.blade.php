@@ -177,8 +177,25 @@ $gateway = config('services.default_payment_gateway', 'stripe');
                 </div>
 
                 <!-- Payment Methods -->
-                <div id="payment-method-section" class="bg-[#1F1F1F] rounded-xl p-6 mb-6 scroll-mt-8">
-                    <div class="space-y-4">
+                <div class="bg-[#1F1F1F] rounded-xl p-6 mb-6">
+                    <h2 class="text-xl font-semibold text-white mb-4">{{ __('payment.payment_method') }}</h2>
+                    <div class="flex flex-col md:flex-row gap-4 mb-6">
+                        <div
+                            wire:click="$set('selectedPaymentMethod', 'credit_card')"
+                            class="flex-1 p-4 rounded-lg border-2 cursor-pointer transition-all @if($selectedPaymentMethod === 'credit_card') border-red-500 bg-red-500/10 @else border-gray-700 hover:border-gray-600 @endif">
+                            <h3 class="font-semibold text-white">💳 {{ __('payment.credit_card') }}</h3>
+                        </div>
+                        @if($selectedLanguage === 'br')
+                        <div
+                            wire:click="$set('selectedPaymentMethod', 'pix')"
+                            class="flex-1 p-4 rounded-lg border-2 cursor-pointer transition-all @if($selectedPaymentMethod === 'pix') border-red-500 bg-red-500/10 @else border-gray-700 hover:border-gray-600 @endif">
+                            <h3 class="font-semibold text-white">⚡ PIX (Mercado Pago)</h3>
+                        </div>
+                        @endif
+                    </div>
+
+                    <!-- Credit Card Form -->
+                    <div id="credit-card-form" class="space-y-4" @if($selectedPaymentMethod !== 'credit_card') style="display: none;" @endif>
                         @if($gateway !== 'stripe')
                         <div>
                             <label
@@ -269,7 +286,36 @@ $gateway = config('services.default_payment_gateway', 'stripe');
                         </div>
                         @endif
                     </div>
+                </div>
 
+                <!-- PIX Form -->
+                <div id="pix-form" class="space-y-4" @if($selectedPaymentMethod !== 'pix') style="display: none;" @endif>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.full_name') }}</label>
+                        <input type="text" placeholder="{{ __('payment.full_name') }}" wire:model.defer="pix_name"
+                            class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
+                        @error('pix_name')
+                        <span class="text-red-500 text-xs mt-1">{{ $message }}</span>
+                        @enderror
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-1">E-mail</label>
+                        <input type="email" placeholder="seu@email.com" wire:model.defer="pix_email"
+                            class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
+                        @error('pix_email')
+                        <span class="text-red-500 text-xs mt-1">{{ $message }}</span>
+                        @enderror
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.phone') }}</label>
+                        <input type="tel" placeholder="" wire:model.defer="pix_phone"
+                            class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
+                        @error('pix_phone')
+                        <span class="text-red-500 text-xs mt-1">{{ $message }}</span>
+                        @enderror
+                    </div>
                 </div>
 
                 <!-- Order Bumps -->
@@ -455,9 +501,12 @@ $gateway = config('services.default_payment_gateway', 'stripe');
                 {{ __('payment.checking_secure') }}
             </div>
 
-            <button id="checkout-button" type="button" wire:click.prevent="startCheckout"
+            <button
+                id="checkout-button"
+                type="button"
+                wire:click.prevent="{{ $selectedPaymentMethod === 'pix' ? 'startPixCheckout' : 'startCheckout' }}"
                 class="w-full bg-[#E50914] hover:bg-[#B8070F] text-white py-3 text-lg font-bold rounded-xl transition-all block cursor-pointer transform hover:scale-105">
-                {{ __('checkout.cta_button') }}
+                {{ $selectedPaymentMethod === 'pix' ? __('payment.generate_pix') : __('checkout.cta_button') }}
             </button>
 
             <!-- Trust badges -->
@@ -691,6 +740,40 @@ $gateway = config('services.default_payment_gateway', 'stripe');
         </div>
     </div>
 </div>
+
+<!-- PIX Modal -->
+<div id="pix-modal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 @if (!$showPixModal) hidden @endif"
+    wire:poll.3000ms="checkPixPaymentStatus">
+    <div class="bg-[#1F1F1F] rounded-xl max-w-md w-full mx-4 p-6 text-center">
+        <h3 class="text-2xl font-bold text-white mb-4">{{ __('payment.pix_title') }}</h3>
+        <p class="text-gray-300 mb-4">{{ __('payment.pix_instructions') }}</p>
+
+        <div class="flex justify-center mb-4">
+            <img src="data:image/png;base64,{{ $pixQrCodeBase64 }}" alt="PIX QR Code" class="w-64 h-64">
+        </div>
+
+        <div class="mb-4">
+            <input type="text" value="{{ $pixQrCode }}" readonly
+                class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 text-center">
+            <button onclick="copyToClipboard('{{ $pixQrCode }}')"
+                class="mt-2 bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded">
+                {{ __('payment.copy_code') }}
+            </button>
+        </div>
+
+        <button wire:click="closeModal" class="text-gray-400 hover:text-white">{{ __('payment.pay_with_card') }}</button>
+    </div>
+</div>
+
+<script>
+    function copyToClipboard(text) {
+        navigator.clipboard.writeText(text).then(function() {
+            alert('Código PIX copiado para a área de transferência!');
+        }, function(err) {
+            console.error('Could not copy text: ', err);
+        });
+    }
+</script>
 
 <!-- Personalização Modal -->
 <div class="fixed inset-0 bg-black bg-opacity-80 flex flex-col justify-center items-center text-white z-50 @if (!$showLodingModal) hidden @endif">
