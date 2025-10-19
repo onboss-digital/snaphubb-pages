@@ -666,6 +666,18 @@ class PagePay extends Component
                 if ($status === 'approved') {
                     $this->showPixModal = false;
                     $this->showSuccessModal = true;
+                    
+                    // 🎯 Dispara evento Purchase para PIX
+                    $purchaseData = [
+                        'transaction_id' => $this->pixTransactionId,
+                        'value' => floatval(str_replace(',', '.', str_replace('.', '', $this->totals['final_price']))),
+                        'currency' => 'BRL',
+                        'content_ids' => [$this->product['hash']],
+                        'content_type' => 'product',
+                    ];
+                    
+                    $this->dispatch('pix-paid', pixData: $purchaseData);
+                    
                     return redirect()->to('https://web.snaphubb.online/obg-br');
                 } elseif (in_array($status, ['rejected', 'cancelled'])) {
                     $this->showPixModal = false;
@@ -793,10 +805,4 @@ class PagePay extends Component
         ]);
     }
 
-    public function updatedSelectedPaymentMethod($value)
-    {
-        if ($value === 'pix') {
-            $this->dispatch('showPixModal');
-        }
-    }
 }
