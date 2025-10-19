@@ -1,10 +1,9 @@
 import intlTelInput from 'intl-tel-input';
 
-function setupIntlTelInput(selector, livewireEventName) {
-    const input = document.querySelector(selector);
-    if (!input) {
-        return;
-    }
+document.addEventListener('livewire:init', () => {
+    let iti = null;
+    const phoneInput = document.querySelector("input[name='phone']");
+    let pixPollingInterval = null;
 
     // Check if the instance already exists and destroy it
     if (input.iti) {
@@ -62,5 +61,20 @@ document.addEventListener('livewire:init', () => {
     // Re-initialize on every Livewire update
     Livewire.hook('message.processed', (message, component) => {
         initializeAllPhoneInputs();
+    });
+
+    Livewire.on('start-pix-polling', () => {
+        if (pixPollingInterval) {
+            clearInterval(pixPollingInterval);
+        }
+        pixPollingInterval = setInterval(() => {
+            Livewire.dispatch('checkPixPaymentStatus');
+        }, 3000);
+    });
+
+    Livewire.on('stop-pix-polling', () => {
+        if (pixPollingInterval) {
+            clearInterval(pixPollingInterval);
+        }
     });
 });

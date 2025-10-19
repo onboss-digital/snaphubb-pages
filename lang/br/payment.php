@@ -128,13 +128,14 @@ return [
     'cancellation' => '🧾 Cancelamento',
 
     // PIX
-    'pix_title' => 'Pague com PIX',
-    'pix_instructions' => 'Escaneie o QR Code ou copie o código abaixo para pagar.',
-    'copy_code' => 'Copiar Código',
-    'pay_with_card' => 'Pagar com Cartão',
+    'pix' => 'PIX',
     'generate_pix' => 'Gerar PIX',
-    'full_name' => 'Nome Completo',
-    'credit_card' => 'Cartão de Crédito',
-    'cancel' => 'Cancelar',
-    'secure_data' => 'Não se preocupe, seus dados são criptografados para manter o sigilo.',
+    'pix_almost_done' => 'Quase pronto!',
+    'pix_scan_qr' => 'Escaneie o QR Code abaixo com o app do seu banco para pagar.',
+    'pix_or_copy' => 'Ou copie o código e pague no seu app:',
+    'pix_copied' => 'Código PIX copiado!',
+    'pix_waiting_payment' => 'Aguardando o pagamento...',
+    'pix_wrong_data' => 'Dados incorretos? Voltar e corrigir.',
+    'complete_to_generate_pix' => 'Preencha seus dados para gerar o PIX',
+    'pix_access_for_life' => 'Acesso vitalício por apenas um pagamento.',
 ];
