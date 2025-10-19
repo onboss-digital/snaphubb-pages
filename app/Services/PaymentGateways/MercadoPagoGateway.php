@@ -6,7 +6,7 @@ use App\Interfaces\PaymentGatewayInterface;
 use GuzzleHttp\Client;
 use Illuminate\Support\Facades\Log;
 
-class MercadoPago implements PaymentGatewayInterface
+class MercadoPagoGateway implements PaymentGatewayInterface
 {
     protected $client;
     protected $accessToken;

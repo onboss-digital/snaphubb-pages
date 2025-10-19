@@ -456,7 +456,8 @@ $gateway = config('services.default_payment_gateway', 'stripe');
                 id="checkout-button"
                 type="button"
                 wire:click.prevent="startCheckout"
-                class="w-full bg-[#E50914] hover:bg-[#B8070F] text-white py-3 text-lg font-bold rounded-xl transition-all block cursor-pointer transform hover:scale-105 @if($selectedPaymentMethod === 'pix') hidden @endif">
+                x-show="selectedPaymentMethod !== 'pix'"
+                class="w-full bg-[#E50914] hover:bg-[#B8070F] text-white py-3 text-lg font-bold rounded-xl transition-all block cursor-pointer transform hover:scale-105">
                 {{ __('checkout.cta_button') }}
             </button>
 
@@ -693,7 +694,7 @@ $gateway = config('services.default_payment_gateway', 'stripe');
 </div>
 
 <!-- PIX Form Modal -->
-<div id="pix-form-modal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 @if (!$showPixFormModal) hidden @endif">
+<div id="pix-form-modal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50" x-show="selectedPaymentMethod === 'pix'" @click.away="selectedPaymentMethod = 'credit_card'">
     <div class="bg-[#1F1F1F] rounded-xl max-w-3xl w-full mx-4 p-8"> <!-- Increased padding and max-width -->
         <div class="flex flex-col md:flex-row gap-8">
 
