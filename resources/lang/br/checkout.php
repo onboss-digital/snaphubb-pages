@@ -21,4 +21,26 @@ return [
     'remaining_vacancies' => 'Vagas restantes',
     'live_activity' => ':count pessoas estão comprando agora',
     'cta_button' => 'QUERO ACESSO IMEDIATO',
+    'testimonials' => [
+        [
+            'name' => 'João D.',
+            'quote' => 'Finalmente uma plataforma que entende o que eu gosto. Conteúdo de alta qualidade e sem interrupções. Vale cada centavo!',
+            'stars' => 5,
+        ],
+        [
+            'name' => 'Maria S.',
+            'quote' => 'A variedade de canais ao vivo é incrível. Passo horas assistindo e sempre descubro algo novo. Recomendo a todos!',
+            'stars' => 5,
+        ],
+        [
+            'name' => 'Pedro A.',
+            'quote' => 'O conteúdo exclusivo é o melhor. As produções originais são de alta qualidade e me mantêm entretido por horas.',
+            'stars' => 4,
+        ],
+        [
+            'name' => 'Ana P.',
+            'quote' => 'A facilidade de cancelar a qualquer momento me deu a confiança para experimentar. Agora sou um assinante fiel. Ótimo serviço!',
+            'stars' => 5,
+        ],
+    ],
 ];

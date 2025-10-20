@@ -40,21 +40,25 @@ class MercadoPagoGateway implements PaymentGatewayInterface
 
     public function createPixPayment(array $paymentData): array
     {
+        $requestBody = [
+            'transaction_amount' => $paymentData['amount'] / 100,
+            'description' => $paymentData['cart'][0]['title'],
+            'payment_method_id' => 'pix',
+            'payer' => [
+                'email' => $paymentData['customer']['email'],
+                'first_name' => $paymentData['customer']['name'],
+            ],
+        ];
+
+        Log::debug('MercadoPago PIX Request Body:', $requestBody);
+
         try {
             $response = $this->client->post("{$this->apiUrl}/v1/payments", [
                 'headers' => [
                     'Authorization' => "Bearer {$this->accessToken}",
                     'Content-Type' => 'application/json',
                 ],
-                'json' => [
-                    'transaction_amount' => $paymentData['amount'] / 100,
-                    'description' => $paymentData['cart'][0]['title'],
-                    'payment_method_id' => 'pix',
-                    'payer' => [
-                        'email' => $paymentData['customer']['email'],
-                        'first_name' => $paymentData['customer']['name'],
-                    ],
-                ],
+                'json' => $requestBody,
             ]);
 
             $body = json_decode($response->getBody(), true);
