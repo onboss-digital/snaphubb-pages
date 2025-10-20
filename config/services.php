@@ -20,6 +20,10 @@ return [
         'token' => env('POSTMARK_TOKEN'),
     ],
 
+    'mercadopago' => [
+        'access_token' => env('MERCADOPAGO_ACCESS_TOKEN'),
+    ],
+
     'ses' => [
         'key' => env('AWS_ACCESS_KEY_ID'),
         'secret' => env('AWS_SECRET_ACCESS_KEY'),
@@ -55,12 +59,6 @@ return [
 
     'streamit' => [
         'api_url' => env('STREAMIT_API_URL'),
-    ],
-
-    // ===== ABACATEPAY (NOVO) =====
-    'abacatepay' => [
-        'api_key' => env('ABACATEPAY_API_KEY'),
-        'api_url' => env('ABACATEPAY_API_URL', 'https://api.abacatepay.com/v1'),
     ],
 
 ];
