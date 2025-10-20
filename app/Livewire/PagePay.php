@@ -610,24 +610,39 @@ class PagePay extends Component
 
     public function startPixCheckout()
     {
-        $this->validate([
-            'pix_name' => 'required|string|max:255',
-            'pix_email' => 'required|email',
-            'pix_cpf' => ['required', 'string', 'regex:/^\d{3}\.\d{3}\.\d{3}\-\d{2}$/'],
-            'pix_phone' => ['nullable', 'string', new ValidPhoneNumber],
-        ]);
+        Log::info('startPixCheckout: Method initiated.');
+
+        try {
+            $this->validate([
+                'pix_name' => 'required|string|max:255',
+                'pix_email' => 'required|email',
+                'pix_cpf' => ['required', 'string', 'regex:/^\d{3}\.\d{3}\.\d{3}\-\d{2}$/'],
+                'pix_phone' => ['nullable', 'string', new ValidPhoneNumber],
+            ]);
+            Log::info('startPixCheckout: Validation successful.');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            Log::error('startPixCheckout: Validation failed.', ['errors' => $e->errors()]);
+            $this->showErrorModal = true; // Make sure error modal is shown on validation failure
+            return;
+        }
+
 
         $this->loadingMessage = __('payment.generating_pix');
         $this->showLodingModal = true;
 
         try {
+            Log::info('startPixCheckout: Preparing checkout data.');
             $checkoutData = $this->prepareCheckoutData();
-            Log::debug('PIX Checkout Data', $checkoutData);
+            Log::info('startPixCheckout: Checkout data prepared successfully.', $checkoutData);
 
+            Log::info('startPixCheckout: Creating payment gateway.');
             $paymentGateway = app(PaymentGatewayFactory::class)->create('mercadopago');
-            $response = $paymentGateway->processPayment($checkoutData);
+            Log::info('startPixCheckout: Payment gateway created.');
 
-            Log::debug('PIX Gateway Response', $response);
+            Log::info('startPixCheckout: Processing payment.');
+            $response = $paymentGateway->processPayment($checkoutData);
+            Log::info('startPixCheckout: Payment processed.', ['response' => $response]);
+
 
             if ($response['status'] === 'success') {
                 $this->pixQrCode = $response['data']['qr_code'];
@@ -635,12 +650,15 @@ class PagePay extends Component
                 $this->pixTransactionId = $response['data']['transaction_id'];
                 $this->showPixModal = true;
                 $this->dispatch('pix-generated');
+                Log::info('startPixCheckout: PIX generated successfully.');
             } else {
                 $this->showErrorModal = true;
+                Log::error('startPixCheckout: PIX generation failed.', ['response' => $response]);
             }
         } catch (\Exception $e) {
             Log::channel('payment_checkout')->error('PIX Checkout Error:', [
                 'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
             ]);
             $this->showErrorModal = true;
         } finally {
