@@ -21,4 +21,26 @@ return [
     'remaining_vacancies' => 'Remaining spots',
     'live_activity' => ':count people are buying now',
     'cta_button' => 'I WANT IMMEDIATE ACCESS',
+    'testimonials' => [
+        [
+            'name' => 'John D.',
+            'quote' => 'Finally a platform that understands what I like. High-quality content and no interruptions. Worth every penny!',
+            'stars' => 5,
+        ],
+        [
+            'name' => 'Mary S.',
+            'quote' => 'The variety of live channels is incredible. I spend hours watching and always discover something new. I recommend it to everyone!',
+            'stars' => 5,
+        ],
+        [
+            'name' => 'Peter A.',
+            'quote' => 'The exclusive content is the best. The original productions are top-notch and keep me entertained for hours.',
+            'stars' => 4,
+        ],
+        [
+            'name' => 'Ann P.',
+            'quote' => 'The ease of canceling anytime gave me the confidence to try it out. Now I am a loyal subscriber. Great service!',
+            'stars' => 5,
+        ],
+    ],
 ];
