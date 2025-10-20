@@ -71,15 +71,37 @@ class MercadoPagoGateway implements PaymentGatewayInterface
                     'transaction_id' => $body['id'],
                 ],
             ];
-        } catch (\Exception $e) {
+        } catch (\GuzzleHttp\Exception\ClientException $e) {
+            $response = $e->getResponse();
+            $statusCode = $response->getStatusCode();
+            $body = json_decode($response->getBody()->getContents(), true);
+
             Log::channel('payment_checkout')->error('MercadoPago PIX Error:', [
+                'statusCode' => $statusCode,
+                'body' => $body,
+                'data' => $paymentData,
+            ]);
+
+            $message = 'An unknown error occurred.';
+            if ($statusCode == 403) {
+                $message = 'Mercado Pago API Forbidden (403). Please check your API credentials and ensure your account is activated for payments.';
+            } elseif (isset($body['message'])) {
+                $message = $body['message'];
+            }
+
+            return [
+                'status' => 'error',
+                'message' => $message,
+            ];
+        } catch (\Exception $e) {
+            Log::channel('payment_checkout')->error('MercadoPago PIX General Error:', [
                 'message' => $e->getMessage(),
                 'data' => $paymentData,
             ]);
 
             return [
                 'status' => 'error',
-                'message' => $e->getMessage(),
+                'message' => 'A general error occurred while processing the PIX payment.',
             ];
         }
     }
