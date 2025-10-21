@@ -726,18 +726,13 @@ class PagePay extends Component
 
     public function closeModal()
     {
+        $this->showPixModal = false;
+        $this->showProcessingModal = false;
         $this->showErrorModal = false;
         $this->showSuccessModal = false;
-
-        if ($this->showPixModal) {
-            $this->showPixModal = false;
-            // Atraso para garantir que a transição do modal seja suave antes de redefinir
-            \Illuminate\Support\Facades\App::afterResolving('livewire', function () {
-                if ($this->selectedPaymentMethod === 'pix') {
-                    $this->selectedPaymentMethod = 'credit_card';
-                }
-            });
-        }
+        $this->pixQrCodeBase64 = null;
+        $this->pixQrCode = null;
+        $this->selectedPaymentMethod = 'credit_card';
     }
 
     public function decrementTimer()
