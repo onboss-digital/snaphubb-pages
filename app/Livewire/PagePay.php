@@ -30,6 +30,7 @@ class PagePay extends Component
     // Modais
     public $showSuccessModal = false;
     public $showErrorModal = false;
+    public $errorMessage = '';
     public $showSecure = false;
     public $showLodingModal = false; // Note: "Loding" might be a typo for "Loading"
     public $showDownsellModal = false;
@@ -627,8 +628,8 @@ class PagePay extends Component
         }
 
 
-        $this->loadingMessage = __('payment.generating_pix');
         $this->showLodingModal = true;
+        $this->loadingMessage = __('payment.generating_pix');
 
         try {
             Log::info('startPixCheckout: Preparing checkout data.');
@@ -648,10 +649,10 @@ class PagePay extends Component
                 $this->pixQrCode = $response['data']['qr_code'];
                 $this->pixQrCodeBase64 = $response['data']['qr_code_base64'];
                 $this->pixTransactionId = $response['data']['transaction_id'];
-                $this->showPixModal = true;
                 $this->dispatch('pix-generated');
                 Log::info('startPixCheckout: PIX generated successfully.');
             } else {
+                $this->errorMessage = $response['message'] ?? 'Ocorreu um erro ao gerar o PIX. Tente novamente.';
                 $this->showErrorModal = true;
                 Log::error('startPixCheckout: PIX generation failed.', ['response' => $response]);
             }
@@ -660,6 +661,7 @@ class PagePay extends Component
                 'message' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
+            $this->errorMessage = 'Não foi possível conectar ao provedor de pagamento.';
             $this->showErrorModal = true;
         } finally {
             $this->showLodingModal = false;
@@ -688,8 +690,8 @@ class PagePay extends Component
                 if ($status === 'approved') {
                     $this->showPixModal = false;
                     $this->showSuccessModal = true;
-                    
-                    // 🎯 Dispara evento Purchase para PIX
+
+                    // Dispara evento Purchase para PIX
                     $purchaseData = [
                         'transaction_id' => $this->pixTransactionId,
                         'value' => floatval(str_replace(',', '.', str_replace('.', '', $this->totals['final_price']))),
@@ -701,23 +703,41 @@ class PagePay extends Component
                     $this->dispatch('pix-paid', pixData: $purchaseData);
                     
                     return redirect()->to('https://web.snaphubb.online/obg-br');
-                } elseif (in_array($status, ['rejected', 'cancelled'])) {
+                } elseif (in_array($status, ['rejected', 'cancelled', 'expired'])) {
                     $this->showPixModal = false;
+                    $this->errorMessage = __('payment.pix_expired');
                     $this->showErrorModal = true;
+                    $this->dispatch('stop-polling');
                     return redirect()->to('https://web.snaphubb.online/fail-br');
                 }
             }
         }
     }
 
+    public function updatedSelectedPaymentMethod($value)
+    {
+        if ($value === 'pix') {
+            $this->resetPixModal();
+            $this->showPixModal = true;
+        } else {
+            $this->showPixModal = false;
+        }
+    }
+
     public function closeModal()
     {
-        if ($this->showPixModal) {
-            $this->selectedPaymentMethod = 'credit_card';
-        }
         $this->showErrorModal = false;
         $this->showSuccessModal = false;
-        $this->showPixModal = false;
+
+        if ($this->showPixModal) {
+            $this->showPixModal = false;
+            // Atraso para garantir que a transição do modal seja suave antes de redefinir
+            \Illuminate\Support\Facades\App::afterResolving('livewire', function () {
+                if ($this->selectedPaymentMethod === 'pix') {
+                    $this->selectedPaymentMethod = 'credit_card';
+                }
+            });
+        }
     }
 
     public function decrementTimer()

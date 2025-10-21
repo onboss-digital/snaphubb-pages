@@ -50,7 +50,10 @@ class MercadoPagoGateway implements PaymentGatewayInterface
             ],
         ];
 
-        Log::debug('MercadoPago PIX Request Body:', $requestBody);
+        Log::channel('payment_checkout')->info('MercadoPago PIX Request:', [
+            'endpoint' => "{$this->apiUrl}/v1/payments",
+            'request_body' => $requestBody,
+        ]);
 
         try {
             $response = $this->client->post("{$this->apiUrl}/v1/payments", [
@@ -62,6 +65,11 @@ class MercadoPagoGateway implements PaymentGatewayInterface
             ]);
 
             $body = json_decode($response->getBody(), true);
+
+            Log::channel('payment_checkout')->info('MercadoPago PIX Response:', [
+                'status_code' => $response->getStatusCode(),
+                'response_body' => $body,
+            ]);
 
             return [
                 'status' => 'success',
