@@ -30,6 +30,7 @@ class PagePay extends Component
     // Modais
     public $showSuccessModal = false;
     public $showErrorModal = false;
+    public $errorMessage = '';
     public $showSecure = false;
     public $showLodingModal = false; // Note: "Loding" might be a typo for "Loading"
     public $showDownsellModal = false;
@@ -610,38 +611,57 @@ class PagePay extends Component
 
     public function startPixCheckout()
     {
-        $this->validate([
-            'pix_name' => 'required|string|max:255',
-            'pix_email' => 'required|email',
-            'pix_cpf' => ['required', 'string', 'regex:/^\d{3}\.\d{3}\.\d{3}\-\d{2}$/'],
-            'pix_phone' => ['nullable', 'string', new ValidPhoneNumber],
-        ]);
-
-        $this->loadingMessage = __('payment.generating_pix');
-        $this->showLodingModal = true;
+        Log::info('startPixCheckout: Method initiated.');
 
         try {
+            $this->validate([
+                'pix_name' => 'required|string|max:255',
+                'pix_email' => 'required|email',
+                'pix_cpf' => ['required', 'string', 'regex:/^\d{3}\.\d{3}\.\d{3}\-\d{2}$/'],
+                'pix_phone' => ['nullable', 'string', new ValidPhoneNumber],
+            ]);
+            Log::info('startPixCheckout: Validation successful.');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            Log::error('startPixCheckout: Validation failed.', ['errors' => $e->errors()]);
+            $this->dispatch('validation:failed');
+            throw $e;
+        }
+
+
+        $this->showLodingModal = true;
+        $this->loadingMessage = __('payment.generating_pix');
+
+        try {
+            Log::info('startPixCheckout: Preparing checkout data.');
             $checkoutData = $this->prepareCheckoutData();
-            Log::debug('PIX Checkout Data', $checkoutData);
+            Log::info('startPixCheckout: Checkout data prepared successfully.', $checkoutData);
 
+            Log::info('startPixCheckout: Creating payment gateway.');
             $paymentGateway = app(PaymentGatewayFactory::class)->create('mercadopago');
-            $response = $paymentGateway->processPayment($checkoutData);
+            Log::info('startPixCheckout: Payment gateway created.');
 
-            Log::debug('PIX Gateway Response', $response);
+            Log::info('startPixCheckout: Processing payment.');
+            $response = $paymentGateway->processPayment($checkoutData);
+            Log::info('startPixCheckout: Payment processed.', ['response' => $response]);
+
 
             if ($response['status'] === 'success') {
                 $this->pixQrCode = $response['data']['qr_code'];
                 $this->pixQrCodeBase64 = $response['data']['qr_code_base64'];
                 $this->pixTransactionId = $response['data']['transaction_id'];
-                $this->showPixModal = true;
                 $this->dispatch('pix-generated');
+                Log::info('startPixCheckout: PIX generated successfully.');
             } else {
+                $this->errorMessage = $response['message'] ?? 'Ocorreu um erro ao gerar o PIX. Tente novamente.';
                 $this->showErrorModal = true;
+                Log::error('startPixCheckout: PIX generation failed.', ['response' => $response]);
             }
         } catch (\Exception $e) {
             Log::channel('payment_checkout')->error('PIX Checkout Error:', [
                 'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
             ]);
+            $this->errorMessage = 'Não foi possível conectar ao provedor de pagamento.';
             $this->showErrorModal = true;
         } finally {
             $this->showLodingModal = false;
@@ -670,8 +690,8 @@ class PagePay extends Component
                 if ($status === 'approved') {
                     $this->showPixModal = false;
                     $this->showSuccessModal = true;
-                    
-                    // 🎯 Dispara evento Purchase para PIX
+
+                    // Dispara evento Purchase para PIX
                     $purchaseData = [
                         'transaction_id' => $this->pixTransactionId,
                         'value' => floatval(str_replace(',', '.', str_replace('.', '', $this->totals['final_price']))),
@@ -683,23 +703,36 @@ class PagePay extends Component
                     $this->dispatch('pix-paid', pixData: $purchaseData);
                     
                     return redirect()->to('https://web.snaphubb.online/obg-br');
-                } elseif (in_array($status, ['rejected', 'cancelled'])) {
+                } elseif (in_array($status, ['rejected', 'cancelled', 'expired'])) {
                     $this->showPixModal = false;
+                    $this->errorMessage = __('payment.pix_expired');
                     $this->showErrorModal = true;
+                    $this->dispatch('stop-polling');
                     return redirect()->to('https://web.snaphubb.online/fail-br');
                 }
             }
         }
     }
 
+    public function updatedSelectedPaymentMethod($value)
+    {
+        if ($value === 'pix') {
+            $this->resetPixModal();
+            $this->showPixModal = true;
+        } else {
+            $this->showPixModal = false;
+        }
+    }
+
     public function closeModal()
     {
-        if ($this->showPixModal) {
-            $this->selectedPaymentMethod = 'credit_card';
-        }
+        $this->showPixModal = false;
+        $this->showProcessingModal = false;
         $this->showErrorModal = false;
         $this->showSuccessModal = false;
-        $this->showPixModal = false;
+        $this->pixQrCodeBase64 = null;
+        $this->pixQrCode = null;
+        $this->selectedPaymentMethod = 'credit_card';
     }
 
     public function decrementTimer()
