@@ -623,8 +623,8 @@ class PagePay extends Component
             Log::info('startPixCheckout: Validation successful.');
         } catch (\Illuminate\Validation\ValidationException $e) {
             Log::error('startPixCheckout: Validation failed.', ['errors' => $e->errors()]);
-            $this->showErrorModal = true; // Make sure error modal is shown on validation failure
-            return;
+            $this->dispatch('validation:failed');
+            throw $e;
         }
 
 

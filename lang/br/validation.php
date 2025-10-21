@@ -10,7 +10,7 @@ return [
     'digits_between' => 'O campo :attribute deve ter entre :min e :max dígitos.',
     'regex' => 'O formato do campo :attribute é inválido.',
     'email' => 'O campo :attribute deve ser um endereço de e-mail válido.',
-    'phone_invalid' => 'O campo :attribute não é um número de telefone válido.',
+    'phone_invalid' => 'O número de telefone informado é inválido.',
 
     /*
     |--------------------------------------------------------------------------
@@ -31,5 +31,6 @@ return [
         'email' => 'e-mail',
         'phone' => 'telefone',
         'cpf' => 'CPF',
+        'pix_cpf' => 'CPF',
     ],
 ];
