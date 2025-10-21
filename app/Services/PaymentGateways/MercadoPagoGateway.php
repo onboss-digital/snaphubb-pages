@@ -5,6 +5,7 @@ namespace App\Services\PaymentGateways;
 use App\Interfaces\PaymentGatewayInterface;
 use GuzzleHttp\Client;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 class MercadoPagoGateway implements PaymentGatewayInterface
 {
@@ -60,6 +61,7 @@ class MercadoPagoGateway implements PaymentGatewayInterface
                 'headers' => [
                     'Authorization' => "Bearer {$this->accessToken}",
                     'Content-Type' => 'application/json',
+                    'X-Idempotency-Key' => Str::uuid()->toString(),
                 ],
                 'json' => $requestBody,
             ]);
