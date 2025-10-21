@@ -177,7 +177,7 @@ $gateway = config('services.default_payment_gateway', 'stripe');
                 </div>
 
                 <!-- Payment Methods -->
-                <div id="payment-method-section" class="bg-[#1F1F1F] rounded-xl p-6 mb-6 scroll-mt-8">
+<div x-data="{ selectedPaymentMethod: @entangle('selectedPaymentMethod') }" id="payment-method-section" class="bg-[#1F1F1F] rounded-xl p-6 mb-6 scroll-mt-8">
                     <h2 class="text-xl font-semibold text-white mb-4">{{ __('payment.payment_method') }}</h2>
                     <div class="space-y-4">
                         <div class="flex items-center justify-start p-2 rounded-lg border border-gray-700">
@@ -730,12 +730,12 @@ $gateway = config('services.default_payment_gateway', 'stripe');
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.cpf') }}</label>
-                            <input name="pix_cpf" type="text" placeholder="000.000.000-00" wire:model.defer="pix_cpf" x-mask="999.999.999-99" class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border @error('pix_cpf') border-red-500 @else border-gray-700 @enderror focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
+                            <input name="pix_cpf" type="text" placeholder="{{ __('payment.cpf_placeholder') }}" wire:model.defer="pix_cpf" x-mask="999.999.999-99" class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border @error('pix_cpf') border-red-500 @else border-gray-700 @enderror focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
                             @error('pix_cpf')<span class="text-red-500 text-xs mt-1">{{ $message }}</span>@enderror
                         </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.phone') }}</label>
-                            <input name="pix_phone" id="pix_phone" type="tel" wire:model.defer="pix_phone" class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border @error('pix_phone') border-red-500 @else border-gray-700 @enderror focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
+                        <div class="form-group">
+                            <label for="pix_phone_field" class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.phone') }}</label>
+                            <input id="pix_phone_field" name="pix_phone" type="tel" placeholder="{{ __('payment.phone_placeholder') }}" wire:model.defer="pix_phone" class="pix-phone-field w-full bg-[#2D2D2D] text-white rounded-lg p-3 border @error('pix_phone') border-red-500 @else border-gray-700 @enderror focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
                             @error('pix_phone')<span class="text-red-500 text-xs mt-1">{{ $message }}</span>@enderror
                         </div>
                     </div>
@@ -743,16 +743,16 @@ $gateway = config('services.default_payment_gateway', 'stripe');
                 <!-- Lado Direito: Resumo do Pedido -->
                 <div class="w-full md:w-1/2 bg-[#2D2D2D] p-6 rounded-lg flex flex-col justify-between">
                     <div>
-                        <h3 class="text-xl font-bold text-white mb-4">Streaming Snaphubb - BR</h3>
+                        <h3 class="text-xl font-bold text-white mb-4">{{ __('payment.product_name') }}</h3>
                         <img src="https://web.snaphubb.online/wp-content/uploads/2025/10/capa-brasil.jpg" alt="Product Image" class="w-full h-auto rounded-lg object-cover border-2 border-gray-700 mb-4">
                         <div class="border-t border-gray-600 pt-4 space-y-3">
                             <div class="flex justify-between items-center text-gray-300">
                                 <span class="text-lg">{{ __('payment.original_price') }}</span>
-                                <del>R$ 49,90</del>
+                                <del>{{ __('payment.original_price_brl') }}</del>
                             </div>
                              <div class="flex justify-between items-center text-white">
                                 <span class="text-lg font-bold">{{ __('payment.total_to_pay') }}</span>
-                                <p class="font-bold text-green-400 text-2xl">R$ 24,90</p>
+                                <p class="font-bold text-green-400 text-2xl">{{ __('payment.discount_price_brl') }}</p>
                             </div>
                             <div class="text-green-400 font-semibold text-center bg-green-900 bg-opacity-50 rounded-md py-2">
                                 💰 {{ __('payment.pix_discount_applied', ['percentage' => 50]) }}
@@ -765,7 +765,7 @@ $gateway = config('services.default_payment_gateway', 'stripe');
                 </div>
             </div>
             <div class="mt-8 flex justify-between items-center">
-                <button @click="show = false; $wire.call('closeModal')" class="py-2 px-6 text-white font-medium rounded-lg border border-gray-600 hover:bg-[#2D2D2D] transition-colors">
+                <button @click="show = false; $wire.set('selectedPaymentMethod', 'credit_card')" class="py-2 px-6 text-white font-medium rounded-lg border border-gray-600 hover:bg-[#2D2D2D] transition-colors">
                     {{ __('payment.cancel') }}
                 </button>
                 <button wire:click="startPixCheckout" wire:loading.attr="disabled" wire:loading.class="opacity-50" class="py-3 px-8 bg-[#E50914] hover:bg-[#B8070F] text-white font-bold rounded-lg transition-colors text-lg flex items-center">
