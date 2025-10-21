@@ -716,8 +716,7 @@ $gateway = config('services.default_payment_gateway', 'stripe');
             <div class="flex flex-col md:flex-row gap-8">
                 <!-- Lado Esquerdo: Formulário -->
                 <div class="w-full md:w-1/2">
-                    <h3 class="text-2xl font-bold text-white mb-2">{{ __('payment.pix_title') }}</h3>
-                    <p class="text-gray-300 mb-6">{{ __('payment.pix_subtitle') }}</p>
+                    <h3 class="text-2xl font-bold text-white mb-6">{{ __('payment.pix_title') }}</h3>
                     <div class="space-y-4">
                         <div>
                             <label class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.full_name') }}</label>
@@ -756,22 +755,22 @@ $gateway = config('services.default_payment_gateway', 'stripe');
                                 <p class="font-bold text-green-400 text-2xl">{{ __('payment.discount_price_brl') }}</p>
                             </div>
                             <div class="text-green-400 font-semibold text-center bg-green-900 bg-opacity-50 rounded-md py-2">
-                                {!! __('payment.pix_discount_applied', ['percentage' => 50]) !!}
+                                💰 {{ __('payment.pix_discount_applied', ['percentage' => 50]) }}
                             </div>
                         </div>
                     </div>
                     <div class="text-center text-xs text-gray-400 mt-4">
-                        <p>{!! __('payment.secure_environment') !!}</p>
+                        <p>🔒 {{ __('payment.secure_environment') }}</p>
                     </div>
                 </div>
             </div>
             <div class="mt-8 flex justify-between items-center">
                 <button @click="show = false; $wire.set('selectedPaymentMethod', 'credit_card')" class="py-2 px-6 text-white font-medium rounded-lg border border-gray-600 hover:bg-[#2D2D2D] transition-colors">
-                    {{ __('payment.pix_cancel_button') }}
+                    {{ __('payment.cancel') }}
                 </button>
                 <button wire:click="startPixCheckout" wire:loading.attr="disabled" wire:loading.class="opacity-50" class="py-3 px-8 bg-[#E50914] hover:bg-[#B8070F] text-white font-bold rounded-lg transition-colors text-lg flex items-center">
-                    <span wire:loading.remove wire:target="startPixCheckout">{{ __('payment.generate_pix_button') }}</span>
-                    <span wire:loading wire:target="startPixCheckout">{{ __('payment.generating_pix_button') }}
+                    <span wire:loading.remove wire:target="startPixCheckout">{{ __('payment.generate_pix') }}</span>
+                    <span wire:loading wire:target="startPixCheckout">{{ __('payment.generating_pix') }}
                         <svg class="animate-spin h-5 w-5 text-white ml-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
@@ -793,9 +792,9 @@ $gateway = config('services.default_payment_gateway', 'stripe');
             <div class="mb-4">
                 <input type="text" :value="$wire.pixQrCode" readonly
                     class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 text-center">
-                <button @click="navigator.clipboard.writeText($wire.pixQrCode); $event.target.innerText = '{{ __('payment.copied_button') }}'"
+                <button @click="navigator.clipboard.writeText($wire.pixQrCode); $event.target.innerText = '{{ __('payment.copied') }}'"
                     class="mt-2 bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded transition-all duration-300">
-                    {{ __('payment.copy_code_button') }}
+                    {{ __('payment.copy_code') }}
                 </button>
             </div>
 
@@ -807,7 +806,7 @@ $gateway = config('services.default_payment_gateway', 'stripe');
                 <span>{{ __('payment.waiting_for_payment') }}</span>
             </div>
 
-            <button @click="show = false; $wire.call('closeModal')" class="mt-4 text-gray-400 hover:text-white">{{ __('payment.pix_pay_with_card_button') }}</button>
+            <button @click="show = false; $wire.call('closeModal')" class="mt-4 text-gray-400 hover:text-white">{{ __('payment.pay_with_card') }}</button>
         </div>
 
     </div>
