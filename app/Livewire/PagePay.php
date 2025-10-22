@@ -20,13 +20,6 @@ class PagePay extends Component
 
     public $selectedPaymentMethod = 'credit_card';
 
-    // PIX Properties
-    public $pix_name, $pix_email, $pix_phone, $pix_cpf;
-    public $showPixModal = false;
-    public $pixQrCode;
-    public $pixQrCodeBase64;
-    public $pixTransactionId;
-
     // Modais
     public $showSuccessModal = false;
     public $showErrorModal = false;
@@ -505,22 +498,13 @@ class PagePay extends Component
 
     private function prepareCheckoutData()
     {
-        if ($this->selectedPaymentMethod === 'pix') {
-            $customerData = [
-                'name' => $this->pix_name,
-                'email' => $this->pix_email,
-                'phone_number' => preg_replace('/[^0-9+]/', '', $this->pix_phone),
-                'document' => preg_replace('/\D/', '', $this->pix_cpf),
-            ];
-        } else {
-            $customerData = [
-                'name' => $this->cardName,
-                'email' => $this->email,
-                'phone_number' => preg_replace('/[^0-9+]/', '', $this->phone),
-            ];
-            if ($this->selectedLanguage === 'br' && $this->cpf) {
-                $customerData['document'] = preg_replace('/\D/', '', $this->cpf);
-            }
+        $customerData = [
+            'name' => $this->cardName,
+            'email' => $this->email,
+            'phone_number' => preg_replace('/[^0-9+]/', '', $this->phone),
+        ];
+        if ($this->selectedLanguage === 'br' && $this->cpf) {
+            $customerData['document'] = preg_replace('/\D/', '', $this->cpf);
         }
 
         // Lógica existente para cartão de crédito
@@ -609,129 +593,11 @@ class PagePay extends Component
     }
 
 
-    public function startPixCheckout()
-    {
-        Log::info('startPixCheckout: Method initiated.');
-
-        try {
-            $this->validate([
-                'pix_name' => 'required|string|max:255',
-                'pix_email' => 'required|email',
-                'pix_cpf' => ['required', 'string', 'regex:/^\d{3}\.\d{3}\.\d{3}\-\d{2}$/'],
-                'pix_phone' => ['nullable', 'string', new ValidPhoneNumber],
-            ]);
-            Log::info('startPixCheckout: Validation successful.');
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            Log::error('startPixCheckout: Validation failed.', ['errors' => $e->errors()]);
-            $this->dispatch('validation:failed');
-            throw $e;
-        }
-
-
-        $this->showLodingModal = true;
-        $this->loadingMessage = __('payment.generating_pix');
-
-        try {
-            Log::info('startPixCheckout: Preparing checkout data.');
-            $checkoutData = $this->prepareCheckoutData();
-            Log::info('startPixCheckout: Checkout data prepared successfully.', $checkoutData);
-
-            Log::info('startPixCheckout: Creating payment gateway.');
-            $paymentGateway = app(PaymentGatewayFactory::class)->create('mercadopago');
-            Log::info('startPixCheckout: Payment gateway created.');
-
-            Log::info('startPixCheckout: Processing payment.');
-            $response = $paymentGateway->processPayment($checkoutData);
-            Log::info('startPixCheckout: Payment processed.', ['response' => $response]);
-
-
-            if ($response['status'] === 'success') {
-                $this->pixQrCode = $response['data']['qr_code'];
-                $this->pixQrCodeBase64 = $response['data']['qr_code_base64'];
-                $this->pixTransactionId = $response['data']['transaction_id'];
-                $this->dispatch('pix-generated');
-                Log::info('startPixCheckout: PIX generated successfully.');
-            } else {
-                $this->errorMessage = $response['message'] ?? 'Ocorreu um erro ao gerar o PIX. Tente novamente.';
-                $this->showErrorModal = true;
-                Log::error('startPixCheckout: PIX generation failed.', ['response' => $response]);
-            }
-        } catch (\Exception $e) {
-            Log::channel('payment_checkout')->error('PIX Checkout Error:', [
-                'message' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
-            $this->errorMessage = 'Não foi possível conectar ao provedor de pagamento.';
-            $this->showErrorModal = true;
-        } finally {
-            $this->showLodingModal = false;
-        }
-    }
-
-    public function resetPixModal()
-    {
-        $this->pix_name = '';
-        $this->pix_email = '';
-        $this->pix_phone = '';
-        $this->pix_cpf = '';
-        $this->pixQrCode = null;
-        $this->pixQrCodeBase64 = null;
-        $this->pixTransactionId = null;
-    }
-
-    public function checkPixPaymentStatus()
-    {
-        if ($this->pixTransactionId) {
-            $paymentGateway = app(PaymentGatewayFactory::class)->create('mercadopago');
-            $response = $paymentGateway->getPaymentStatus($this->pixTransactionId);
-
-            if ($response['status'] === 'success') {
-                $status = $response['data']['status'];
-                if ($status === 'approved') {
-                    $this->showPixModal = false;
-                    $this->showSuccessModal = true;
-
-                    // Dispara evento Purchase para PIX
-                    $purchaseData = [
-                        'transaction_id' => $this->pixTransactionId,
-                        'value' => floatval(str_replace(',', '.', str_replace('.', '', $this->totals['final_price']))),
-                        'currency' => 'BRL',
-                        'content_ids' => [$this->product['hash']],
-                        'content_type' => 'product',
-                    ];
-                    
-                    $this->dispatch('pix-paid', pixData: $purchaseData);
-                    
-                    return redirect()->to('https://web.snaphubb.online/obg-br');
-                } elseif (in_array($status, ['rejected', 'cancelled', 'expired'])) {
-                    $this->showPixModal = false;
-                    $this->errorMessage = __('payment.pix_expired');
-                    $this->showErrorModal = true;
-                    $this->dispatch('stop-polling');
-                    return redirect()->to('https://web.snaphubb.online/fail-br');
-                }
-            }
-        }
-    }
-
-    public function updatedSelectedPaymentMethod($value)
-    {
-        if ($value === 'pix') {
-            $this->resetPixModal();
-            $this->showPixModal = true;
-        } else {
-            $this->showPixModal = false;
-        }
-    }
-
     public function closeModal()
     {
-        $this->showPixModal = false;
         $this->showProcessingModal = false;
         $this->showErrorModal = false;
         $this->showSuccessModal = false;
-        $this->pixQrCodeBase64 = null;
-        $this->pixQrCode = null;
         $this->selectedPaymentMethod = 'credit_card';
     }
 
@@ -763,18 +629,18 @@ class PagePay extends Component
     {
         return [
             'updatePhone' => 'updatePhone',
-            'updatePixPhone' => 'updatePixPhone'
+            'pix-modal-closed' => 'handlePixModalClosed',
         ];
+    }
+
+    public function handlePixModalClosed()
+    {
+        $this->selectedPaymentMethod = 'credit_card';
     }
 
     public function updatePhone($event)
     {
         $this->phone = $event['phone'];
-    }
-
-    public function updatePixPhone($event)
-    {
-        $this->pix_phone = $event['phone'];
     }
 
     public function updateActivityCount()
