@@ -115,9 +115,28 @@ $gateway = config('services.default_payment_gateway', 'stripe');
                 </div>
             </div>
 
+            @php
+            $banners = [
+                'br' => [
+                    'desktop' => 'https://web.snaphubb.online/wp-content/uploads/2025/09/banner-brasil.jpg',
+                    'mobile' => 'https://web.snaphubb.online/wp-content/uploads/2025/10/BRASIL.png',
+                ],
+                'en' => [
+                    'desktop' => 'https://web.snaphubb.online/wp-content/uploads/2025/09/banner-estados-unidos.jpg',
+                    'mobile' => 'https://web.snaphubb.online/wp-content/uploads/2025/10/INGLES.png',
+                ],
+                'es' => [
+                    'desktop' => 'https://web.snaphubb.online/wp-content/uploads/2025/09/banner-mexico.jpg',
+                    'mobile' => 'https://web.snaphubb.online/wp-content/uploads/2025/10/ESPANHOL.png',
+                ],
+            ];
+            $currentBanners = $banners[$selectedLanguage] ?? $banners['br'];
+            @endphp
             <div class="mt-6 w-full rounded-xl overflow-hidden bg-gray-900">
                 <!-- Desktop Banner -->
-                <img class="w-full" src="{{ __('checkout.banner_desktop') }}" alt="Promotional Banner">
+                <img class="w-full hidden md:block" src="{{ $currentBanners['desktop'] }}" alt="Promotional Banner">
+                <!-- Mobile Banner -->
+                <img class="w-full md:hidden" src="{{ $currentBanners['mobile'] }}" alt="Promotional Banner">
             </div>
 
             <h1 class="text-3xl md:text-4xl font-bold text-white mt-6 text-center">
