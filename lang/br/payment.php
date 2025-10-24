@@ -18,7 +18,7 @@ return [
     // Header
     'title' => 'Snaphubb - Checkout',
     'start_subscription' => "FALTA POUCO...",
-    'start_subscription2' => "preencha os dados a baixo",
+    'start_subscription2' => "preencha os dados abaixo",
     'unlock_access' => 'Desbloqueie acesso exclusivo a todo nosso conteúdo premium.',
 
     // Currency
