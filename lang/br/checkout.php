@@ -2,7 +2,7 @@
 
 return [
     // Headings
-    'main_title' => 'Você está a 1 passo de desbloquear todo o conteúdo premium 🎯',
+    'main_title' => 'Falta apenas um passo para acessar seu streaming...',
     'subtitle' => 'Desbloqueie acesso exclusivo a todo nosso conteúdo premium',
     'order_summary_title' => 'Resumo do pedido',
 

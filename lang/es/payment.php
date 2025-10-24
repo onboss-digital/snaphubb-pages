@@ -2,7 +2,7 @@
 
 return [
     // Header
-    'title' => 'SNAPHUBB Premium - Checkout',
+    'title' => 'Snaphubb - Pago',
     'start_subscription' => 'Inicia tu suscripción Premium',
     'unlock_access' => 'Desbloquea acceso exclusivo a todo nuestro contenido premium.',
 
