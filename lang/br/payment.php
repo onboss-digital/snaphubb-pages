@@ -93,4 +93,6 @@ return [
     'waiting_for_payment' => 'Aguardando pagamento...',
     'pix_pay_with_card_button' => 'Pagar com cartão',
     'pix_expired' => 'O PIX expirou. Por favor, gere um novo.',
+    'pix_qr_code_alt' => 'QR Code para pagamento PIX',
+    'product_image_alt' => 'Imagem do produto',
 ];

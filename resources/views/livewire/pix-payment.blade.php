@@ -51,7 +51,7 @@
                 <div class="w-full md:w-1/2 bg-[#2D2D2D] p-6 rounded-lg flex flex-col justify-between order-1 md:order-2">
                     <div>
                         <h3 class="text-xl font-bold text-white mb-4">{{ __('payment.final_summary') }}</h3>
-                        <img src="https://web.snaphubb.online/wp-content/uploads/2025/10/capa-brasil.jpg" alt="{{ __('payment.product_image_alt') }}" class="w-full h-auto max-h-48 md:max-h-full object-cover rounded-lg border-2 border-gray-700 mb-4">
+                        <img src="https://web.snaphubb.online/wp-content/uploads/2025/10/capa-brasil.jpg" alt="{{ __('payment.product_image_alt') }}" class="w-full h-auto max-h-64 object-cover rounded-lg border-2 border-gray-700 mb-4">
                         <div class="border-t border-gray-600 pt-4 space-y-3">
                             <div class="flex justify-between items-center text-gray-300">
                                 <span class="text-lg">{{ __('payment.original_price') }}</span>
@@ -92,8 +92,8 @@
             <h3 class="text-xl md:text-2xl font-bold text-white mb-2">{{ __('payment.pix_generated_title') }}</h3>
             <p class="text-gray-300 mb-4 text-sm md:text-base">{{ __('payment.pix_instructions') }}</p>
 
-            <div class="flex justify-center mb-4 w-full max-w-[250px] mx-auto">
-                <img :src="'data:image/png;base64,' + $wire.pixQrCodeBase64" alt="PIX QR Code" class="rounded-lg border-4 border-white w-full h-auto">
+            <div class="flex justify-center mb-4">
+                <img :src="'data:image/png;base64,' + $wire.pixQrCodeBase64" alt="{{ __('payment.pix_qr_code_alt') }}" class="rounded-lg border-4 border-white">
             </div>
 
             <div class="mb-4 w-full max-w-sm mx-auto">
