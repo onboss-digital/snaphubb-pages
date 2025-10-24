@@ -2,7 +2,7 @@
 
 return [
     // Headings
-    'main_title' => "You're 1 step away from unlocking all premium content 🎯",
+    'main_title' => "Just one more step to access your streaming...",
     'subtitle' => 'Unlock exclusive access to all our premium content',
     'order_summary_title' => 'Order summary',
 

@@ -31,17 +31,17 @@
                             @error('pix_name')<span class="text-red-500 text-xs mt-1">{{ $message }}</span>@enderror
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.email_placeholder') }}</label>
+                            <label class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.email') }}</label>
                             <input name="pix_email" type="email" placeholder="{{ __('payment.email_placeholder') }}" wire:model.defer="pix_email" class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border @error('pix_email') border-red-500 @else border-gray-700 @enderror focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
                             @error('pix_email')<span class="text-red-500 text-xs mt-1">{{ $message }}</span>@enderror
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.cpf_placeholder') }}</label>
+                            <label class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.cpf') }}</label>
                             <input name="pix_cpf" type="text" placeholder="{{ __('payment.cpf_placeholder') }}" wire:model.defer="pix_cpf" x-mask="999.999.999-99" class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border @error('pix_cpf') border-red-500 @else border-gray-700 @enderror focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
                             @error('pix_cpf')<span class="text-red-500 text-xs mt-1">{{ $message }}</span>@enderror
                         </div>
                         <div class="form-group">
-                            <label for="pix_phone_field" class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.phone_placeholder') }}</label>
+                            <label for="pix_phone_field" class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.phone') }}</label>
                             <input id="pix_phone_field" name="pix_phone" type="tel" placeholder="{{ __('payment.phone_placeholder') }}" wire:model.defer="pix_phone" class="pix-phone-field w-full bg-[#2D2D2D] text-white rounded-lg p-3 border @error('pix_phone') border-red-500 @else border-gray-700 @enderror focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
                             @error('pix_phone')<span class="text-red-500 text-xs mt-1">{{ $message }}</span>@enderror
                         </div>
@@ -62,7 +62,7 @@
                                 <p class="font-bold text-green-400 text-2xl">{{ $totals['final_price'] ?? '0,00' }}</p>
                             </div>
                             <div class="text-green-400 font-semibold text-center bg-green-900 bg-opacity-50 rounded-md py-2">
-                                💰 {{ __('payment.pix_discount_applied', ['percentage' => 50]) }}
+                                {{ __('payment.pix_discount_applied') }}
                             </div>
                         </div>
                     </div>
@@ -89,18 +89,18 @@
 
         <!-- Step 2: QR Code -->
         <div x-show="$wire.pixQrCodeBase64 && !$wire.showLodingModal" x-transition class="text-center">
-            <h3 class="text-2xl font-bold text-white mb-2">{{ __('payment.pix_generated_title') }}</h3>
-            <p class="text-gray-300 mb-4">{{ __('payment.pix_instructions') }}</p>
+            <h3 class="text-xl md:text-2xl font-bold text-white mb-2">{{ __('payment.pix_generated_title') }}</h3>
+            <p class="text-gray-300 mb-4 text-sm md:text-base">{{ __('payment.pix_instructions') }}</p>
 
             <div class="flex justify-center mb-4">
                 <img :src="'data:image/png;base64,' + $wire.pixQrCodeBase64" alt="{{ __('payment.pix_qr_code_alt') }}" class="rounded-lg border-4 border-white">
             </div>
 
-            <div class="mb-4">
+            <div class="mb-4 w-full max-w-sm mx-auto">
                 <input type="text" :value="$wire.pixQrCode" readonly
-                    class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 text-center">
+                    class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 text-center text-xs md:text-sm truncate">
                 <button @click="navigator.clipboard.writeText($wire.pixQrCode); $event.target.innerText = '{{ __('payment.copied_button') }}'"
-                    class="mt-2 bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded transition-all duration-300">
+                    class="mt-2 bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded transition-all duration-300 w-full md:w-auto">
                     {{ __('payment.copy_code_button') }}
                 </button>
             </div>
