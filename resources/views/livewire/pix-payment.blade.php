@@ -27,8 +27,8 @@
                         <p class="text-gray-300 mb-6 text-sm md:text-base">{{ __('payment.pix_subtitle') }}</p>
                         <div class="space-y-4">
                             <div>
-                                <label class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.name') }}</label>
-                                <input name="pix_name" type="text" placeholder="{{ __('payment.name_placeholder') }}" wire:model.defer="pix_name" class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border @error('pix_name') border-red-500 @else border-gray-700 @enderror focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
+                                <label class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.full_name') }}</label>
+                                <input name="pix_name" type="text" placeholder="{{ __('payment.full_name') }}" wire:model.defer="pix_name" class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border @error('pix_name') border-red-500 @else border-gray-700 @enderror focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
                                 @error('pix_name')<span class="text-red-500 text-xs mt-1">{{ $message }}</span>@enderror
                             </div>
                             <div>
@@ -51,16 +51,16 @@
                     <!-- Right Side: Order Summary -->
                     <div class="w-full md:w-1/2 bg-[#2D2D2D] p-4 md:p-6 rounded-lg flex flex-col justify-between order-1 md:order-2">
                         <div>
-                            <h3 class="text-lg md:text-xl font-bold text-white mb-4">{{ __('payment.order_summary') }}</h3>
+                            <h3 class="text-lg md:text-xl font-bold text-white mb-4">{{ __('payment.final_summary') }}</h3>
                             <img src="https://web.snaphubb.online/wp-content/uploads/2025/10/capa-brasil.jpg" alt="{{ __('payment.product_image_alt') }}" class="w-full h-auto max-h-48 md:max-h-64 object-cover rounded-lg border-2 border-gray-700 mb-4">
                             <div class="border-t border-gray-600 pt-4 space-y-3">
                                 <div class="flex justify-between items-center text-gray-300 text-sm md:text-base">
                                     <span>{{ __('payment.original_price') }}</span>
-                                    <del>R$ {{ $totals['total_price'] ?? '0,00' }}</del>
+                                    <del>{{ $totals['total_price'] ?? '0,00' }}</del>
                                 </div>
                                  <div class="flex justify-between items-center text-white">
                                     <span class="text-base md:text-lg font-bold">{{ __('payment.total_to_pay') }}</span>
-                                    <p class="font-bold text-green-400 text-xl md:text-2xl">R$ {{ $totals['final_price'] ?? '0,00' }}</p>
+                                    <p class="font-bold text-green-400 text-xl md:text-2xl">{{ $totals['final_price'] ?? '0,00' }}</p>
                                 </div>
                                 <div class="text-green-400 font-semibold text-center bg-green-900 bg-opacity-50 rounded-md py-2 text-sm">
                                     {{ __('payment.pix_discount_applied') }}
@@ -68,7 +68,7 @@
                             </div>
                         </div>
                         <div class="text-center text-xs text-gray-400 mt-4">
-                            <p>{{__('payment.data_security')}}</p>
+                            <p>🔒 {{__('payment.your_data_is_safe')}}</p>
                         </div>
                     </div>
                 </div>
