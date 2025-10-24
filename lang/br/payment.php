@@ -2,9 +2,14 @@
 
 return [
     // General
+    'name' => 'Nome Completo',
+    'name_placeholder' => 'Digite seu nome completo',
     'email' => 'E-mail',
+    'email_placeholder' => 'Informe seu melhor e-mail para receber o acesso',
     'phone' => 'Telefone',
+    'phone_placeholder' => 'Digite seu número com DDD (o campo já exibe o +55 automaticamente)',
     'cpf' => 'CPF',
+    'cpf_placeholder' => 'Informe seu CPF corretamente',
     'close' => 'Fechar',
     'error' => 'Houve um problema ao processar seu pagamento. Por favor, tente novamente.',
     'success' => 'Pagamento aprovado!',
@@ -45,7 +50,7 @@ return [
     'card_name' => 'Nome no cartão',
 
     // Order Summary
-    'order_summary' => 'Resumo do pedido',
+    'order_summary' => 'Resumo do Pedido',
     'offer_expires' => 'Oferta expira em',
     'select_plan' => 'Selecione seu plano',
     'monthly' => 'Mensal',
