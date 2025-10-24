@@ -27,8 +27,10 @@ class PagePayTest extends TestCase
 
         Log::shouldReceive('channel->info')->zeroOrMoreTimes();
         Log::shouldReceive('channel->error')->zeroOrMoreTimes();
+        Log::shouldReceive('channel->warning')->zeroOrMoreTimes();
         Log::shouldReceive('info')->zeroOrMoreTimes();
         Log::shouldReceive('error')->zeroOrMoreTimes();
+        Log::shouldReceive('warning')->zeroOrMoreTimes();
 
         Blade::anonymousComponentPath(resource_path('views/components'));
 
