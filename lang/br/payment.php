@@ -11,7 +11,7 @@ return [
     'per_month' => '/mês',
 
     // Header
-    'title' => 'Snaphubb - Pagamento',
+    'title' => 'Snaphubb - Checkout',
     'start_subscription' => "FALTA POUCO...",
     'start_subscription2' => "preencha os dados a baixo",
     'unlock_access' => 'Desbloqueie acesso exclusivo a todo nosso conteúdo premium.',
@@ -71,12 +71,12 @@ return [
     'optimizing' => 'Otimizando seu acesso... 🔍',
 
     // PIX Modal Specific
-    'pix_title' => 'Pagamento via PIX',
-    'pix_subtitle' => 'Preencha seus dados para gerar o PIX.',
+    'pix_title' => 'Falta apenas um passo para acessar seu streaming.',
+    'pix_subtitle' => 'Preencha os campos abaixo!',
     'full_name' => 'Nome Completo',
     'email_placeholder' => 'Seu melhor e-mail',
-    'cpf_placeholder' => 'Seu CPF',
-    'phone_placeholder' => 'Seu telefone com DDD',
+    'cpf_placeholder' => '000.000.000-00',
+    'phone_placeholder' => '(00) 00000-0000',
     'product_name' => 'Streaming Snaphubb - BR',
     'product_image_alt' => 'Imagem do Produto',
     'original_price_brl' => 'R$49,90',
@@ -84,7 +84,7 @@ return [
     'pix_discount_applied' => '💰 Desconto PIX aplicado!',
     'your_data_is_safe' => 'Seus dados estão seguros',
     'pix_cancel_button' => 'Cancelar',
-    'generate_pix_button' => 'Pagar com PIX',
+    'generate_pix_button' => 'Gerar PIX',
     'generating_pix_button' => 'Gerando seu PIX...',
     'pix_generated_title' => 'Quase lá! Agora é só pagar',
     'pix_instructions' => 'Escaneie o QR Code abaixo com o app do seu banco ou use o código "copia e cola".',
@@ -94,5 +94,4 @@ return [
     'pix_pay_with_card_button' => 'Pagar com cartão',
     'pix_expired' => 'O PIX expirou. Por favor, gere um novo.',
     'pix_qr_code_alt' => 'QR Code para pagamento PIX',
-    'product_image_alt' => 'Imagem do produto',
 ];
