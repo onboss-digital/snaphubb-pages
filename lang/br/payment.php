@@ -2,18 +2,23 @@
 
 return [
     // General
+    'name' => 'Nome Completo',
+    'name_placeholder' => 'Digite seu nome completo',
     'email' => 'E-mail',
+    'email_placeholder' => 'Informe seu melhor e-mail para receber o acesso',
     'phone' => 'Telefone',
+    'phone_placeholder' => 'Digite seu número com DDD (o campo já exibe o +55 automaticamente)',
     'cpf' => 'CPF',
+    'cpf_placeholder' => 'Informe seu CPF corretamente',
     'close' => 'Fechar',
     'error' => 'Houve um problema ao processar seu pagamento. Por favor, tente novamente.',
     'success' => 'Pagamento aprovado!',
     'per_month' => '/mês',
 
     // Header
-    'title' => 'Snaphubb - Pagamento',
+    'title' => 'Snaphubb - Checkout',
     'start_subscription' => "FALTA POUCO...",
-    'start_subscription2' => "preencha os dados a baixo",
+    'start_subscription2' => "preencha os dados abaixo",
     'unlock_access' => 'Desbloqueie acesso exclusivo a todo nosso conteúdo premium.',
 
     // Currency
@@ -45,7 +50,7 @@ return [
     'card_name' => 'Nome no cartão',
 
     // Order Summary
-    'order_summary' => 'Resumo do pedido',
+    'order_summary' => 'Resumo do Pedido',
     'offer_expires' => 'Oferta expira em',
     'select_plan' => 'Selecione seu plano',
     'monthly' => 'Mensal',
@@ -71,20 +76,14 @@ return [
     'optimizing' => 'Otimizando seu acesso... 🔍',
 
     // PIX Modal Specific
-    'pix_title' => 'Pagamento via PIX',
-    'pix_subtitle' => 'Preencha seus dados para gerar o PIX.',
-    'full_name' => 'Nome Completo',
-    'email_placeholder' => 'Seu melhor e-mail',
-    'cpf_placeholder' => 'Seu CPF',
-    'phone_placeholder' => 'Seu telefone com DDD',
-    'product_name' => 'Streaming Snaphubb - BR',
-    'product_image_alt' => 'Imagem do Produto',
-    'original_price_brl' => 'R$49,90',
-    'discount_price_brl' => 'R$24,90',
-    'pix_discount_applied' => '💰 Desconto PIX aplicado!',
+    'pix_title' => 'Falta apenas um passo para acessar seu streaming.',
+    'pix_subtitle' => 'Preencha os campos abaixo!',
+    'product_image_alt' => 'Imagem do produto',
+    'pix_discount_applied' => '🎉 Desconto exclusivo via PIX aplicado com sucesso!',
+    'data_security' => '🔒 Seus dados estão 100% seguros e criptografados.',
     'your_data_is_safe' => 'Seus dados estão seguros',
     'pix_cancel_button' => 'Cancelar',
-    'generate_pix_button' => 'Pagar com PIX',
+    'generate_pix_button' => 'Gerar PIX',
     'generating_pix_button' => 'Gerando seu PIX...',
     'pix_generated_title' => 'Quase lá! Agora é só pagar',
     'pix_instructions' => 'Escaneie o QR Code abaixo com o app do seu banco ou use o código "copia e cola".',
@@ -94,5 +93,4 @@ return [
     'pix_pay_with_card_button' => 'Pagar com cartão',
     'pix_expired' => 'O PIX expirou. Por favor, gere um novo.',
     'pix_qr_code_alt' => 'QR Code para pagamento PIX',
-    'product_image_alt' => 'Imagem do produto',
 ];
