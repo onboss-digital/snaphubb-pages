@@ -167,68 +167,47 @@ class PagePay extends Component
 
     public function getPlans()
     {
-        $headers = [
-            'Accept' => 'application/json',
-            'Content-Type' => 'application/json'
-        ];
+        try {
+            $headers = [
+                'Accept' => 'application/json',
+                'Content-Type' => 'application/json'
+            ];
 
-        $request = new Request(
-            'GET',
-            $this->apiUrl . '/get-plans',
-            $headers,
-        );
-        return $this->httpClient->sendAsync($request)
-            ->then(function ($res) {
-                $responseBody = $res->getBody()->getContents();
-                $dataResponse = json_decode($responseBody, true);
-                $this->paymentGateway = app(PaymentGatewayFactory::class)->create();
-                $result = $this->paymentGateway->formatPlans($dataResponse, $this->selectedCurrency);
-                $this->bumps = $result[$this->selectedPlan]['order_bumps'];
-                return $result;
-            })
-            ->otherwise(function ($e) {
-                \Log::channel('GetPlans')->info('PagePay: GetPlans from streamit.', [
-                    'gateway' => $this->gateway,
-                    'error' => $e->getMessage(),
-                ]);
-                return [];
-            })
-            ->wait();
+            $request = new Request(
+                'GET',
+                $this->apiUrl . '/get-plans',
+                $headers,
+            );
+            return $this->httpClient->sendAsync($request)
+                ->then(function ($res) {
+                    $responseBody = $res->getBody()->getContents();
+                    $dataResponse = json_decode($responseBody, true);
+                    $this->paymentGateway = app(PaymentGatewayFactory::class)->create();
+                    $result = $this->paymentGateway->formatPlans($dataResponse, $this->selectedCurrency);
 
-        // // Plan hashes might need to be gateway-specific or mapped
-        // return \GuzzleHttp\Promise\promise_for([
-        //     'monthly' => [
-        //         'hash' => 'rwquocfj5c', // Gateway-specific?
-        //         'label' => __('payment.monthly'),
-        //         'nunber_months' => 1,
-        //         'prices' => [
-        //             'BRL' => ['origin_price' => 50.00, 'descont_price' => 39.90],
-        //             'USD' => ['origin_price' => 10.00, 'descont_price' => 7.90],
-        //             'EUR' => ['origin_price' => 9.00, 'descont_price' => 6.90],
-        //         ],
-        //     ],
-        //     'quarterly' => [
-        //         'hash' => 'velit nostrud dolor in deserunt', // Gateway-specific?
-        //         'label' => __('payment.quarterly'),
-        //         'nunber_months' => 3,
-        //         'prices' => [
-        //             'BRL' => ['origin_price' => 150.00, 'descont_price' => 109.90],
-        //             'USD' => ['origin_price' => 30.00, 'descont_price' => 21.90],
-        //             'EUR' => ['origin_price' => 27.00, 'descont_price' => 19.90],
-        //         ],
-        //     ],
-        //     'semi-annual' => [
-        //         'hash' => 'cupxl', // Gateway-specific?
-        //         'label' => __('payment.semi-annual'),
-        //         'nunber_months' => 6,
-        //         'prices' => [
-        //             'BRL' => ['origin_price' => 300.00, 'descont_price' => 199.90],
-        //             'USD' => ['origin_price' => 60.00, 'descont_price' => 39.90],
-        //             'EUR' => ['origin_price' => 54.00, 'descont_price' => 35.90],
-        //         ],
-        //     ]
-        // ]);
-        // Ensure getPlans returns the full structure as before
+                    if (isset($result[$this->selectedPlan]['order_bumps'])) {
+                        $this->bumps = $result[$this->selectedPlan]['order_bumps'];
+                    } else {
+                        $this->bumps = [];
+                    }
+
+                    return $result;
+                })
+                ->otherwise(function ($e) {
+                    \Log::channel('GetPlans')->info('PagePay: GetPlans from streamit.', [
+                        'gateway' => $this->gateway,
+                        'error' => $e->getMessage(),
+                    ]);
+                    return [];
+                })
+                ->wait();
+        } catch (\Exception $e) {
+            \Log::channel('GetPlans')->error('PagePay: Critical error in getPlans.', [
+                'gateway' => $this->gateway,
+                'error' => $e->getMessage(),
+            ]);
+            return [];
+        }
     }
 
     // calculateTotals, startCheckout, rejectUpsell, acceptUpsell remain largely the same
