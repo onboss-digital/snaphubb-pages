@@ -45,17 +45,6 @@ function setupMasksAndValidators() {
         IMask(cpfInput, { mask: '000.000.000-00' });
     }
 
-    // Máscara de Telefone Brasileiro para o formulário PIX
-    const pixPhoneInput = document.querySelector('input[name="pix_phone"]');
-    if (pixPhoneInput && !pixPhoneInput.imask) {
-        IMask(pixPhoneInput, {
-            mask: [
-                { mask: '(00) 0000-0000' },
-                { mask: '(00) 00000-0000' }
-            ]
-        });
-    }
-
     // Validador de E-mail para o formulário PIX
     const emailInput = document.querySelector('input[name="pix_email"]');
     if (emailInput && !emailInput.hasAttribute('data-validator-attached')) {
@@ -92,6 +81,8 @@ document.addEventListener('livewire:init', () => {
     function initializeAll() {
         // Configura o intl-tel-input para o telefone do formulário principal
         setupIntlTelInput("input[name='phone']", 'updatePhone');
+        // E agora também para o telefone do modal PIX
+        setupIntlTelInput("input[name='pix_phone']", 'updatePixPhone');
         // Configura as máscaras para o modal PIX
         setupMasksAndValidators();
     }
