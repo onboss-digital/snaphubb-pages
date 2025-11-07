@@ -134,13 +134,8 @@ class PagePay extends Component
             $this->debug();
         }
 
-        if (!Session::has('locale_detected')) {
-            $this->detectLanguage();
-            Session::put('locale_detected', true);
-        } else {
-            $this->selectedLanguage = session('locale', 'br');
-            app()->setLocale($this->selectedLanguage);
-        }
+        $this->selectedLanguage = session('locale', config('app.locale'));
+        app()->setLocale($this->selectedLanguage);
 
         $this->testimonials = trans('checkout.testimonials');
         $this->plans = $this->getPlans();
@@ -661,21 +656,6 @@ class PagePay extends Component
     {
         $this->activityCount = rand(3, 25);
         $this->dispatch('activity-updated');
-    }
-
-    private function detectLanguage()
-    {
-        $preferredLanguage = request()->getPreferredLanguage(array_keys($this->availableLanguages));
-
-        if (str_starts_with($preferredLanguage, 'pt')) {
-            $this->selectedLanguage = 'br';
-        } elseif (str_starts_with($preferredLanguage, 'es')) {
-            $this->selectedLanguage = 'es';
-        } else {
-            $this->selectedLanguage = 'en';
-        }
-
-        $this->changeLanguage($this->selectedLanguage);
     }
 
     public function render()

@@ -16,7 +16,7 @@ return [
     'per_month' => '/mês',
 
     // Header
-    'title' => 'Snaphubb - Checkout',
+    'title' => 'Snaphubb - Pagamento Seguro',
     'start_subscription' => "FALTA POUCO...",
     'start_subscription2' => "preencha os dados abaixo",
     'unlock_access' => 'Desbloqueie acesso exclusivo a todo nosso conteúdo premium.',
@@ -77,7 +77,7 @@ return [
 
     // PIX Modal Specific
     'pix_title' => 'Falta apenas um passo para acessar seu streaming.',
-    'pix_subtitle' => 'Preencha os campos abaixo!',
+    'pix_subtitle' => 'Preencha os campos abaixo para gerar o PIX!',
     'full_name' => 'Nome Completo',
     'product_name' => 'Streaming Snaphubb - BR',
     'product_image_alt' => 'Imagem do Produto',
@@ -88,10 +88,14 @@ return [
     'generating_pix_button' => 'Gerando seu PIX...',
     'pix_generated_title' => 'Quase lá! Agora é só pagar',
     'pix_instructions' => 'Escaneie o QR Code abaixo com o app do seu banco ou use o código "copia e cola".',
-    'copy_code_button' => 'Copiar código PIX',
+    'copy_code_button' => 'Código Copia e Cola',
     'copied_button' => 'Copiado!',
     'waiting_for_payment' => 'Aguardando pagamento...',
     'pix_pay_with_card_button' => 'Pagar com cartão',
     'pix_expired' => 'O PIX expirou. Por favor, gere um novo.',
     'pix_qr_code_alt' => 'QR Code para pagamento PIX',
+    'pix_generation_error' => 'Ocorreu um erro ao gerar o PIX. Tente novamente.',
+    'provider_connection_error' => 'Não foi possível conectar ao provedor de pagamento.',
+    'processing_payment' => 'Seu pagamento está sendo processado',
+    'expires_in' => 'Expira em 10 minutos',
 ];

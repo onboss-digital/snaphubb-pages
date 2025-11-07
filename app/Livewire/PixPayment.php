@@ -39,7 +39,7 @@ class PixPayment extends Component
             'pix_name' => 'required|string|max:255',
             'pix_email' => 'required|email',
             'pix_cpf' => ['required', 'string', 'regex:/^\d{3}\.\d{3}\.\d{3}\-\d{2}$/'],
-            'pix_phone' => ['nullable', 'string', new ValidPhoneNumber],
+            'pix_phone' => ['nullable', 'string'],
         ];
     }
 
@@ -88,7 +88,7 @@ class PixPayment extends Component
                 $this->dispatch('pix-generated');
                 Log::info('startPixCheckout: PIX generated successfully.');
             } else {
-                $this->errorMessage = $response['message'] ?? 'An unknown error occurred while generating the PIX.';
+                $this->errorMessage = $response['message'] ?? __('payment.pix_generation_error');
                 $this->showErrorModal = true;
                 Log::error('startPixCheckout: PIX generation failed.', ['response' => $response]);
             }
@@ -97,7 +97,7 @@ class PixPayment extends Component
                 'message' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
-            $this->errorMessage = 'Could not connect to the payment provider.';
+            $this->errorMessage = __('payment.provider_connection_error');
             $this->showErrorModal = true;
         } finally {
             $this->showLodingModal = false;
