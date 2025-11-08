@@ -32,7 +32,7 @@ class SetLocale
             } elseif (str_starts_with($preferredLanguage, 'es')) {
                 $locale = 'es';
             } else {
-                $locale = config('app.fallback_locale', 'br'); // Fallback to config
+                $locale = config('app.fallback_locale', 'en'); // Fallback to config
             }
 
             App::setLocale($locale);

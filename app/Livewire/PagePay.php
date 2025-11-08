@@ -263,11 +263,9 @@ class PagePay extends Component
 
     $finalPrice = $prices['descont_price'];
 
-    if ($this->selectedPaymentMethod !== 'pix') {
-        foreach ($this->bumps as $bump) {
-            if (!empty($bump['active'])) {
-                $finalPrice += floatval($bump['price']);
-            }
+    foreach ($this->bumps as $bump) {
+        if (!empty($bump['active'])) {
+            $finalPrice += floatval($bump['price']);
         }
     }
 
@@ -508,19 +506,17 @@ class PagePay extends Component
             'operation_type' => 1,
         ];
 
-        if ($this->selectedPaymentMethod !== 'pix') {
-            foreach ($this->bumps as $bump) {
-                if (!empty($bump['active'])) {
-                    $cartItems[] = [
-                        'product_hash' => $bump['hash'],
-                        'price_id' => $bump['price_id'] ?? null,
-                        'title' => $bump['title'],
-                        'price' => (int)round(floatval($bump['price']) * 100),
-                        'recurring' => $bump['recurring'] ?? null,
-                        'quantity' => 1,
-                        'operation_type' => 2,
-                    ];
-                }
+        foreach ($this->bumps as $bump) {
+            if (!empty($bump['active'])) {
+                $cartItems[] = [
+                    'product_hash' => $bump['hash'],
+                    'price_id' => $bump['price_id'] ?? null,
+                    'title' => $bump['title'],
+                    'price' => (int)round(floatval($bump['price']) * 100),
+                    'recurring' => $bump['recurring'] ?? null,
+                    'quantity' => 1,
+                    'operation_type' => 2,
+                ];
             }
         }
 
@@ -603,13 +599,7 @@ class PagePay extends Component
     {
         return [
             'updatePhone' => 'updatePhone',
-            'pix-modal-closed' => 'handlePixModalClosed',
         ];
-    }
-
-    public function handlePixModalClosed()
-    {
-        $this->selectedPaymentMethod = 'credit_card';
     }
 
     public function updatePhone($event)

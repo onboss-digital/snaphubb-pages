@@ -211,18 +211,9 @@ $gateway = config('services.default_payment_gateway', 'stripe');
 
                         <!-- Payment Method Selector -->
                         <div class="flex rounded-lg bg-[#2D2D2D] p-1">
-                            <button type="button" wire:click="$set('selectedPaymentMethod', 'credit_card')" class="w-1/2 py-2 px-4 rounded-md text-sm font-medium transition-colors " :class="{
-                                'bg-[#E50914] text-white': '{{ $selectedPaymentMethod }}' === 'credit_card', 'text-gray-400 hover:bg-gray-700': '{{ $selectedPaymentMethod }}' !== 'credit_card'
-                            }">
+                            <button type="button" class="w-full py-2 px-4 rounded-md text-sm font-medium bg-[#E50914] text-white">
                                 💳 {{ __('payment.credit_card') }}
                             </button>
-                            @if ($selectedLanguage === 'br')
-                            <button type="button" @click="$dispatch('open-pix-modal')" class="w-1/2 py-2 px-4 rounded-md text-sm font-medium transition-colors" :class="{
-                                'bg-[#E50914] text-white': selectedPaymentMethod === 'pix', 'text-gray-400 hover:bg-gray-700': selectedPaymentMethod !== 'pix'
-                            }">
-                                ⚡ PIX
-                            </button>
-                            @endif
                         </div>
 
                         <!-- Credit Card Form -->
@@ -286,10 +277,8 @@ $gateway = config('services.default_payment_gateway', 'stripe');
                     </div>
                 </div>
 
-                <!-- This empty div is a placeholder for the old PIX form -->
-
                 <!-- Order Bumps -->
-                @if(!empty($bumps) && $selectedPaymentMethod !== 'pix')
+                @if(!empty($bumps))
                 <div class="bg-[#1F1F1F] rounded-xl p-5 border border-gray-700">
                     @foreach ($bumps as $index => $bump)
                     <div class="flex items-start mb-4 last:mb-0">
@@ -475,7 +464,6 @@ $gateway = config('services.default_payment_gateway', 'stripe');
                 id="checkout-button"
                 type="button"
                 wire:click.prevent="startCheckout"
-                x-show="selectedPaymentMethod !== 'pix'"
                 class="w-full bg-[#E50914] hover:bg-[#B8070F] text-white py-3 text-lg font-bold rounded-xl transition-all block cursor-pointer transform hover:scale-105">
                 {{ __('checkout.cta_button') }}
             </button>
@@ -712,32 +700,6 @@ $gateway = config('services.default_payment_gateway', 'stripe');
     </div>
 </div>
 
-<!-- PIX Modal is now a separate component -->
-@livewire('pix-payment', [
-    'product' => $product,
-    'totals' => $totals,
-    'plans' => $plans,
-    'selectedPlan' => $selectedPlan,
-    'selectedCurrency' => $selectedCurrency,
-    'utm_source' => $utm_source,
-    'utm_medium' => $utm_medium,
-    'utm_campaign' => $utm_campaign,
-    'utm_id' => $utm_id,
-    'utm_term' => $utm_term,
-    'utm_content' => $utm_content,
-    'src' => $src,
-    'sck' => $sck
-])
-
-<script>
-    function copyToClipboard(text) {
-        navigator.clipboard.writeText(text).then(function() {
-            alert('Código PIX copiado para a área de transferência!');
-        }, function(err) {
-            console.error('Could not copy text: ', err);
-        });
-    }
-</script>
 
 <!-- Personalização Modal -->
 <div class="fixed inset-0 bg-black bg-opacity-80 flex flex-col justify-center items-center text-white z-50 @if (!$showLodingModal) hidden @endif">

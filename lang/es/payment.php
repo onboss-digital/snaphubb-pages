@@ -107,7 +107,6 @@ return [
 
     // Processing
     'processing_payment' => 'Procesando pago...',
-    'generating_pix' => 'Generando PIX...',
     'please_wait' => 'Un momento',
 
     // Customization
@@ -120,19 +119,4 @@ return [
     'billing' => '📌 Facturación',
     'release' => '⏳ Liberación',
     'cancellation' => '🧾 Cancelación',
-
-    // PIX
-    'pix' => 'PIX',
-    'generate_pix' => 'Generar PIX',
-    'pix_almost_done' => '¡Casi listo!',
-    'pix_scan_qr' => 'Escanee el código QR a continuación con la aplicación de su banco para pagar.',
-    'pix_or_copy' => 'O copie el código y pague en su aplicación:',
-    'pix_copied' => '¡Código PIX copiado!',
-    'pix_waiting_payment' => 'Esperando el pago...',
-    'pix_wrong_data' => '¿Datos incorrectos? Volver y corregir.',
-    'complete_to_generate_pix' => 'Complete sus datos para generar el PIX',
-    'pix_access_for_life' => 'Acceso de por vida por un solo pago.',
-    'full_name' => 'Nombre completo',
-    'pix_title' => 'Pago vía PIX',
-    'cancel' => 'Cancelar',
 ];
