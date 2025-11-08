@@ -602,9 +602,11 @@ class PagePay extends Component
         ];
     }
 
-    public function updatePhone($event)
+    public function updatePhone($event = null)
     {
-        $this->phone = $event['phone'];
+        if (isset($event['phone'])) {
+            $this->phone = $event['phone'];
+        }
     }
 
     public function updateActivityCount()
@@ -651,7 +653,7 @@ class PagePay extends Component
     public function render()
     {
         return view('livewire.page-pay')->layoutData([
-            'title' => __('payment.title'),
+            'title' => 'CHECKOUT - SNAPHUBB',
             'canonical' => url()->current(),
         ]);
     }

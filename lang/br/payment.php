@@ -75,4 +75,5 @@ return [
     'customizing' => 'Personalizando sua experiência...',
     'optimizing' => 'Otimizando seu acesso... 🔍',
     'processing_payment' => 'Seu pagamento está sendo processado',
+    'checkout_header' => 'Você está a 1 clique de acessar seu streaming privado mais exclusivo da internet.',
 ];

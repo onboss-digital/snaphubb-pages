@@ -119,4 +119,5 @@ return [
     'billing' => '📌 Facturación',
     'release' => '⏳ Liberación',
     'cancellation' => '🧾 Cancelación',
+    'checkout_header' => 'Estás a un clic de acceder a tu streaming privado más exclusivo.',
 ];

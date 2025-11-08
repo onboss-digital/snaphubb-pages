@@ -140,7 +140,7 @@ $gateway = config('services.default_payment_gateway', 'stripe');
             </div>
 
             <h1 class="text-3xl md:text-4xl font-bold text-white mt-6 text-center">
-                {{ __('checkout.main_title') }}
+                {{ __('payment.checkout_header') }}
             </h1>
             <p class="text-lg text-gray-300 mt-2 text-center">{{ __('checkout.subtitle') }}</p>
         </header>

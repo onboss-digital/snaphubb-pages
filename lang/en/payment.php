@@ -120,4 +120,5 @@ return [
     'billing' => '📌 Billing',
     'release' => '⏳ Release',
     'cancellation' => '🧾 Cancellation',
+    'checkout_header' => 'You’re one click away from accessing your most exclusive private streaming.',
 ];
