@@ -120,5 +120,5 @@ return [
     'billing' => '📌 Billing',
     'release' => '⏳ Release',
     'cancellation' => '🧾 Cancellation',
-    'checkout_header' => 'You’re one click away from accessing your most exclusive private streaming.',
+    'checkout_header' => 'You are one step away from accessing the private + exclusive streaming in Latin America!',
 ];
