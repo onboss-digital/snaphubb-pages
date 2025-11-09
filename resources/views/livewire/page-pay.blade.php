@@ -140,7 +140,13 @@ $gateway = config('services.default_payment_gateway', 'stripe');
             </div>
 
             <h1 class="text-3xl md:text-4xl font-bold text-white mt-6 text-center">
-                {{ __('payment.checkout_header') }}
+                @if (App::getLocale() === 'en')
+                    You are one step away from accessing the private + exclusive streaming in Latin America!
+                @elseif (App::getLocale() === 'es')
+                    ¡Estás a un paso de acceder al streaming privado + exclusivo de América Latina!
+                @else
+                    Você está a um passo de acessar o streaming privado + exclusivo da américa latina!
+                @endif
             </h1>
             <p class="text-lg text-gray-300 mt-2 text-center">{{ __('checkout.subtitle') }}</p>
         </header>

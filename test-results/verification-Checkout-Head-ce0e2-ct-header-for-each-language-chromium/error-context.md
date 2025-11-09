@@ -1,0 +1,202 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e5]:
+      - img "streamit" [ref=e6]
+      - generic [ref=e8]:
+        - combobox [ref=e10]:
+          - option "🇧🇷 Português"
+          - option "🇺🇸 English" [selected]
+          - option "🇪🇸 Español"
+        - generic:
+          - img
+    - img "Promotional Banner" [ref=e12]
+    - heading "You are one step away from accessing the private + exclusive streaming in Latin America!" [level=1] [ref=e13]
+    - paragraph [ref=e14]: Join over 10,000 people and get access to exclusive content.
+  - generic [ref=e16]:
+    - generic [ref=e17]:
+      - generic [ref=e18]:
+        - heading "Benefits" [level=2] [ref=e19]
+        - generic [ref=e20]:
+          - generic [ref=e21]:
+            - img [ref=e23]
+            - generic [ref=e25]:
+              - heading "Cancel anytime" [level=3] [ref=e26]
+              - paragraph [ref=e27]: Total flexibility for your subscription.
+          - generic [ref=e28]:
+            - img [ref=e30]
+            - generic [ref=e32]:
+              - heading "Watch anywhere" [level=3] [ref=e33]
+              - paragraph [ref=e34]: Access on multiple devices.
+          - generic [ref=e35]:
+            - img [ref=e37]
+            - generic [ref=e39]:
+              - heading "Exclusive content" [level=3] [ref=e40]
+              - paragraph [ref=e41]: Weekly releases and original productions.
+          - generic [ref=e42]:
+            - img [ref=e44]
+            - generic [ref=e46]:
+              - heading "Live channels" [level=3] [ref=e47]
+              - paragraph [ref=e48]: 24/7 programming.
+      - generic [ref=e49]:
+        - heading "Payment Method" [level=2] [ref=e50]
+        - generic [ref=e51]:
+          - generic [ref=e52]:
+            - generic [ref=e53]: Safe Environment
+            - generic [ref=e54]:
+              - img [ref=e55]
+              - generic [ref=e57]: Your data is safe
+          - button "💳 Credit Card" [ref=e59]
+          - generic [ref=e61]:
+            - generic [ref=e62]:
+              - generic [ref=e63]: Card Number
+              - textbox "0000 0000 0000 0000" [ref=e64]: 4242 4242 4242 4242
+            - generic [ref=e65]:
+              - generic [ref=e66]:
+                - generic [ref=e67]: Expiry Date
+                - textbox "MM/YY" [ref=e68]: 12/25
+              - generic [ref=e69]:
+                - generic [ref=e70]: Security Code
+                - textbox "CVV" [ref=e71]: "123"
+            - generic [ref=e72]:
+              - generic [ref=e73]: Name on Card
+              - textbox "Name on Card" [ref=e74]: João da Silva
+            - generic [ref=e75]:
+              - generic [ref=e76]: E-mail
+              - textbox "seu@email.com" [ref=e77]: test@mail.com
+            - generic [ref=e78]:
+              - generic [ref=e79]: Phone
+              - textbox [ref=e80]: "+5511999999999"
+      - generic [ref=e81]:
+        - generic [ref=e82]:
+          - checkbox "Criptografía anónima Acesso a conteúdos ao vivo e eventos +R$ 9,99" [ref=e84] [cursor=pointer]
+          - generic [ref=e85] [cursor=pointer]:
+            - generic [ref=e86]:
+              - img [ref=e87]
+              - text: Criptografía anónima
+            - paragraph [ref=e89]: Acesso a conteúdos ao vivo e eventos
+            - paragraph [ref=e90]: +R$ 9,99
+        - generic [ref=e91]:
+          - checkbox "Guia Premium Acesso ao guia completo de estratégias +R$ 14,99" [ref=e93] [cursor=pointer]
+          - generic [ref=e94] [cursor=pointer]:
+            - generic [ref=e95]:
+              - img [ref=e96]
+              - text: Guia Premium
+            - paragraph [ref=e98]: Acesso ao guia completo de estratégias
+            - paragraph [ref=e99]: +R$ 14,99
+      - generic [ref=e100]:
+        - heading "What our customers say" [level=2] [ref=e101]
+        - generic [ref=e102]:
+          - generic [ref=e103]:
+            - generic [ref=e105]:
+              - img "Avatar" [ref=e106]
+              - generic [ref=e107]:
+                - paragraph [ref=e108]: John D.
+                - generic [ref=e109]:
+                  - img [ref=e110]
+                  - img [ref=e112]
+                  - img [ref=e114]
+                  - img [ref=e116]
+                  - img [ref=e118]
+            - generic [ref=e120]:
+              - img [ref=e121]
+              - paragraph [ref=e123]: "\"Finally a platform that understands what I like. High-quality content and no interruptions. Worth every penny!\""
+          - generic [ref=e124]:
+            - generic [ref=e126]:
+              - img "Avatar" [ref=e127]
+              - generic [ref=e128]:
+                - paragraph [ref=e129]: Mary S.
+                - generic [ref=e130]:
+                  - img [ref=e131]
+                  - img [ref=e133]
+                  - img [ref=e135]
+                  - img [ref=e137]
+                  - img [ref=e139]
+            - generic [ref=e141]:
+              - img [ref=e142]
+              - paragraph [ref=e144]: "\"The variety of live channels is incredible. I spend hours watching and always discover something new. I recommend it to everyone!\""
+          - generic [ref=e145]:
+            - generic [ref=e147]:
+              - img "Avatar" [ref=e148]
+              - generic [ref=e149]:
+                - paragraph [ref=e150]: Peter A.
+                - generic [ref=e151]:
+                  - img [ref=e152]
+                  - img [ref=e154]
+                  - img [ref=e156]
+                  - img [ref=e158]
+                  - img [ref=e160]
+            - generic [ref=e162]:
+              - img [ref=e163]
+              - paragraph [ref=e165]: "\"The exclusive content is the best. The original productions are top-notch and keep me entertained for hours.\""
+          - generic [ref=e166]:
+            - generic [ref=e168]:
+              - img "Avatar" [ref=e169]
+              - generic [ref=e170]:
+                - paragraph [ref=e171]: Ann P.
+                - generic [ref=e172]:
+                  - img [ref=e173]
+                  - img [ref=e175]
+                  - img [ref=e177]
+                  - img [ref=e179]
+                  - img [ref=e181]
+            - generic [ref=e183]:
+              - img [ref=e184]
+              - paragraph [ref=e186]: "\"The ease of canceling anytime gave me the confidence to try it out. Now I am a loyal subscriber. Great service!\""
+    - generic [ref=e188]:
+      - heading "Order Summary" [level=2] [ref=e189]
+      - generic [ref=e190]:
+        - img [ref=e191]
+        - generic [ref=e193]: "Offer expires in: 14:17"
+      - generic [ref=e194]:
+        - generic [ref=e195]: Select Plan
+        - generic [ref=e196]:
+          - combobox [ref=e197] [cursor=pointer]
+          - generic:
+            - img
+        - paragraph [ref=e198]: Flexible plan, cancel anytime.
+      - generic [ref=e199]:
+        - deletion [ref=e200]: R$ 00
+        - text: R$ 00/month
+      - generic [ref=e202]:
+        - paragraph [ref=e203]: Final Summary
+        - generic [ref=e204]:
+          - generic [ref=e205]: Original Price
+          - deletion [ref=e206]: R$ 00
+        - generic [ref=e207]:
+          - generic [ref=e208]: Discount
+          - generic [ref=e209]: R$ 00
+        - generic [ref=e210]:
+          - generic [ref=e211]: Total to Pay
+          - generic [ref=e212]: R$ 00
+      - generic [ref=e214]:
+        - text: "Remaining spots:"
+        - strong [ref=e215]: "12"
+      - generic [ref=e217]:
+        - strong [ref=e218]: "38"
+        - text: people are buying now
+      - button "I WANT IMMEDIATE ACCESS" [ref=e219] [cursor=pointer]
+      - generic [ref=e220]:
+        - generic [ref=e221]:
+          - generic [ref=e222]: ✅
+          - generic [ref=e223]: 7-day guarantee
+        - generic [ref=e224]:
+          - generic [ref=e225]: 🔒
+          - generic [ref=e226]: Secure SSL payment
+        - generic [ref=e227]:
+          - generic [ref=e228]: 🔁
+          - generic [ref=e229]: Easy cancellation
+      - generic [ref=e230]:
+        - generic [ref=e231]:
+          - img [ref=e232]
+          - generic [ref=e234]: Your purchase is anonymous and secure.
+        - generic [ref=e235]:
+          - link "Terms of Use" [ref=e236] [cursor=pointer]:
+            - /url: "#"
+          - link "Privacy Policy" [ref=e237] [cursor=pointer]:
+            - /url: "#"
+          - link "Support" [ref=e238] [cursor=pointer]:
+            - /url: "#"
+```
