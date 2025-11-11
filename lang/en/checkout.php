@@ -23,26 +23,31 @@ return [
     // Testimonials
     'testimonials_title' => 'What our subscribers say',
     'testimonials' => [
-        [
-            'name' => 'Charles M. - New York',
-            'quote' => "I signed up 5 months ago and don't regret it! The content is insatiable and always updated. The variety here makes other services look like a children's movie shelf.",
+        'carlos' => [
+            'name' => 'Carlos R.',
+            'quote' => 'I deleted all my bookmarks from other sites. I was tired of fake porn full of ads and boring scripts. SnapHubb is the complete opposite: amateur, real, with real girls... easily the best video library I’ve found.',
             'stars' => 5
         ],
-        [
-            'name' => 'John P. - Los Angeles',
-            'quote' => "Worth every penny! The streaming quality is insane, it never buffers. And being able to download everything to watch offline... it's perfect privacy.",
+        'bruno' => [
+            'name' => 'Bruno M.',
+            'quote' => 'I used to waste hours looking for “free” stuff. The truth? I spent more time closing pop-ups and waiting for pixelated videos to load. SnapHubb costs the price of a beer — 4K streaming, no ads. It’s another level, man. Trash vs. luxury.',
             'stars' => 5
         ],
-        [
-            'name' => 'Robert S. - Chicago',
-            'quote' => "The best value for money I've ever seen. Content always in stunning 4K, zero ads to break the mood, and new releases that arrive hot. I recommend it to anyone who knows what they want.",
+        'thiago' => [
+            'name' => 'Thiago L.',
+            'quote' => 'What hooked me on the “Exclusives” was exactly what I was looking for: it feels real but has cinematic quality. The catalog alone is worth the subscription.',
             'stars' => 5
         ],
-        [
-            'name' => 'Thomas L. - Houston',
-            'quote' => "The interface is so easy it feels like it reads my mind, and the catalog is a beast. I also confess that the option to choose content and have them send it to me was impressive!",
-            'stars' => 4
-        ]
+        'ricardo' => [
+            'name' => 'Ricardo F.',
+            'quote' => 'To be honest, I was afraid to subscribe. Most sites are traps. SnapHubb was transparent. I canceled just to test it — two clicks, no tricks. Re-activated the same day. Finally, a platform that respects us.',
+            'stars' => 5
+        ],
+        'hernandes' => [
+            'name' => 'Hernandes J.',
+            'quote' => 'What got me hooked were the polls — absolute madness. Women from all over the world, one hotter than the next. I even canceled my OnlyFans. What’s there, you’ll find here — cheaper and better.',
+            'stars' => 5
+        ],
     ],
 
     // Scarcity
@@ -55,17 +60,15 @@ return [
     // Benefits
     'benefits_title' => 'Your Premium Benefits',
     'benefits' => [
-        'premium_videos' => 'Premium Videos',
-        'premium_videos_desc' => 'Access to all our content without restrictions',
-        'daily_content' => 'Daily Content',
-        'daily_content_desc' => 'New updates every day',
-        'no_ads' => 'No Ads',
-        'no_ads_desc' => 'Clean and uninterrupted experience',
-        'personalization' => 'Personalization',
-        'personalization_desc' => 'Set up your account as you prefer',
-        'weekly_updates' => 'Weekly Updates',
-        'weekly_updates_desc' => 'New features every week',
-        'voting' => 'Voting and Suggestions',
-        'voting_desc' => 'Help shape the future of the platform',
+        'no_fake_content' => 'The End of Fake Content.',
+        'no_fake_content_desc' => 'No more fake scripted porn and ridiculous acting. Our catalog is 100% focused on what you\'re looking for: real amateur content with real women from all over the world. It\'s the authenticity that excites, with the cinema quality you demand.',
+        'all_platforms' => 'All Platforms. One Single Price.',
+        'all_platforms_desc' => 'Stop spending a fortune subscribing to dozens of profiles. We bring together paid and exclusive content from OnlyFans, Fansly, LoyalFans, and others in one place. It\'s all the premium content you want, for a fraction of the cost. It\'s your VIP access to everything.',
+        'curated_content' => 'Only the Best. No Bullshit.',
+        'curated_content_desc' => 'Your time is valuable. No more hunting for good videos in a sea of trash. Our community filters and votes, ensuring you only see what\'s truly worth it. Here, it\'s 100% of your time, 100% worthwhile.',
+        'on_demand_content' => 'You\'re in Charge of the Content.',
+        'on_demand_content_desc' => 'Can\'t find that specific model or fetish? Use our suggestion system. Our curation team will hunt down the on-demand content you requested. Here, your wish is our command.',
+        'easy_cancel' => 'Cancel in 2 Clicks. No Tricks.',
+        'easy_cancel_desc' => 'We hate subscription traps as much as you do. There\'s no bureaucracy, no forms, no "talk to an agent." You subscribe when you want and leave when you want. You\'re in total control.',
     ],
 ];
