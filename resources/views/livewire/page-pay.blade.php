@@ -153,208 +153,180 @@ $gateway = config('services.default_payment_gateway', 'stripe');
         <form accept="" method="POST" id="payment-form">
             @csrf
             <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-                <div class="md:col-span-2">
-                    <!-- Currency Selector -->
-                    {{-- <div class="bg-[#1F1F1F] rounded-xl p-6 mb-6">
-                        <h2 class="text-xl font-semibold text-white mb-4">{{ __('payment.select_currency') }}</h2>
-
-                    <div class="relative">
-                        <select id="currency-selector" name="currency" wire:model="selectedCurrency"
-                            wire:change="calculateTotals"
-                            class="w-full bg-[#2D2D2D] text-white rounded-lg p-4 border border-gray-700 appearance-none pr-10 focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all">
-                            @foreach ($currencies as $code => $currency)
-                            <option value="{{ $code }}"
-                                {{ $selectedCurrency == $code ? 'selected' : '' }}>
-                                {{ __($currency['label']) }}
-                            </option>
+                <div class="md:col-span-2 flex flex-col">
+                    <!-- Benefits -->
+                    <div class="order-1 md:order-1 bg-[#1F1F1F] rounded-xl p-6 mb-6">
+                        <h2 class="text-xl font-semibold text-white mb-4">{{ __('checkout.benefits_title') }}</h2>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="benefits-container">
+                            @foreach (__('checkout.benefits') as $key => $description)
+                                @if (str_ends_with($key, '_desc')) @continue @endif
+                                <div class="flex items-start space-x-3">
+                                    <div class="p-2 bg-[#E50914] rounded-lg">
+                                        <svg class="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24"
+                                            stroke="currentColor" stroke-width="2">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <h3 class="font-medium text-white">{{ $description }}</h3>
+                                        <p class="text-sm text-gray-400">{{ __('checkout.benefits.' . $key . '_desc') }}</p>
+                                    </div>
+                                </div>
                             @endforeach
-                        </select>
-                        <div
-                            class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-white">
-                            <svg class="w-5 h-5 fill-current" viewBox="0 0 20 20">
-                                <path d="M7 7l3-3 3 3m0 6l-3 3-3-3" stroke="currentColor" stroke-width="1.5"
-                                    stroke-linecap="round" stroke-linejoin="round" fill="none"></path>
-                            </svg>
                         </div>
                     </div>
-                </div> --}}
 
-                <!-- Benefits -->
-                <div class="bg-[#1F1F1F] rounded-xl p-6 mb-6">
-                    <h2 class="text-xl font-semibold text-white mb-4">{{ __('checkout.benefits_title') }}</h2>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="benefits-container">
-                        @foreach (__('checkout.benefits') as $key => $description)
-                            @if (str_ends_with($key, '_desc')) @continue @endif
-                            <div class="flex items-start space-x-3">
-                                <div class="p-2 bg-[#E50914] rounded-lg">
-                                    <svg class="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24"
-                                        stroke="currentColor" stroke-width="2">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                    <!-- Payment Methods -->
+                    <div x-data="{ selectedPaymentMethod: @entangle('selectedPaymentMethod') }" id="payment-method-section" class="order-2 md:order-2 bg-[#1F1F1F] rounded-xl p-6 mb-6 scroll-mt-8">
+                        <h2 class="text-xl font-semibold text-white mb-4">{{ __('payment.payment_method') }}</h2>
+                        <div class="space-y-4">
+                            <div class="flex items-center justify-start p-2 rounded-lg border border-gray-700">
+                                <span class="text-xs font-semibold text-gray-400 uppercase mr-4">{{__('payment.safe_environment')}}</span>
+                                <div class="flex items-center" bis_skin_checked="1">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="text-green-500 mr-1 bi bi-lock" viewBox="0 0 16 16">
+                                        <path d="M8 1a2 2 0 0 1 2 2v4H6V3a2 2 0 0 1 2-2zm3 6V3a3 3 0 0 0-6 0v4a2 2 0 0 0-2 2v5a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2zM5 8h6a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"></path>
                                     </svg>
-                                </div>
-                                <div>
-                                    <h3 class="font-medium text-white">{{ $description }}</h3>
-                                    <p class="text-sm text-gray-400">{{ __('checkout.benefits.' . $key . '_desc') }}</p>
+                                    <span class="text-xs text-gray-400">{{__('payment.your_data_is_safe')}}</span>
                                 </div>
                             </div>
+
+                            <!-- Payment Method Selector -->
+                            <div class="flex rounded-lg bg-[#2D2D2D] p-1">
+                                <button type="button" class="w-full py-2 px-4 rounded-md text-sm font-medium bg-[#E50914] text-white">
+                                    💳 {{ __('payment.credit_card') }}
+                                </button>
+                            </div>
+
+                            <!-- Credit Card Form -->
+                            <div x-show="selectedPaymentMethod === 'credit_card'">
+                                <div class="space-y-4 mt-4">
+                                    @if($gateway !== 'stripe')
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.card_number') }}</label>
+                                        <input name="card_number" type="text" id="card-number" x-mask="9999 9999 9999 9999" placeholder="0000 0000 0000 0000" wire:model.defer="cardNumber" class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
+                                        @error('cardNumber')<span class="text-red-500 text-xs mt-1">{{ $message }}</span>@enderror
+                                    </div>
+                                    <div class="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.expiry_date') }}</label>
+                                            <input name="card_expiry" type="text" id="card-expiry" x-mask="99/99" placeholder="MM/YY" wire:model.defer="cardExpiry" class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
+                                            @error('cardExpiry')<span class="text-red-500 text-xs mt-1">{{ $message }}</span>@enderror
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.security_code') }}</label>
+                                            <input name="card_cvv" type="text" id="card-cvv" placeholder="CVV" x-mask="9999" wire:model.defer="cardCvv" class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
+                                            @error('cardCvv')<span class="text-red-500 text-xs mt-1">{{ $message }}</span>@enderror
+                                        </div>
+                                    </div>
+                                    @else
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.card_number') }}</label>
+                                        <div id="card-element" class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" wire:ignore></div>
+                                        <div id="card-errors"></div>
+                                        <input name="payment_method_id" type="hidden" wire:model.defer="paymentMethodId" id="payment-method-id">
+                                    </div>
+                                    @endif
+
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.card_name') }}</label>
+                                        <input name="card_name" type="text" placeholder="{{ __('payment.card_name') }}" wire:model.defer="cardName" class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
+                                        @error('cardName')<span class="text-red-500 text-xs mt-1">{{ $message }}</span>@enderror
+                                    </div>
+
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-300 mb-1">E-mail</label>
+                                        <input name="email" type="email" placeholder="seu@email.com" wire:model.live.debounce.500ms="email" class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
+                                        <div id="email-suggestion" class="text-xs text-yellow-400 mt-1"></div>
+                                        @error('email')<span class="text-red-500 text-xs mt-1">{{ $message }}</span>@enderror
+                                    </div>
+
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.phone') }}</label>
+                                        <input name="phone" id="phone" type="tel" placeholder="" wire:model="phone" class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
+                                        @error('phone')<span class="text-red-500 text-xs mt-1">{{ $message }}</span>@enderror
+                                    </div>
+
+                                    @if($selectedLanguage === 'br')
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-300 mb-1">CPF</label>
+                                        <input name="cpf" type="text" x-mask="999.999.999-99" placeholder="000.000.000-00" wire:model.defer="cpf" class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
+                                        @error('cpf')<span class="text-red-500 text-xs mt-1">{{ $message }}</span>@enderror
+                                    </div>
+                                    @endif
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Order Bumps -->
+                    @if(!empty($bumps))
+                    <div class="order-3 md:order-3 bg-[#1F1F1F] rounded-xl p-5 border border-gray-700">
+                        @foreach ($bumps as $index => $bump)
+                        <div class="flex items-start mb-4 last:mb-0">
+                            <div class="flex items-center h-5">
+                                <input
+                                    id="order-bump-{{ $bump['id'] }}"
+                                    type="checkbox"
+                                    class="w-5 h-5 text-[#E50914] bg-[#2D2D2D] border-gray-600 rounded
+                                       focus:ring-[#E50914] focus:ring-opacity-25 focus:ring-2
+                                       focus:border-[#E50914] cursor-pointer"
+                                    wire:model="bumps.{{ $index }}.active"
+                                    wire:change="calculateTotals" />
+                            </div>
+                            <label for="order-bump-{{ $bump['id'] }}" class="ml-3 cursor-pointer">
+                                <div class="text-white text-base font-semibold flex items-center">
+                                    <svg class="h-5 w-5 text-[#E50914] mr-1" fill="none" viewBox="0 0 24 24"
+                                        stroke="currentColor" stroke-width="2">
+                                        <path stroke-linecap="round" stroke-linejoin="round"
+                                            d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                    </svg>
+                                    {{ $bump['title'] }}
+                                </div>
+                                <p class="text-gray-400 text-sm mt-1">{{ $bump['description'] }}</p>
+                                <p class="text-[#E50914] font-medium mt-2">
+                                    +{{ $currencies[$selectedCurrency]['symbol'] }} {{ number_format($bump['price'], 2, ',', '.') }}
+                                </p>
+                            </label>
+                        </div>
                         @endforeach
                     </div>
-                </div>
+                    @endif
 
-                <!-- Payment Methods -->
-<div x-data="{ selectedPaymentMethod: @entangle('selectedPaymentMethod') }" id="payment-method-section" class="bg-[#1F1F1F] rounded-xl p-6 mb-6 scroll-mt-8">
-                    <h2 class="text-xl font-semibold text-white mb-4">{{ __('payment.payment_method') }}</h2>
-                    <div class="space-y-4">
-                        <div class="flex items-center justify-start p-2 rounded-lg border border-gray-700">
-                            <span class="text-xs font-semibold text-gray-400 uppercase mr-4">{{__('payment.safe_environment')}}</span>
-                            <div class="flex items-center" bis_skin_checked="1">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="text-green-500 mr-1 bi bi-lock" viewBox="0 0 16 16">
-                                    <path d="M8 1a2 2 0 0 1 2 2v4H6V3a2 2 0 0 1 2-2zm3 6V3a3 3 0 0 0-6 0v4a2 2 0 0 0-2 2v5a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2zM5 8h6a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"></path>
-                                </svg>
-                                <span class="text-xs text-gray-400">{{__('payment.your_data_is_safe')}}</span>
-                            </div>
-                        </div>
-
-                        <!-- Payment Method Selector -->
-                        <div class="flex rounded-lg bg-[#2D2D2D] p-1">
-                            <button type="button" class="w-full py-2 px-4 rounded-md text-sm font-medium bg-[#E50914] text-white">
-                                💳 {{ __('payment.credit_card') }}
-                            </button>
-                        </div>
-
-                        <!-- Credit Card Form -->
-                        <div x-show="selectedPaymentMethod === 'credit_card'">
-                            <div class="space-y-4 mt-4">
-                                @if($gateway !== 'stripe')
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.card_number') }}</label>
-                                    <input name="card_number" type="text" id="card-number" x-mask="9999 9999 9999 9999" placeholder="0000 0000 0000 0000" wire:model.defer="cardNumber" class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
-                                    @error('cardNumber')<span class="text-red-500 text-xs mt-1">{{ $message }}</span>@enderror
-                                </div>
-                                <div class="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.expiry_date') }}</label>
-                                        <input name="card_expiry" type="text" id="card-expiry" x-mask="99/99" placeholder="MM/YY" wire:model.defer="cardExpiry" class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
-                                        @error('cardExpiry')<span class="text-red-500 text-xs mt-1">{{ $message }}</span>@enderror
-                                    </div>
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.security_code') }}</label>
-                                        <input name="card_cvv" type="text" id="card-cvv" placeholder="CVV" x-mask="9999" wire:model.defer="cardCvv" class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
-                                        @error('cardCvv')<span class="text-red-500 text-xs mt-1">{{ $message }}</span>@enderror
-                                    </div>
-                                </div>
-                                @else
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.card_number') }}</label>
-                                    <div id="card-element" class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" wire:ignore></div>
-                                    <div id="card-errors"></div>
-                                    <input name="payment_method_id" type="hidden" wire:model.defer="paymentMethodId" id="payment-method-id">
-                                </div>
-                                @endif
-
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.card_name') }}</label>
-                                    <input name="card_name" type="text" placeholder="{{ __('payment.card_name') }}" wire:model.defer="cardName" class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
-                                    @error('cardName')<span class="text-red-500 text-xs mt-1">{{ $message }}</span>@enderror
-                                </div>
-
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-300 mb-1">E-mail</label>
-                                    <input name="email" type="email" placeholder="seu@email.com" wire:model.live.debounce.500ms="email" class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
-                                    <div id="email-suggestion" class="text-xs text-yellow-400 mt-1"></div>
-                                    @error('email')<span class="text-red-500 text-xs mt-1">{{ $message }}</span>@enderror
-                                </div>
-
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.phone') }}</label>
-                                    <input name="phone" id="phone" type="tel" placeholder="" wire:model="phone" class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
-                                    @error('phone')<span class="text-red-500 text-xs mt-1">{{ $message }}</span>@enderror
-                                </div>
-
-                                @if($selectedLanguage === 'br')
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-300 mb-1">CPF</label>
-                                    <input name="cpf" type="text" x-mask="999.999.999-99" placeholder="000.000.000-00" wire:model.defer="cpf" class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
-                                    @error('cpf')<span class="text-red-500 text-xs mt-1">{{ $message }}</span>@enderror
-                                </div>
-                                @endif
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Order Bumps -->
-                @if(!empty($bumps))
-                <div class="bg-[#1F1F1F] rounded-xl p-5 border border-gray-700">
-                    @foreach ($bumps as $index => $bump)
-                    <div class="flex items-start mb-4 last:mb-0">
-                        <div class="flex items-center h-5">
-                            <input
-                                id="order-bump-{{ $bump['id'] }}"
-                                type="checkbox"
-                                class="w-5 h-5 text-[#E50914] bg-[#2D2D2D] border-gray-600 rounded
-                           focus:ring-[#E50914] focus:ring-opacity-25 focus:ring-2
-                           focus:border-[#E50914] cursor-pointer"
-                                wire:model="bumps.{{ $index }}.active"
-                                wire:change="calculateTotals" />
-                        </div>
-                        <label for="order-bump-{{ $bump['id'] }}" class="ml-3 cursor-pointer">
-                            <div class="text-white text-base font-semibold flex items-center">
-                                <svg class="h-5 w-5 text-[#E50914] mr-1" fill="none" viewBox="0 0 24 24"
-                                    stroke="currentColor" stroke-width="2">
-                                    <path stroke-linecap="round" stroke-linejoin="round"
-                                        d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                                </svg>
-                                {{ $bump['title'] }}
-                            </div>
-                            <p class="text-gray-400 text-sm mt-1">{{ $bump['description'] }}</p>
-                            <p class="text-[#E50914] font-medium mt-2">
-                                +{{ $currencies[$selectedCurrency]['symbol'] }} {{ number_format($bump['price'], 2, ',', '.') }}
-                            </p>
-                        </label>
-                    </div>
-                    @endforeach
-                </div>
-                @endif
-
-
-
-
-                <!-- Testimonials -->
-                <div class="bg-transparent rounded-xl">
-                    <h2 class="text-2xl font-bold text-white mb-6 text-center">{{ __('checkout.testimonials_title') }}</h2>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        @if(is_array($testimonials) && !empty($testimonials))
-                            @foreach (array_slice($testimonials, 0, 4) as $testimonial)
-                                <div class="bg-gray-800 bg-opacity-50 p-6 rounded-xl border border-gray-700 shadow-lg flex flex-col h-full transform transition-transform hover:scale-105">
-                                    <div class="flex-shrink-0">
-                                        <div class="flex items-center mb-4">
-                                            <img src="https://ui-avatars.com/api/?name={{ substr($testimonial['name'], 0, 1) }}&color=FFFFFF&background=E50914&bold=true&size=48" alt="Avatar" class="w-12 h-12 rounded-full mr-4 border-2 border-red-500">
-                                            <div>
-                                                <p class="font-bold text-white text-lg">{{ $testimonial['name'] }}</p>
-                                                <div class="flex text-yellow-400 mt-1">
-                                                    @for ($i = 0; $i < 5; $i++)
-                                                        <svg class="w-5 h-5" fill="{{ $i < $testimonial['stars'] ? 'currentColor' : 'none' }}" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.519 4.674c.3.921-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.519-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"></path></svg>
-                                                    @endfor
+                    <!-- Testimonials -->
+                    <div class="order-4 md:order-4 bg-transparent rounded-xl">
+                        <h2 class="text-2xl font-bold text-white mb-6 text-center">{{ __('checkout.testimonials_title') }}</h2>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            @if(is_array($testimonials) && !empty($testimonials))
+                                @foreach (array_slice($testimonials, 0, 4) as $testimonial)
+                                    <div class="bg-gray-800 bg-opacity-50 p-6 rounded-xl border border-gray-700 shadow-lg flex flex-col h-full transform transition-transform hover:scale-105">
+                                        <div class="flex-shrink-0">
+                                            <div class="flex items-center mb-4">
+                                                <img src="https://ui-avatars.com/api/?name={{ substr($testimonial['name'], 0, 1) }}&color=FFFFFF&background=E50914&bold=true&size=48" alt="Avatar" class="w-12 h-12 rounded-full mr-4 border-2 border-red-500">
+                                                <div>
+                                                    <p class="font-bold text-white text-lg">{{ $testimonial['name'] }}</p>
+                                                    <div class="flex text-yellow-400 mt-1">
+                                                        @for ($i = 0; $i < 5; $i++)
+                                                            <svg class="w-5 h-5" fill="{{ $i < $testimonial['stars'] ? 'currentColor' : 'none' }}" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.519 4.674c.3.921-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.519-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"></path></svg>
+                                                        @endfor
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
+                                        <div class="relative flex-grow">
+                                            <svg class="absolute top-0 left-0 w-8 h-8 text-gray-600 transform -translate-x-2 -translate-y-2" fill="currentColor" viewBox="0 0 24 24"><path d="M6.5 10c-1.38 0-2.5 1.12-2.5 2.5s1.12 2.5 2.5 2.5 2.5-1.12 2.5-2.5-1.12-2.5-2.5-2.5zm11 0c-1.38 0-2.5 1.12-2.5 2.5s1.12 2.5 2.5 2.5 2.5-1.12 2.5-2.5-1.12-2.5-2.5-2.5zM20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm-8 14c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z" opacity=".2"/></svg>
+                                            <p class="text-gray-300 text-base italic pl-4 border-l-4 border-red-500">"{{ $testimonial['quote'] }}"</p>
+                                        </div>
                                     </div>
-                                    <div class="relative flex-grow">
-                                        <svg class="absolute top-0 left-0 w-8 h-8 text-gray-600 transform -translate-x-2 -translate-y-2" fill="currentColor" viewBox="0 0 24 24"><path d="M6.5 10c-1.38 0-2.5 1.12-2.5 2.5s1.12 2.5 2.5 2.5 2.5-1.12 2.5-2.5-1.12-2.5-2.5-2.5zm11 0c-1.38 0-2.5 1.12-2.5 2.5s1.12 2.5 2.5 2.5 2.5-1.12 2.5-2.5-1.12-2.5-2.5-2.5zM20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm-8 14c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z" opacity=".2"/></svg>
-                                        <p class="text-gray-300 text-base italic pl-4 border-l-4 border-red-500">"{{ $testimonial['quote'] }}"</p>
-                                    </div>
-                                </div>
-                            @endforeach
-                        @endif
+                                @endforeach
+                            @endif
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            <!-- Order Summary -->
-            <div class="md:col-span-1">
-                <div class="bg-[#1F1F1F] rounded-xl p-6 sticky top-6" wire:poll.1s="decrementTimer"
-                    wire:poll.15000ms="decrementSpotsLeft" wire:poll.8000ms="updateLiveActivity">
+                <!-- Order Summary -->
+                <div class="md:col-span-1 order-3 md:order-none">
+                    <div class="bg-[#1F1F1F] rounded-xl p-6 sticky top-6" wire:poll.1s="decrementTimer"
+                        wire:poll.15000ms="decrementSpotsLeft" wire:poll.8000ms="updateLiveActivity">
                     <h2 class="text-xl font-semibold text-white mb-4 text-center">{{ __('checkout.order_summary_title') }}</h2>
 
                     <!-- Timer -->
