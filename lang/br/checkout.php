@@ -23,26 +23,31 @@ return [
     // Testimonials
     'testimonials_title' => 'O que dizem nossos assinantes',
     'testimonials' => [
-        [
-            'name' => 'Carlos M. - São Paulo',
-            'quote' => 'Assinei há 5 meses e não me arrependo! O conteúdo é insaciável e sempre atualizado. A variedade aqui faz os outros serviços parecerem uma prateleira de filme infantil.',
+        'carlos' => [
+            'name' => 'Carlos R.',
+            'quote' => 'Eu deletei meus favoritos dos outros sites. Estava de saco cheio de pornô falso, cheio de propaganda e com aqueles roteiros ridículos e atrizes que parecem entediadas. O SnapHubb é 100% o oposto: é conteúdo amador, real, com garotas de verdade... sem dúvidas o melhor acervo de vídeos que já encontrei.',
             'stars' => 5
         ],
-        [
-            'name' => 'João P. - Rio de Janeiro',
-            'quote' => 'Vale cada centavo! A qualidade do streaming é doentia, nunca trava. E poder baixar tudo pra assistir offline... é a privacidade perfeita.',
+        'bruno' => [
+            'name' => 'Bruno M.',
+            'quote' => 'Eu vivia caçando conteúdo “grátis”. A real? Eu perdia mais tempo fechando pop-ups e esperando vídeo pixelado carregar do que qualquer outra coisa. O SnapHubb é o preço de uma cerveja. Streaming 4K instantâneo, sem anúncios. Cara, é outro nível — a diferença entre lixo e luxo.',
             'stars' => 5
         ],
-        [
-            'name' => 'Rafael S. - Belo Horizonte',
-            'quote' => 'O melhor custo-benefício que já vi. Conteúdo sempre em 4K que te faz babar, zero propagandas pra cortar o clima e lançamentos novos que chegam fervendo. Recomendo pra quem sabe o que quer.',
+        'thiago' => [
+            'name' => 'Thiago L.',
+            'quote' => 'O que me pegou nos “Exclusivos” é exatamente o que eu procurava: parece real, mas com qualidade de cinema. O catálogo deles sozinho já vale a assinatura.',
             'stars' => 5
         ],
-        [
-            'name' => 'Thiago L. - Curitiba',
-            'quote' => 'A interface é tão fácil que parece que lê minha mente, e o catálogo é um monstro, confesso também que a opção de escolher conteúdos e eles enviarem me impressionou!',
-            'stars' => 4
-        ]
+        'ricardo' => [
+            'name' => 'Ricardo F.',
+            'quote' => 'Vou ser honesto: eu tinha medo de assinar. A maioria desses sites é armadilha. O SnapHubb foi transparente. Cancelei só para testar e foi em dois cliques, sem pegadinhas. Reativei no mesmo dia. Finalmente uma plataforma que respeita a gente.',
+            'stars' => 5
+        ],
+        'hernandes' => [
+            'name' => 'Hernandes J.',
+            'quote' => 'O que me pegou foi a opção de votações — loucura demais. Mulheres do mundo todo e uma mais gostosa que a outra. Já até cancelei minha assinatura do OnlyFans. O que aparece lá, aparece aqui… só que melhor e mais barato.',
+            'stars' => 5
+        ],
     ],
 
     // Scarcity
@@ -55,17 +60,15 @@ return [
     // Benefits
     'benefits_title' => 'Seus benefícios Premium',
     'benefits' => [
-        'premium_videos' => 'Vídeos premium',
-        'premium_videos_desc' => 'Acesso a todo nosso conteúdo sem restrições',
-        'daily_content' => 'Conteúdos diários',
-        'daily_content_desc' => 'Novas atualizações todos os dias',
-        'no_ads' => 'Sem anúncios',
-        'no_ads_desc' => 'Experiência limpa e sem interrupções',
-        'personalization' => 'Personalização',
-        'personalization_desc' => 'Configure sua conta como preferir',
-        'weekly_updates' => 'Atualizações semanais',
-        'weekly_updates_desc' => 'Novas funcionalidades toda semana',
-        'voting' => 'Votação e sugestões',
-        'voting_desc' => 'Ajude a moldar o futuro da plataforma',
+        'no_fake_content' => 'O Fim do Conteúdo Falso.',
+        'no_fake_content_desc' => 'Chega de pornô com roteiro falso e atuações ridículas. Nosso catálogo é 100% focado no que você procura: conteúdo amador e real, com mulheres reais do mundo todo. É a autenticidade que excita, com a qualidade de cinema que você exige.',
+        'all_platforms' => 'Todas as Plataformas. Um Único Preço.',
+        'all_platforms_desc' => 'Pare de gastar uma fortuna assinando dezenas de perfis. Nós reunimos o conteúdo pago e exclusivo do OnlyFans, Fansly, LoyalFans e outros em um só lugar. É todo o conteúdo premium que você deseja, por uma fração do custo. É o seu acesso VIP a tudo.',
+        'curated_content' => 'Só o Filé Mignon. Sem Enrolação.',
+        'curated_content_desc' => 'Seu tempo é valioso. Chega de caçar vídeo bom no meio do lixo. Nossa comunidade filtra e vota, garantindo que você veja apenas o que realmente vale a pena. Aqui é 100% do seu tempo, 100% de aproveitamento.',
+        'on_demand_content' => 'Você Manda no Conteúdo.',
+        'on_demand_content_desc' => 'Não achou aquela modelo ou aquele fetiche específico? Use nosso sistema de sugestão. Nossa equipe de curadoria vai atrás do conteúdo sob demanda que você pediu. Aqui, o seu desejo é uma ordem.',
+        'easy_cancel' => 'Cancele em 2 Cliques. Sem Pegadinhas.',
+        'easy_cancel_desc' => 'Nós odiamos armadilhas de assinatura tanto quanto você. Aqui não tem burocracia, nem formulário, nem "fale com atendente". Você assina quando quer e sai a hora que quer. Você está no controle total.',
     ],
 ];
