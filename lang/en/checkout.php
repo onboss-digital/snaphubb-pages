@@ -23,26 +23,31 @@ return [
     // Testimonials
     'testimonials_title' => 'What our subscribers say',
     'testimonials' => [
-        [
-            'name' => 'Charles M. - New York',
-            'quote' => "I signed up 5 months ago and don't regret it! The content is insatiable and always updated. The variety here makes other services look like a children's movie shelf.",
+        'carlos' => [
+            'name' => 'Carlos R.',
+            'quote' => 'I deleted all my bookmarks from other sites. I was tired of fake porn full of ads and boring scripts. SnapHubb is the complete opposite: amateur, real, with real girls... easily the best video library I’ve found.',
             'stars' => 5
         ],
-        [
-            'name' => 'John P. - Los Angeles',
-            'quote' => "Worth every penny! The streaming quality is insane, it never buffers. And being able to download everything to watch offline... it's perfect privacy.",
+        'bruno' => [
+            'name' => 'Bruno M.',
+            'quote' => 'I used to waste hours looking for “free” stuff. The truth? I spent more time closing pop-ups and waiting for pixelated videos to load. SnapHubb costs the price of a beer — 4K streaming, no ads. It’s another level, man. Trash vs. luxury.',
             'stars' => 5
         ],
-        [
-            'name' => 'Robert S. - Chicago',
-            'quote' => "The best value for money I've ever seen. Content always in stunning 4K, zero ads to break the mood, and new releases that arrive hot. I recommend it to anyone who knows what they want.",
+        'thiago' => [
+            'name' => 'Thiago L.',
+            'quote' => 'What hooked me on the “Exclusives” was exactly what I was looking for: it feels real but has cinematic quality. The catalog alone is worth the subscription.',
             'stars' => 5
         ],
-        [
-            'name' => 'Thomas L. - Houston',
-            'quote' => "The interface is so easy it feels like it reads my mind, and the catalog is a beast. I also confess that the option to choose content and have them send it to me was impressive!",
-            'stars' => 4
-        ]
+        'ricardo' => [
+            'name' => 'Ricardo F.',
+            'quote' => 'To be honest, I was afraid to subscribe. Most sites are traps. SnapHubb was transparent. I canceled just to test it — two clicks, no tricks. Re-activated the same day. Finally, a platform that respects us.',
+            'stars' => 5
+        ],
+        'hernandes' => [
+            'name' => 'Hernandes J.',
+            'quote' => 'What got me hooked were the polls — absolute madness. Women from all over the world, one hotter than the next. I even canceled my OnlyFans. What’s there, you’ll find here — cheaper and better.',
+            'stars' => 5
+        ],
     ],
 
     // Scarcity
