@@ -6,14 +6,26 @@ return [
     'subtitle' => 'Junte-se a mais de 10.000 pessoas e tenha acesso a um conteúdo exclusivo.',
     'benefits_title' => 'Benefícios',
     'benefits' => [
-        'cancel_anytime' => 'Cancele quando quiser',
-        'cancel_anytime_desc' => 'Flexibilidade total para sua assinatura.',
-        'watch_anywhere' => 'Assista onde quiser',
-        'watch_anywhere_desc' => 'Acesse em múltiplos dispositivos.',
-        'exclusive_content' => 'Conteúdo exclusivo',
-        'exclusive_content_desc' => 'Lançamentos semanais e produções originais.',
-        'live_channels' => 'Canais ao vivo',
-        'live_channels_desc' => 'Programação 24 horas por dia.',
+        'authentic' => [
+            'title' => 'O Fim do Conteúdo Falso.',
+            'text'  => 'Chega de pornô com roteiro falso e atuações ridículas. Nosso catálogo é 100% focado no que você procura: conteúdo amador e real, com mulheres reais do mundo todo. É a autenticidade que excita, com a qualidade de cinema que você exige.',
+        ],
+        'all_in_one' => [
+            'title' => 'Todas as Plataformas. Um Único Preço.',
+            'text'  => 'Pare de gastar uma fortuna assinando dezenas de perfis. Nós reunimos o conteúdo pago e exclusivo do OnlyFans, Fansly, LoyalFans e outros em um só lugar. É todo o conteúdo premium que você deseja, por uma fração do custo. É o seu acesso VIP a tudo.',
+        ],
+        'quality' => [
+            'title' => 'Só o Filé Mignon. Sem Enrolação.',
+            'text'  => 'Seu tempo é valioso. Chega de caçar vídeo bom no meio do lixo. Nossa comunidade filtra e vota, garantindo que você veja apenas o que realmente vale a pena. Aqui é 100% do seu tempo, 100% de aproveitamento.',
+        ],
+        'control' => [
+            'title' => 'Você Manda no Conteúdo.',
+            'text'  => 'Não achou aquela modelo ou aquele fetiche específico? Use nosso sistema de sugestão. Nossa equipe de curadoria vai atrás do conteúdo sob demanda que você pediu. Aqui, o seu desejo é uma ordem.',
+        ],
+        'cancel' => [
+            'title' => 'Cancele em 2 Cliques. Sem Pegadinhas.',
+            'text'  => 'Nós odiamos armadilhas de assinatura tanto quanto você. Aqui não tem burocracia, nem formulário, nem “fale com atendente”. Você assina quando quer e sai a hora que quer. Você está no controle total.',
+        ],
     ],
     'testimonials_title' => 'O que nossos clientes dizem',
     'order_summary_title' => 'Resumo do Pedido',
@@ -21,26 +33,4 @@ return [
     'remaining_vacancies' => 'Vagas restantes',
     'live_activity' => ':count pessoas estão comprando agora',
     'cta_button' => 'QUERO ACESSO IMEDIATO',
-    'testimonials' => [
-        [
-            'name' => 'João D.',
-            'quote' => 'Finalmente uma plataforma que entende o que eu gosto. Conteúdo de alta qualidade e sem interrupções. Vale cada centavo!',
-            'stars' => 5,
-        ],
-        [
-            'name' => 'Maria S.',
-            'quote' => 'A variedade de canais ao vivo é incrível. Passo horas assistindo e sempre descubro algo novo. Recomendo a todos!',
-            'stars' => 5,
-        ],
-        [
-            'name' => 'Pedro A.',
-            'quote' => 'O conteúdo exclusivo é o melhor. As produções originais são de alta qualidade e me mantêm entretido por horas.',
-            'stars' => 4,
-        ],
-        [
-            'name' => 'Ana P.',
-            'quote' => 'A facilidade de cancelar a qualquer momento me deu a confiança para experimentar. Agora sou um assinante fiel. Ótimo serviço!',
-            'stars' => 5,
-        ],
-    ],
 ];

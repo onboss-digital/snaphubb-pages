@@ -6,14 +6,26 @@ return [
     'subtitle' => 'Join over 10,000 people and get access to exclusive content.',
     'benefits_title' => 'Benefits',
     'benefits' => [
-        'cancel_anytime' => 'Cancel anytime',
-        'cancel_anytime_desc' => 'Total flexibility for your subscription.',
-        'watch_anywhere' => 'Watch anywhere',
-        'watch_anywhere_desc' => 'Access on multiple devices.',
-        'exclusive_content' => 'Exclusive content',
-        'exclusive_content_desc' => 'Weekly releases and original productions.',
-        'live_channels' => 'Live channels',
-        'live_channels_desc' => '24/7 programming.',
+        'authentic' => [
+            'title' => 'The End of Fake Content.',
+            'text'  => 'Tired of fake scripted porn and lifeless acting? Our catalog is 100% focused on what you actually want: amateur, real content featuring real women from all over the world. Authenticity that excites — with the cinematic quality you expect.',
+        ],
+        'all_in_one' => [
+            'title' => 'All Platforms. One Price.',
+            'text'  => 'Stop wasting money on dozens of subscriptions. We bring together premium and exclusive content from OnlyFans, Fansly, LoyalFans, and more — all in one place. Everything you want, for a fraction of the cost. Your VIP access to everything.',
+        ],
+        'quality' => [
+            'title' => 'Only the Best. No Filler.',
+            'text'  => 'Your time is valuable. Stop digging through garbage for a good video. Our community filters and votes so you only see what’s truly worth it. 100% of your time, 100% satisfaction.',
+        ],
+        'control' => [
+            'title' => 'You’re in Control.',
+            'text'  => 'Can’t find a specific model or fetish? Use our suggestion system. Our curation team will find and deliver on-demand content just for you. Your wish is our command.',
+        ],
+        'cancel' => [
+            'title' => 'Cancel in 2 Clicks. No Tricks.',
+            'text'  => 'We hate subscription traps as much as you do. No forms, no support chat, no hidden steps. Subscribe when you want, leave whenever you want. You’re always in control.',
+        ],
     ],
     'testimonials_title' => 'What our customers say',
     'order_summary_title' => 'Order Summary',
@@ -21,26 +33,4 @@ return [
     'remaining_vacancies' => 'Remaining spots',
     'live_activity' => ':count people are buying now',
     'cta_button' => 'I WANT IMMEDIATE ACCESS',
-    'testimonials' => [
-        [
-            'name' => 'John D.',
-            'quote' => 'Finally a platform that understands what I like. High-quality content and no interruptions. Worth every penny!',
-            'stars' => 5,
-        ],
-        [
-            'name' => 'Mary S.',
-            'quote' => 'The variety of live channels is incredible. I spend hours watching and always discover something new. I recommend it to everyone!',
-            'stars' => 5,
-        ],
-        [
-            'name' => 'Peter A.',
-            'quote' => 'The exclusive content is the best. The original productions are top-notch and keep me entertained for hours.',
-            'stars' => 4,
-        ],
-        [
-            'name' => 'Ann P.',
-            'quote' => 'The ease of canceling anytime gave me the confidence to try it out. Now I am a loyal subscriber. Great service!',
-            'stars' => 5,
-        ],
-    ],
 ];

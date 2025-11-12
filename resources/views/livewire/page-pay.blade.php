@@ -157,23 +157,20 @@ $gateway = config('services.default_payment_gateway', 'stripe');
                 <!-- Coluna de Pagamento e Resumo do Pedido -->
                 <div class="flex flex-col order-1 md:order-1">
                     <!-- Benefits -->
-                    <div class="order-1 bg-[#1F1F1F] rounded-xl p-6 mb-6">
+                    <div class=" bg-[#1F1F1F] rounded-xl p-6 mb-6">
                         <h2 class="text-xl font-semibold text-white mb-4">{{ __('checkout.benefits_title') }}</h2>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="benefits-container">
-                            @foreach (__('checkout.benefits') as $key => $description)
-                                @if (str_ends_with($key, '_desc'))
-                                    @continue
-                                @endif
+                        <div class="space-y-4" id="benefits-container">
+                            @foreach (__('checkout.benefits') as $benefit)
                                 <div class="flex items-start space-x-3">
-                                    <div class="p-2 bg-[#E50914] rounded-lg">
+                                    <div class="p-2 bg-[#E50914] rounded-lg mt-1">
                                         <svg class="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24"
                                             stroke="currentColor" stroke-width="2">
                                             <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
                                         </svg>
                                     </div>
                                     <div>
-                                        <h3 class="font-medium text-white">{{ $description }}</h3>
-                                        <p class="text-sm text-gray-400">{{ __('checkout.benefits.' . $key . '_desc') }}</p>
+                                        <h3 class="font-medium text-white">{{ $benefit['title'] }}</h3>
+                                        <p class="text-sm text-gray-400">{{ $benefit['text'] }}</p>
                                     </div>
                                 </div>
                             @endforeach
@@ -182,7 +179,7 @@ $gateway = config('services.default_payment_gateway', 'stripe');
 
                     <!-- Payment Methods -->
                     <div x-data="{ selectedPaymentMethod: @entangle('selectedPaymentMethod') }" id="payment-method-section"
-                        class="order-2 bg-[#1F1F1F] rounded-xl p-6 mb-6 scroll-mt-8">
+                        class=" bg-[#1F1F1F] rounded-xl p-6 mb-6 scroll-mt-8">
                         <h2 class="text-xl font-semibold text-white mb-4">{{ __('payment.payment_method') }}</h2>
                         <div class="space-y-4">
                             <div class="flex items-center justify-start p-2 rounded-lg border border-gray-700">
@@ -309,7 +306,7 @@ $gateway = config('services.default_payment_gateway', 'stripe');
 
                     <!-- Order Bumps -->
                     @if (!empty($bumps))
-                        <div class="order-3 bg-[#1F1F1F] rounded-xl p-5 border border-gray-700">
+                        <div class=" bg-[#1F1F1F] rounded-xl p-5 border border-gray-700">
                             @foreach ($bumps as $index => $bump)
                                 <div class="flex items-start mb-4 last:mb-0">
                                     <div class="flex items-center h-5">
@@ -504,13 +501,13 @@ $gateway = config('services.default_payment_gateway', 'stripe');
                 </div>
 
                 <!-- Coluna de Depoimentos (Aparece por último no mobile) -->
-                <div class="md:col-span-2 order-3 md:order-3">
+                <div class="md:col-span-2 order-3">
                     <div class="bg-transparent rounded-xl">
                         <h2 class="text-2xl font-bold text-white mb-6 text-center">
                             {{ __('checkout.testimonials_title') }}</h2>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
                             @if (is_array($testimonials) && !empty($testimonials))
-                                @foreach (array_slice($testimonials, 0, 4) as $testimonial)
+                                @foreach ($testimonials as $testimonial)
                                     <div
                                         class="bg-gray-800 bg-opacity-50 p-6 rounded-xl border border-gray-700 shadow-lg flex flex-col h-full transform transition-transform hover:scale-105">
                                         <div class="flex-shrink-0">
@@ -521,19 +518,6 @@ $gateway = config('services.default_payment_gateway', 'stripe');
                                                 <div>
                                                     <p class="font-bold text-white text-lg">{{ $testimonial['name'] }}
                                                     </p>
-                                                    <div class="flex text-yellow-400 mt-1">
-                                                        @for ($i = 0; $i < 5; $i++)
-                                                            <svg class="w-5 h-5"
-                                                                fill="{{ $i < $testimonial['stars'] ? 'currentColor' : 'none' }}"
-                                                                stroke="currentColor" viewBox="0 0 24 24"
-                                                                xmlns="http://www.w3.org/2000/svg">
-                                                                <path stroke-linecap="round" stroke-linejoin="round"
-                                                                    stroke-width="2"
-                                                                    d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.519 4.674c.3.921-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.519-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z">
-                                                                </path>
-                                                            </svg>
-                                                        @endfor
-                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
@@ -545,7 +529,7 @@ $gateway = config('services.default_payment_gateway', 'stripe');
                                                     opacity=".2" />
                                             </svg>
                                             <p class="text-gray-300 text-base italic pl-4 border-l-4 border-red-500">
-                                                "{{ $testimonial['quote'] }}"</p>
+                                                "{{ $testimonial['text'] }}"</p>
                                         </div>
                                     </div>
                                 @endforeach

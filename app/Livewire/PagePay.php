@@ -137,7 +137,7 @@ class PagePay extends Component
         $this->selectedLanguage = session('locale', config('app.locale'));
         app()->setLocale($this->selectedLanguage);
 
-        $this->testimonials = trans('checkout.testimonials');
+        $this->testimonials = trans('testimonials.testimonials');
         $this->plans = $this->getPlans();
         $this->selectedCurrency = Session::get('selectedCurrency', 'BRL');
         $this->selectedPlan = Session::get('selectedPlan', 'monthly');
@@ -363,7 +363,7 @@ class PagePay extends Component
             throw $e;
         } catch (\Exception $e) {
             $this->showLodingModal = false;
-            Log::channel('start_checkout')->error('start_checkout: API Error:', [
+            Log::error('start_checkout: API Error:', [
                 'message' => $e->getMessage(),
             ]);
         }
@@ -411,7 +411,7 @@ class PagePay extends Component
         $response = $this->paymentGateway->processPayment($checkoutData);
 
         if ($response['status'] === 'success') {
-            Log::channel('payment_checkout')->info('PagePay: Payment successful via gateway.', [
+            Log::info('PagePay: Payment successful via gateway.', [
                 'gateway' => get_class($this->paymentGateway),
                 'response' => $response
             ]);
@@ -452,7 +452,7 @@ class PagePay extends Component
                 return redirect()->to($redirectUrl);
             }
         } else {
-            Log::channel('payment_checkout')->error('PagePay: Payment failed via gateway.', [
+            Log::error('PagePay: Payment failed via gateway.', [
                 'gateway' => get_class($this->paymentGateway),
                 'response' => $response
             ]);
