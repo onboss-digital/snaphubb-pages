@@ -152,14 +152,18 @@ $gateway = config('services.default_payment_gateway', 'stripe');
         </header>
         <form accept="" method="POST" id="payment-form">
             @csrf
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-                <div class="md:col-span-2 flex flex-col">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+
+                <!-- Coluna de Pagamento e Resumo do Pedido -->
+                <div class="flex flex-col order-1 md:order-1">
                     <!-- Benefits -->
-                    <div class="order-1 md:order-1 bg-[#1F1F1F] rounded-xl p-6 mb-6">
+                    <div class="order-1 bg-[#1F1F1F] rounded-xl p-6 mb-6">
                         <h2 class="text-xl font-semibold text-white mb-4">{{ __('checkout.benefits_title') }}</h2>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="benefits-container">
                             @foreach (__('checkout.benefits') as $key => $description)
-                                @if (str_ends_with($key, '_desc')) @continue @endif
+                                @if (str_ends_with($key, '_desc'))
+                                    @continue
+                                @endif
                                 <div class="flex items-start space-x-3">
                                     <div class="p-2 bg-[#E50914] rounded-lg">
                                         <svg class="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24"
@@ -177,22 +181,28 @@ $gateway = config('services.default_payment_gateway', 'stripe');
                     </div>
 
                     <!-- Payment Methods -->
-                    <div x-data="{ selectedPaymentMethod: @entangle('selectedPaymentMethod') }" id="payment-method-section" class="order-2 md:order-2 bg-[#1F1F1F] rounded-xl p-6 mb-6 scroll-mt-8">
+                    <div x-data="{ selectedPaymentMethod: @entangle('selectedPaymentMethod') }" id="payment-method-section"
+                        class="order-2 bg-[#1F1F1F] rounded-xl p-6 mb-6 scroll-mt-8">
                         <h2 class="text-xl font-semibold text-white mb-4">{{ __('payment.payment_method') }}</h2>
                         <div class="space-y-4">
                             <div class="flex items-center justify-start p-2 rounded-lg border border-gray-700">
-                                <span class="text-xs font-semibold text-gray-400 uppercase mr-4">{{__('payment.safe_environment')}}</span>
+                                <span
+                                    class="text-xs font-semibold text-gray-400 uppercase mr-4">{{ __('payment.safe_environment') }}</span>
                                 <div class="flex items-center" bis_skin_checked="1">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="text-green-500 mr-1 bi bi-lock" viewBox="0 0 16 16">
-                                        <path d="M8 1a2 2 0 0 1 2 2v4H6V3a2 2 0 0 1 2-2zm3 6V3a3 3 0 0 0-6 0v4a2 2 0 0 0-2 2v5a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2zM5 8h6a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"></path>
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
+                                        fill="currentColor" class="text-green-500 mr-1 bi bi-lock" viewBox="0 0 16 16">
+                                        <path
+                                            d="M8 1a2 2 0 0 1 2 2v4H6V3a2 2 0 0 1 2-2zm3 6V3a3 3 0 0 0-6 0v4a2 2 0 0 0-2 2v5a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2zM5 8h6a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z">
+                                        </path>
                                     </svg>
-                                    <span class="text-xs text-gray-400">{{__('payment.your_data_is_safe')}}</span>
+                                    <span class="text-xs text-gray-400">{{ __('payment.your_data_is_safe') }}</span>
                                 </div>
                             </div>
 
                             <!-- Payment Method Selector -->
                             <div class="flex rounded-lg bg-[#2D2D2D] p-1">
-                                <button type="button" class="w-full py-2 px-4 rounded-md text-sm font-medium bg-[#E50914] text-white">
+                                <button type="button"
+                                    class="w-full py-2 px-4 rounded-md text-sm font-medium bg-[#E50914] text-white">
                                     💳 {{ __('payment.credit_card') }}
                                 </button>
                             </div>
@@ -200,58 +210,97 @@ $gateway = config('services.default_payment_gateway', 'stripe');
                             <!-- Credit Card Form -->
                             <div x-show="selectedPaymentMethod === 'credit_card'">
                                 <div class="space-y-4 mt-4">
-                                    @if($gateway !== 'stripe')
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.card_number') }}</label>
-                                        <input name="card_number" type="text" id="card-number" x-mask="9999 9999 9999 9999" placeholder="0000 0000 0000 0000" wire:model.defer="cardNumber" class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
-                                        @error('cardNumber')<span class="text-red-500 text-xs mt-1">{{ $message }}</span>@enderror
-                                    </div>
-                                    <div class="grid grid-cols-2 gap-4">
+                                    @if ($gateway !== 'stripe')
                                         <div>
-                                            <label class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.expiry_date') }}</label>
-                                            <input name="card_expiry" type="text" id="card-expiry" x-mask="99/99" placeholder="MM/YY" wire:model.defer="cardExpiry" class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
-                                            @error('cardExpiry')<span class="text-red-500 text-xs mt-1">{{ $message }}</span>@enderror
+                                            <label
+                                                class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.card_number') }}</label>
+                                            <input name="card_number" type="text" id="card-number"
+                                                x-mask="9999 9999 9999 9999" placeholder="0000 0000 0000 0000"
+                                                wire:model.defer="cardNumber"
+                                                class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
+                                            @error('cardNumber')
+                                                <span class="text-red-500 text-xs mt-1">{{ $message }}</span>
+                                            @enderror
                                         </div>
-                                        <div>
-                                            <label class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.security_code') }}</label>
-                                            <input name="card_cvv" type="text" id="card-cvv" placeholder="CVV" x-mask="9999" wire:model.defer="cardCvv" class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
-                                            @error('cardCvv')<span class="text-red-500 text-xs mt-1">{{ $message }}</span>@enderror
+                                        <div class="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <label
+                                                    class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.expiry_date') }}</label>
+                                                <input name="card_expiry" type="text" id="card-expiry" x-mask="99/99"
+                                                    placeholder="MM/YY" wire:model.defer="cardExpiry"
+                                                    class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
+                                                @error('cardExpiry')
+                                                    <span class="text-red-500 text-xs mt-1">{{ $message }}</span>
+                                                @enderror
+                                            </div>
+                                            <div>
+                                                <label
+                                                    class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.security_code') }}</label>
+                                                <input name="card_cvv" type="text" id="card-cvv" placeholder="CVV"
+                                                    x-mask="9999" wire:model.defer="cardCvv"
+                                                    class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
+                                                @error('cardCvv')
+                                                    <span class="text-red-500 text-xs mt-1">{{ $message }}</span>
+                                                @enderror
+                                            </div>
                                         </div>
-                                    </div>
                                     @else
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.card_number') }}</label>
-                                        <div id="card-element" class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" wire:ignore></div>
-                                        <div id="card-errors"></div>
-                                        <input name="payment_method_id" type="hidden" wire:model.defer="paymentMethodId" id="payment-method-id">
-                                    </div>
+                                        <div>
+                                            <label
+                                                class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.card_number') }}</label>
+                                            <div id="card-element"
+                                                class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all"
+                                                wire:ignore></div>
+                                            <div id="card-errors"></div>
+                                            <input name="payment_method_id" type="hidden"
+                                                wire:model.defer="paymentMethodId" id="payment-method-id">
+                                        </div>
                                     @endif
 
                                     <div>
-                                        <label class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.card_name') }}</label>
-                                        <input name="card_name" type="text" placeholder="{{ __('payment.card_name') }}" wire:model.defer="cardName" class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
-                                        @error('cardName')<span class="text-red-500 text-xs mt-1">{{ $message }}</span>@enderror
+                                        <label
+                                            class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.card_name') }}</label>
+                                        <input name="card_name" type="text"
+                                            placeholder="{{ __('payment.card_name') }}" wire:model.defer="cardName"
+                                            class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
+                                        @error('cardName')
+                                            <span class="text-red-500 text-xs mt-1">{{ $message }}</span>
+                                        @enderror
                                     </div>
 
                                     <div>
                                         <label class="block text-sm font-medium text-gray-300 mb-1">E-mail</label>
-                                        <input name="email" type="email" placeholder="seu@email.com" wire:model.live.debounce.500ms="email" class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
+                                        <input name="email" type="email" placeholder="seu@email.com"
+                                            wire:model.live.debounce.500ms="email"
+                                            class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
                                         <div id="email-suggestion" class="text-xs text-yellow-400 mt-1"></div>
-                                        @error('email')<span class="text-red-500 text-xs mt-1">{{ $message }}</span>@enderror
+                                        @error('email')
+                                            <span class="text-red-500 text-xs mt-1">{{ $message }}</span>
+                                        @enderror
                                     </div>
 
                                     <div>
-                                        <label class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.phone') }}</label>
-                                        <input name="phone" id="phone" type="tel" placeholder="" wire:model="phone" class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
-                                        @error('phone')<span class="text-red-500 text-xs mt-1">{{ $message }}</span>@enderror
+                                        <label
+                                            class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.phone') }}</label>
+                                        <input name="phone" id="phone" type="tel" placeholder=""
+                                            wire:model="phone"
+                                            class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
+                                        @error('phone')
+                                            <span class="text-red-500 text-xs mt-1">{{ $message }}</span>
+                                        @enderror
                                     </div>
 
-                                    @if($selectedLanguage === 'br')
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-300 mb-1">CPF</label>
-                                        <input name="cpf" type="text" x-mask="999.999.999-99" placeholder="000.000.000-00" wire:model.defer="cpf" class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
-                                        @error('cpf')<span class="text-red-500 text-xs mt-1">{{ $message }}</span>@enderror
-                                    </div>
+                                    @if ($selectedLanguage === 'br')
+                                        <div>
+                                            <label
+                                                class="block text-sm font-medium text-gray-300 mb-1">CPF</label>
+                                            <input name="cpf" type="text" x-mask="999.999.999-99"
+                                                placeholder="000.000.000-00" wire:model.defer="cpf"
+                                                class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
+                                            @error('cpf')
+                                                <span class="text-red-500 text-xs mt-1">{{ $message }}</span>
+                                            @enderror
+                                        </div>
                                     @endif
                                 </div>
                             </div>
@@ -259,125 +308,96 @@ $gateway = config('services.default_payment_gateway', 'stripe');
                     </div>
 
                     <!-- Order Bumps -->
-                    @if(!empty($bumps))
-                    <div class="order-3 md:order-3 bg-[#1F1F1F] rounded-xl p-5 border border-gray-700">
-                        @foreach ($bumps as $index => $bump)
-                        <div class="flex items-start mb-4 last:mb-0">
-                            <div class="flex items-center h-5">
-                                <input
-                                    id="order-bump-{{ $bump['id'] }}"
-                                    type="checkbox"
-                                    class="w-5 h-5 text-[#E50914] bg-[#2D2D2D] border-gray-600 rounded
+                    @if (!empty($bumps))
+                        <div class="order-3 bg-[#1F1F1F] rounded-xl p-5 border border-gray-700">
+                            @foreach ($bumps as $index => $bump)
+                                <div class="flex items-start mb-4 last:mb-0">
+                                    <div class="flex items-center h-5">
+                                        <input id="order-bump-{{ $bump['id'] }}" type="checkbox"
+                                            class="w-5 h-5 text-[#E50914] bg-[#2D2D2D] border-gray-600 rounded
                                        focus:ring-[#E50914] focus:ring-opacity-25 focus:ring-2
                                        focus:border-[#E50914] cursor-pointer"
-                                    wire:model="bumps.{{ $index }}.active"
-                                    wire:change="calculateTotals" />
-                            </div>
-                            <label for="order-bump-{{ $bump['id'] }}" class="ml-3 cursor-pointer">
-                                <div class="text-white text-base font-semibold flex items-center">
-                                    <svg class="h-5 w-5 text-[#E50914] mr-1" fill="none" viewBox="0 0 24 24"
-                                        stroke="currentColor" stroke-width="2">
-                                        <path stroke-linecap="round" stroke-linejoin="round"
-                                            d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                                    </svg>
-                                    {{ $bump['title'] }}
-                                </div>
-                                <p class="text-gray-400 text-sm mt-1">{{ $bump['description'] }}</p>
-                                <p class="text-[#E50914] font-medium mt-2">
-                                    +{{ $currencies[$selectedCurrency]['symbol'] }} {{ number_format($bump['price'], 2, ',', '.') }}
-                                </p>
-                            </label>
-                        </div>
-                        @endforeach
-                    </div>
-                    @endif
-
-                    <!-- Testimonials -->
-                    <div class="order-4 md:order-4 bg-transparent rounded-xl">
-                        <h2 class="text-2xl font-bold text-white mb-6 text-center">{{ __('checkout.testimonials_title') }}</h2>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                            @if(is_array($testimonials) && !empty($testimonials))
-                                @foreach (array_slice($testimonials, 0, 4) as $testimonial)
-                                    <div class="bg-gray-800 bg-opacity-50 p-6 rounded-xl border border-gray-700 shadow-lg flex flex-col h-full transform transition-transform hover:scale-105">
-                                        <div class="flex-shrink-0">
-                                            <div class="flex items-center mb-4">
-                                                <img src="https://ui-avatars.com/api/?name={{ substr($testimonial['name'], 0, 1) }}&color=FFFFFF&background=E50914&bold=true&size=48" alt="Avatar" class="w-12 h-12 rounded-full mr-4 border-2 border-red-500">
-                                                <div>
-                                                    <p class="font-bold text-white text-lg">{{ $testimonial['name'] }}</p>
-                                                    <div class="flex text-yellow-400 mt-1">
-                                                        @for ($i = 0; $i < 5; $i++)
-                                                            <svg class="w-5 h-5" fill="{{ $i < $testimonial['stars'] ? 'currentColor' : 'none' }}" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.519 4.674c.3.921-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.519-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"></path></svg>
-                                                        @endfor
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="relative flex-grow">
-                                            <svg class="absolute top-0 left-0 w-8 h-8 text-gray-600 transform -translate-x-2 -translate-y-2" fill="currentColor" viewBox="0 0 24 24"><path d="M6.5 10c-1.38 0-2.5 1.12-2.5 2.5s1.12 2.5 2.5 2.5 2.5-1.12 2.5-2.5-1.12-2.5-2.5-2.5zm11 0c-1.38 0-2.5 1.12-2.5 2.5s1.12 2.5 2.5 2.5 2.5-1.12 2.5-2.5-1.12-2.5-2.5-2.5zM20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm-8 14c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z" opacity=".2"/></svg>
-                                            <p class="text-gray-300 text-base italic pl-4 border-l-4 border-red-500">"{{ $testimonial['quote'] }}"</p>
-                                        </div>
+                                            wire:model="bumps.{{ $index }}.active" wire:change="calculateTotals" />
                                     </div>
-                                @endforeach
-                            @endif
+                                    <label for="order-bump-{{ $bump['id'] }}" class="ml-3 cursor-pointer">
+                                        <div class="text-white text-base font-semibold flex items-center">
+                                            <svg class="h-5 w-5 text-[#E50914] mr-1" fill="none"
+                                                viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                                <path stroke-linecap="round" stroke-linejoin="round"
+                                                    d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                            </svg>
+                                            {{ $bump['title'] }}
+                                        </div>
+                                        <p class="text-gray-400 text-sm mt-1">{{ $bump['description'] }}</p>
+                                        <p class="text-[#E50914] font-medium mt-2">
+                                            +{{ $currencies[$selectedCurrency]['symbol'] }}
+                                            {{ number_format($bump['price'], 2, ',', '.') }}
+                                        </p>
+                                    </label>
+                                </div>
+                            @endforeach
                         </div>
-                    </div>
+                    @endif
                 </div>
 
-                <!-- Order Summary -->
-                <div class="md:col-span-1 order-3 md:order-none">
+                <!-- Coluna de Resumo do Pedido -->
+                <div class="md:col-span-1 order-2 md:order-2">
                     <div class="bg-[#1F1F1F] rounded-xl p-6 sticky top-6" wire:poll.1s="decrementTimer"
                         wire:poll.15000ms="decrementSpotsLeft" wire:poll.8000ms="updateLiveActivity">
-                    <h2 class="text-xl font-semibold text-white mb-4 text-center">{{ __('checkout.order_summary_title') }}</h2>
+                        <h2 class="text-xl font-semibold text-white mb-4 text-center">
+                            {{ __('checkout.order_summary_title') }}</h2>
 
-                    <!-- Timer -->
-                    <div class="bg-gray-800 border border-red-600 rounded-lg p-3 mb-6 flex items-center justify-center animate-pulse">
-                        <svg class="w-6 h-6 text-red-600 mr-2" fill="none" viewBox="0 0 24 24"
-                            stroke="currentColor" stroke-width="2">
-                            <path stroke-linecap="round" stroke-linejoin="round"
-                                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        <span class="text-white font-medium">{{ __('checkout.offer_expires_in') }} <span id="countdown-timer"
-                                class="font-bold text-red-500 tracking-wider">{{ sprintf('%02d:%02d', $countdownMinutes, $countdownSeconds) }}</span></span>
-                    </div>
-
-                    <!-- Plan selection -->
-                    <div class="mb-6">
-                        <label
-                            class="block text-sm font-medium text-gray-300 mb-2">{{ __('payment.select_plan') }}</label>
-
-                        <div class="relative">
-                            <select id="plan-selector" name="plan"
-                                class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 appearance-none pr-10 focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all cursor-pointer"
-                                wire:model="selectedPlan" wire:change="calculateTotals">
-                                @foreach ($plans as $value => $plan)
-                                <option value="{{ $value }}">{{ $plan['label'] }}</option>
-                                @endforeach
-                            </select>
-                            <div
-                                class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-white">
-                                <svg class="w-5 h-5 fill-current" viewBox="0 0 20 20">
-                                    <path d="M7 7l3-3 3 3m0 6l-3 3-3-3" stroke="currentColor" stroke-width="1.5"
-                                        stroke-linecap="round" stroke-linejoin="round" fill="none"></path>
-                                </svg>
-                            </div>
+                        <!-- Timer -->
+                        <div
+                            class="bg-gray-800 border border-red-600 rounded-lg p-3 mb-6 flex items-center justify-center animate-pulse">
+                            <svg class="w-6 h-6 text-red-600 mr-2" fill="none" viewBox="0 0 24 24"
+                                stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <span class="text-white font-medium">{{ __('checkout.offer_expires_in') }} <span
+                                    id="countdown-timer"
+                                    class="font-bold text-red-500 tracking-wider">{{ sprintf('%02d:%02d', $countdownMinutes, $countdownSeconds) }}</span></span>
                         </div>
 
-                        <p class="text-gray-400 text-sm mt-2">{{ __('payment.flexible_plan') }}</p>
-                    </div>
+                        <!-- Plan selection -->
+                        <div class="mb-6">
+                            <label
+                                class="block text-sm font-medium text-gray-300 mb-2">{{ __('payment.select_plan') }}</label>
 
-                    <!-- Price anchor -->
-                    <div class="mb-2 text-center">
-                        <del class="text-gray-400 text-sm">{{ $currencies[$selectedCurrency]['symbol'] }}
-                            {{ $totals['month_price'] ?? '00' }}</del>
-                        <span class="text-green-400 text-lg font-bold ml-2"
-                            id="current-price">{{ $currencies[$selectedCurrency]['symbol'] }}
-                            {{ $totals['month_price_discount'] ?? '00' }}{{ __('payment.per_month') }}</span>
-                    </div>
+                            <div class="relative">
+                                <select id="plan-selector" name="plan"
+                                    class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 appearance-none pr-10 focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all cursor-pointer"
+                                    wire:model="selectedPlan" wire:change="calculateTotals">
+                                    @foreach ($plans as $value => $plan)
+                                        <option value="{{ $value }}">{{ $plan['label'] }}</option>
+                                    @endforeach
+                                </select>
+                                <div
+                                    class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-white">
+                                    <svg class="w-5 h-5 fill-current" viewBox="0 0 20 20">
+                                        <path d="M7 7l3-3 3 3m0 6l-3 3-3-3" stroke="currentColor" stroke-width="1.5"
+                                            stroke-linecap="round" stroke-linejoin="round" fill="none"></path>
+                                    </svg>
+                                </div>
+                            </div>
 
-                    <!-- Price breakdown -->
-                    <div class="border-t border-gray-700 pt-5 my-4 space-t-2">
-                        <!-- Coupon area -->
-                        {{-- <div>
+                            <p class="text-gray-400 text-sm mt-2">{{ __('payment.flexible_plan') }}</p>
+                        </div>
+
+                        <!-- Price anchor -->
+                        <div class="mb-2 text-center">
+                            <del class="text-gray-400 text-sm">{{ $currencies[$selectedCurrency]['symbol'] }}
+                                {{ $totals['month_price'] ?? '00' }}</del>
+                            <span class="text-green-400 text-lg font-bold ml-2"
+                                id="current-price">{{ $currencies[$selectedCurrency]['symbol'] }}
+                                {{ $totals['month_price_discount'] ?? '00' }}{{ __('payment.per_month') }}</span>
+                        </div>
+
+                        <!-- Price breakdown -->
+                        <div class="border-t border-gray-700 pt-5 my-4 space-t-2">
+                            <!-- Coupon area -->
+                            {{-- <div>
                                 <div class="flex space-x-2">
                                     <input name="coupon_code" type="text" id="coupon-input"
                                         placeholder="{{ __('payment.coupon_code') }}"
@@ -391,99 +411,150 @@ $gateway = config('services.default_payment_gateway', 'stripe');
                         {{ __('payment.coupon_success') }}
                     </div>
                 </div> --}}
+                        </div>
+
+
+                        <!-- Resumo Final com Descontos -->
+                        <div id="priceSummary" class="mb-6 p-4 bg-gray-800 rounded-lg text-white">
+                            <p class="text-base font-semibold mb-2">{{ __('payment.final_summary') }}</p>
+                            <div class="flex justify-between text-sm mb-1">
+                                <span>{{ __('payment.original_price') }}</span>
+                                <del class="text-gray-400">{{ $currencies[$selectedCurrency]['symbol'] }}
+                                    {{ $totals['total_price'] ?? '00' }}</del>
+                            </div>
+                            <div class="flex justify-between text-mb mb-1">
+                                <span>{{ __('payment.discount') }}</span>
+                                <span class="text-green-400"
+                                    id="discount-amount">{{ $currencies[$selectedCurrency]['symbol'] }}
+                                    {{ $totals['total_discount'] ?? '00' }}</span>
+                            </div>
+                            <div class="flex justify-between text-sm font-bold mt-2 pt-2 border-t border-gray-700">
+                                <span>{{ __('payment.total_to_pay') }}</span>
+                                <span id="final-price">
+                                    {{ $currencies[$selectedCurrency]['symbol'] }}
+                                    {{ $totals['final_price'] ?? '00' }}</span>
+                                <input type="hidden" id="input-final-price" name="final-price" value="" />
+                            </div>
+                        </div>
+
+                        <!-- Limited spots -->
+                        <div class="bg-[#2D2D2D] rounded-lg p-3 mb-4 text-center">
+                            <span class="font-medium">{{ __('checkout.remaining_vacancies') }}: <strong><span
+                                        id="spots-left">{{ $spotsLeft }}</span></strong></span>
+                        </div>
+
+                        <!-- Live Activity Indicator -->
+                        <div class="bg-[#2D2D2D] rounded-lg p-3 mb-6 text-center">
+                            <span class="text-gray-400">{!! __('checkout.live_activity', [
+                                'count' => '<strong id="activityCounter" class="text-white">' . $activityCount . '</strong>',
+                            ]) !!}</span>
+                        </div>
+
+                        <!-- Verificação de Ambiente Seguro -->
+                        <div id="seguranca"
+                            class="w-full bg-gray-800 p-4 rounded-lg flex items-center gap-3 text-sm text-gray-300 animate-pulse mb-4 @if (!$showSecure) hidden @endif">
+                            <svg class="h-5 w-5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                                <path
+                                    d="M2.003 5.884L10 2l7.997 3.884v4.632c0 5.522-3.936 10.74-7.997 11.484-4.061-.744-7.997-5.962-7.997-11.484V5.884z" />
+                            </svg>
+                            {{ __('payment.checking_secure') }}
+                        </div>
+
+                        <button id="checkout-button" type="button" wire:click.prevent="startCheckout"
+                            class="w-full bg-[#E50914] hover:bg-[#B8070F] text-white py-3 text-lg font-bold rounded-xl transition-all block cursor-pointer transform hover:scale-105">
+                            {{ __('checkout.cta_button') }}
+                        </button>
+
+                        <!-- Trust badges -->
+                        <div class="mt-4 flex flex-col items-center space-y-2">
+                            <div class="flex items-center space-x-2">
+                                <span class="text-green-500">✅</span>
+                                <span class="text-sm text-gray-300">{{ __('payment.7_day_guarantee') }}</span>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <span class="text-green-500">🔒</span>
+                                <span class="text-sm text-gray-300">{{ __('payment.secure_ssl') }}</span>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <span class="text-green-500">🔁</span>
+                                <span class="text-sm text-gray-300">{{ __('payment.easy_cancel') }}</span>
+                            </div>
+                        </div>
+
+                        <div class="mt-4 text-center">
+                            <div class="flex items-center justify-center space-x-2 mb-2">
+                                <svg class="h-4 w-4 text-green-500" fill="none" viewBox="0 0 24 24"
+                                    stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                        d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                </svg>
+                                <span class="text-sm text-gray-300">{{ __('payment.anonymous') }}</span>
+                            </div>
+
+                            <div class="flex justify-center space-x-3 text-xs text-gray-500">
+                                <a href="#"
+                                    class="hover:text-gray-300 transition-colors">{{ __('payment.terms') }}</a>
+                                <a href="#"
+                                    class="hover:text-gray-300 transition-colors">{{ __('payment.privacy') }}</a>
+                                <a href="#"
+                                    class="hover:text-gray-300 transition-colors">{{ __('payment.support') }}</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Coluna de Depoimentos (Aparece por último no mobile) -->
+                <div class="md:col-span-2 order-3 md:order-3">
+                    <div class="bg-transparent rounded-xl">
+                        <h2 class="text-2xl font-bold text-white mb-6 text-center">
+                            {{ __('checkout.testimonials_title') }}</h2>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            @if (is_array($testimonials) && !empty($testimonials))
+                                @foreach (array_slice($testimonials, 0, 4) as $testimonial)
+                                    <div
+                                        class="bg-gray-800 bg-opacity-50 p-6 rounded-xl border border-gray-700 shadow-lg flex flex-col h-full transform transition-transform hover:scale-105">
+                                        <div class="flex-shrink-0">
+                                            <div class="flex items-center mb-4">
+                                                <img src="https://ui-avatars.com/api/?name={{ substr($testimonial['name'], 0, 1) }}&color=FFFFFF&background=E50914&bold=true&size=48"
+                                                    alt="Avatar"
+                                                    class="w-12 h-12 rounded-full mr-4 border-2 border-red-500">
+                                                <div>
+                                                    <p class="font-bold text-white text-lg">{{ $testimonial['name'] }}
+                                                    </p>
+                                                    <div class="flex text-yellow-400 mt-1">
+                                                        @for ($i = 0; $i < 5; $i++)
+                                                            <svg class="w-5 h-5"
+                                                                fill="{{ $i < $testimonial['stars'] ? 'currentColor' : 'none' }}"
+                                                                stroke="currentColor" viewBox="0 0 24 24"
+                                                                xmlns="http://www.w3.org/2000/svg">
+                                                                <path stroke-linecap="round" stroke-linejoin="round"
+                                                                    stroke-width="2"
+                                                                    d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.519 4.674c.3.921-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.519-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z">
+                                                                </path>
+                                                            </svg>
+                                                        @endfor
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="relative flex-grow">
+                                            <svg class="absolute top-0 left-0 w-8 h-8 text-gray-600 transform -translate-x-2 -translate-y-2"
+                                                fill="currentColor" viewBox="0 0 24 24">
+                                                <path
+                                                    d="M6.5 10c-1.38 0-2.5 1.12-2.5 2.5s1.12 2.5 2.5 2.5 2.5-1.12 2.5-2.5-1.12-2.5-2.5-2.5zm11 0c-1.38 0-2.5 1.12-2.5 2.5s1.12 2.5 2.5 2.5 2.5-1.12 2.5-2.5-1.12-2.5-2.5-2.5zM20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm-8 14c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z"
+                                                    opacity=".2" />
+                                            </svg>
+                                            <p class="text-gray-300 text-base italic pl-4 border-l-4 border-red-500">
+                                                "{{ $testimonial['quote'] }}"</p>
+                                        </div>
+                                    </div>
+                                @endforeach
+                            @endif
+                        </div>
+                    </div>
+                </div>
+
             </div>
-
-
-            <!-- Resumo Final com Descontos -->
-            <div id="priceSummary" class="mb-6 p-4 bg-gray-800 rounded-lg text-white">
-                <p class="text-base font-semibold mb-2">{{ __('payment.final_summary') }}</p>
-                <div class="flex justify-between text-sm mb-1">
-                    <span>{{ __('payment.original_price') }}</span>
-                    <del class="text-gray-400">{{ $currencies[$selectedCurrency]['symbol'] }}
-                        {{ $totals['total_price'] ?? '00' }}</del>
-                </div>
-                <div class="flex justify-between text-mb mb-1">
-                    <span>{{ __('payment.discount') }}</span>
-                    <span class="text-green-400"
-                        id="discount-amount">{{ $currencies[$selectedCurrency]['symbol'] }}
-                        {{ $totals['total_discount'] ?? '00' }}</span>
-                </div>
-                <div class="flex justify-between text-sm font-bold mt-2 pt-2 border-t border-gray-700">
-                    <span>{{ __('payment.total_to_pay') }}</span>
-                    <span id="final-price">
-                        {{ $currencies[$selectedCurrency]['symbol'] }}
-                        {{ $totals['final_price'] ?? '00' }}</span>
-                    <input type="hidden" id="input-final-price" name="final-price" value="" />
-                </div>
-            </div>
-
-            <!-- Limited spots -->
-            <div class="bg-[#2D2D2D] rounded-lg p-3 mb-4 text-center">
-                <span class="font-medium">{{ __('checkout.remaining_vacancies') }}: <strong><span
-                            id="spots-left">{{ $spotsLeft }}</span></strong></span>
-            </div>
-
-            <!-- Live Activity Indicator -->
-            <div class="bg-[#2D2D2D] rounded-lg p-3 mb-6 text-center">
-                <span class="text-gray-400">{!! __('checkout.live_activity', ['count' => '<strong id="activityCounter" class="text-white">'.$activityCount.'</strong>']) !!}</span>
-            </div>
-
-            <!-- Verificação de Ambiente Seguro -->
-            <div id="seguranca"
-                class="w-full bg-gray-800 p-4 rounded-lg flex items-center gap-3 text-sm text-gray-300 animate-pulse mb-4 @if (!$showSecure) hidden @endif">
-                <svg class="h-5 w-5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-                    <path
-                        d="M2.003 5.884L10 2l7.997 3.884v4.632c0 5.522-3.936 10.74-7.997 11.484-4.061-.744-7.997-5.962-7.997-11.484V5.884z" />
-                </svg>
-                {{ __('payment.checking_secure') }}
-            </div>
-
-            <button
-                id="checkout-button"
-                type="button"
-                wire:click.prevent="startCheckout"
-                class="w-full bg-[#E50914] hover:bg-[#B8070F] text-white py-3 text-lg font-bold rounded-xl transition-all block cursor-pointer transform hover:scale-105">
-                {{ __('checkout.cta_button') }}
-            </button>
-
-            <!-- Trust badges -->
-            <div class="mt-4 flex flex-col items-center space-y-2">
-                <div class="flex items-center space-x-2">
-                    <span class="text-green-500">✅</span>
-                    <span class="text-sm text-gray-300">{{ __('payment.7_day_guarantee') }}</span>
-                </div>
-                <div class="flex items-center space-x-2">
-                    <span class="text-green-500">🔒</span>
-                    <span class="text-sm text-gray-300">{{ __('payment.secure_ssl') }}</span>
-                </div>
-                <div class="flex items-center space-x-2">
-                    <span class="text-green-500">🔁</span>
-                    <span class="text-sm text-gray-300">{{ __('payment.easy_cancel') }}</span>
-                </div>
-            </div>
-
-            <div class="mt-4 text-center">
-                <div class="flex items-center justify-center space-x-2 mb-2">
-                    <svg class="h-4 w-4 text-green-500" fill="none" viewBox="0 0 24 24"
-                        stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round"
-                            d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                    </svg>
-                    <span class="text-sm text-gray-300">{{ __('payment.anonymous') }}</span>
-                </div>
-
-                <div class="flex justify-center space-x-3 text-xs text-gray-500">
-                    <a href="#"
-                        class="hover:text-gray-300 transition-colors">{{ __('payment.terms') }}</a>
-                    <a href="#"
-                        class="hover:text-gray-300 transition-colors">{{ __('payment.privacy') }}</a>
-                    <a href="#"
-                        class="hover:text-gray-300 transition-colors">{{ __('payment.support') }}</a>
-                </div>
-            </div>
-    </div>
-</div>
-</div>
 
 <!-- Sticky Summary -->
 <div id="sticky-summary" class="sticky-summary bg-[#1F1F1F] border-t border-gray-700 md:hidden p-4">
