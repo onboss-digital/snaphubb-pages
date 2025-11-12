@@ -189,7 +189,7 @@ class PagePay extends Component
                     return $result;
                 })
                 ->otherwise(function ($e) {
-                    \Log::channel('GetPlans')->info('PagePay: GetPlans from streamit.', [
+                    Log::info('PagePay: GetPlans from streamit.', [
                         'gateway' => $this->gateway,
                         'error' => $e->getMessage(),
                     ]);
@@ -197,7 +197,7 @@ class PagePay extends Component
                 })
                 ->wait();
         } catch (\Exception $e) {
-            \Log::channel('GetPlans')->error('PagePay: Critical error in getPlans.', [
+            Log::error('PagePay: Critical error in getPlans.', [
                 'gateway' => $this->gateway,
                 'error' => $e->getMessage(),
             ]);

@@ -22,3 +22,6 @@ yarn-error.log
 /.vscode
 /.zed
 \nnpm_dev.log\nphp_server.log
+laravel_server.log
+*.log
+composer.phar
