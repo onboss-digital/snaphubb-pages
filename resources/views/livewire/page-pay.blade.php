@@ -562,18 +562,17 @@ $gateway = config('services.default_payment_gateway', 'stripe');
             <p>Pix</p>
         </div>
 
-        <p class="font-bold text-lg mb-2">Snaphubb</p>
-        <p class="mb-4">{{ __("payment.copyright", ["year" => date("Y")]) }}</p>
+        <p class="mb-4">{{ __("footer.copyright", ["year" => date("Y")]) }}</p>
 
         <div class="space-x-4 mb-4">
-            <a href="#" class="hover:text-white transition-colors">{{ __('payment.terms_of_use') }}</a>
+            <a href="#" class="hover:text-white transition-colors">{{ __('footer.terms_of_use') }}</a>
             <span class="text-gray-600">|</span>
-            <a href="#" class="hover:text-white transition-colors">{{ __('payment.privacy_policy') }}</a>
+            <a href="#" class="hover:text-white transition-colors">{{ __('footer.privacy_policy') }}</a>
             <span class="text-gray-600">|</span>
-            <a href="#" class="hover:text-white transition-colors">{{ __('payment.refund_policy') }}</a>
+            <a href="#" class="hover:text-white transition-colors">{{ __('footer.refund_policy') }}</a>
         </div>
 
-        <p>{{ __('payment.support_email') }}</p>
+        <p>{{ __('footer.support_email') }}</p>
     </div>
 </footer>
 
