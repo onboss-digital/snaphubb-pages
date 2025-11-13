@@ -128,4 +128,11 @@ return [
     'go_to_login' => 'Log in',
     'not_me' => 'Use a different email',
     'forgot_password_prompt' => 'If you have forgotten your password, you can reset it on the next screen.',
+
+    // Footer
+    'terms_of_use' => 'Terms of Use',
+    'privacy_policy' => 'Privacy Policy',
+    'refund_policy' => 'Refund Policy',
+    'support_email' => 'Questions? Contact us: support@snaphubb.com',
+    'copyright' => '© :year Snaphubb. All rights reserved.',
 ];
