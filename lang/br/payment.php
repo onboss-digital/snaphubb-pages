@@ -83,4 +83,11 @@ return [
     'go_to_login' => 'Fazer login',
     'not_me' => 'Usar outro e-mail',
     'forgot_password_prompt' => 'Caso tenha esquecido sua senha, você poderá redefini-la na próxima tela.',
+
+    // Footer
+    'terms_of_use' => 'Termos de Uso',
+    'privacy_policy' => 'Política de Privacidade',
+    'refund_policy' => 'Política de Reembolso',
+    'support_email' => 'Dúvidas? Entre em contato: suporte@snaphubb.com',
+    'copyright' => '© :year Snaphubb. Todos os direitos reservados.',
 ];

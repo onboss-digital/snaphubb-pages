@@ -127,4 +127,11 @@ return [
     'go_to_login' => 'Iniciar sesión',
     'not_me' => 'Usar otro correo',
     'forgot_password_prompt' => 'Si has olvidado tu contraseña, puedes restablecerla en la siguiente pantalla.',
+
+    // Footer
+    'terms_of_use' => 'Términos de Uso',
+    'privacy_policy' => 'Política de Privacidad',
+    'refund_policy' => 'Política de Reembolso',
+    'support_email' => '¿Preguntas? Contáctenos: support@snaphubb.com',
+    'copyright' => '© :year Snaphubb. Todos los derechos reservados.',
 ];
