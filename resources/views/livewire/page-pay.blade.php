@@ -747,6 +747,34 @@ $gateway = config('services.default_payment_gateway', 'stripe');
 </div>
 
 
+<!-- Modal Usuário Existente -->
+<div id="user-exists-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 @if (!$showUserExistsModal) hidden @endif">
+    <div class="bg-[#1F1F1F] rounded-xl p-8 max-w-md w-full mx-4 text-center">
+        <div class="text-center mb-4">
+            <div class="bg-[#E50914] rounded-full h-16 w-16 flex items-center justify-center mx-auto mb-4">
+                <!-- Ícone de Usuário -->
+                <svg class="h-8 w-8 text-white" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+                </svg>
+            </div>
+            <h3 class="text-2xl font-bold text-white">{{ __('payment.user_exists_title') }}</h3>
+            <p class="text-gray-300 mt-2">{{ __('payment.user_exists_message') }}</p>
+        </div>
+
+        <div class="grid grid-cols-1 gap-3">
+            <a href="https://snaphubb.com/login" class="py-3 bg-[#E50914] hover:bg-[#B8070F] text-white font-bold rounded-lg transition-colors no-underline">
+                🔑 {{ __('payment.go_to_login') }}
+            </a>
+            <button wire:click="$set('showUserExistsModal', false)" class="py-3 text-white font-medium rounded-lg border border-gray-600 hover:bg-[#2D2D2D] transition-colors">
+                ✉️ {{ __('payment.not_me') }}
+            </button>
+        </div>
+         <p class="text-xs text-gray-500 mt-4">
+            {{ __("payment.forgot_password_prompt") }}
+        </p>
+    </div>
+</div>
+
 <!-- Stripe JS -->
 @push('scripts')
 @vite('resources/js/pages/pay.js')

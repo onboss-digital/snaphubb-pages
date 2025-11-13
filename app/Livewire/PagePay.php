@@ -29,6 +29,7 @@ class PagePay extends Component
     public $showDownsellModal = false;
     public $showUpsellModal = false;
     public $showProcessingModal = false;
+    public $showUserExistsModal = false;
     public $loadingMessage = '';
 
     public $selectedCurrency = 'BRL';
@@ -658,4 +659,29 @@ class PagePay extends Component
         ]);
     }
 
+    public function updatedEmail($email)
+    {
+        // Primeiro, valida o formato para não fazer chamadas à API com e-mails inválidos
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            return;
+        }
+
+        // Esconde o modal caso o usuário corrija o e-mail
+        $this->showUserExistsModal = false;
+
+        try {
+            $response = $this->httpClient->post($this->apiUrl . '/check-user-exists', [
+                'json' => ['email' => $email]
+            ]);
+
+            $data = json_decode($response->getBody()->getContents(), true);
+
+            if (isset($data['exists']) && $data['exists']) {
+                $this->showUserExistsModal = true;
+            }
+        } catch (\Exception $e) {
+            // Se a API falhar, não fazemos nada e apenas registramos o erro
+            Log::error('Falha ao verificar e-mail de usuário existente: ' . $e->getMessage());
+        }
+    }
 }

@@ -76,4 +76,11 @@ return [
     'optimizing' => 'Otimizando seu acesso... 🔍',
     'processing_payment' => 'Seu pagamento está sendo processado',
     'checkout_header' => 'Você está a um passo de acessar o streaming privado + exclusivo da américa latina!',
+
+    // User Exists Modal
+    'user_exists_title' => 'Você já tem uma conta!',
+    'user_exists_message' => 'Parece que este e-mail já está cadastrado em nossa plataforma. Acesse sua conta para continuar de onde parou.',
+    'go_to_login' => 'Fazer login',
+    'not_me' => 'Usar outro e-mail',
+    'forgot_password_prompt' => 'Caso tenha esquecido sua senha, você poderá redefini-la na próxima tela.',
 ];
