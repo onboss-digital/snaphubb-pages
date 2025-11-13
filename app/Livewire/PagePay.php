@@ -138,7 +138,7 @@ class PagePay extends Component
         $this->selectedLanguage = session('locale', config('app.locale'));
         app()->setLocale($this->selectedLanguage);
 
-        $this->testimonials = trans('checkout.testimonials');
+        $this->testimonials = trans('testimonials.testimonials');
         $this->plans = $this->getPlans();
         $this->selectedCurrency = Session::get('selectedCurrency', 'BRL');
         $this->selectedPlan = Session::get('selectedPlan', 'monthly');
