@@ -1,4 +1,4 @@
-<footer class="bg-black text-gray-400 py-8 border-t border-gray-800">
+<footer class="text-gray-400 py-8 border-t border-gray-800 mt-16">
     <div class="container mx-auto px-4 text-center">
         <!-- Ícones -->
         <div class="flex justify-center items-center space-x-4 mb-4">
