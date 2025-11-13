@@ -552,6 +552,30 @@ $gateway = config('services.default_payment_gateway', 'stripe');
 </div>
 
 </form>
+
+<footer class="mt-16 py-8 border-t border-gray-800 text-center text-sm text-gray-400">
+    <div class="container mx-auto px-4">
+        <div class="flex justify-center items-center space-x-4 mb-6">
+            <p>Visa</p>
+            <p>Mastercard</p>
+            <p>Elo</p>
+            <p>Pix</p>
+        </div>
+
+        <p class="mb-4">{{ __("footer.copyright", ["year" => date("Y")]) }}</p>
+
+        <div class="space-x-4 mb-4">
+            <a href="#" class="hover:text-white transition-colors">{{ __('footer.terms_of_use') }}</a>
+            <span class="text-gray-600">|</span>
+            <a href="#" class="hover:text-white transition-colors">{{ __('footer.privacy_policy') }}</a>
+            <span class="text-gray-600">|</span>
+            <a href="#" class="hover:text-white transition-colors">{{ __('footer.refund_policy') }}</a>
+        </div>
+
+        <p>{{ __('footer.support_email') }}</p>
+    </div>
+</footer>
+
 </div>
 
 
