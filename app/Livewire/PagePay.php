@@ -142,11 +142,23 @@ class PagePay extends Component
         $this->plans = $this->getPlans();
         $this->selectedCurrency = Session::get('selectedCurrency', 'BRL');
         $this->selectedPlan = Session::get('selectedPlan', 'monthly');
-        $this->activityCount = rand(1, 50);
-
-        // Update product details based on the selected plan
-        $this->updateProductDetails();
         $this->calculateTotals();
+        $this->activityCount = rand(1, 50);
+        
+        // Inicializar product apenas se o plano existir
+        if (isset($this->plans[$this->selectedPlan])) {
+            $this->product = [
+                'hash' => $this->plans[$this->selectedPlan]['hash'] ?? null,
+                'title' => $this->plans[$this->selectedPlan]['label'] ?? '',
+                'price_id' => $this->plans[$this->selectedPlan]['prices'][$this->selectedCurrency]['id'] ?? null,
+            ];
+        } else {
+            $this->product = [
+                'hash' => null,
+                'title' => '',
+                'price_id' => null,
+            ];
+        }
     }
 
     public function getPlans()
@@ -168,6 +180,12 @@ class PagePay extends Component
                     $dataResponse = json_decode($responseBody, true);
                     $this->paymentGateway = app(PaymentGatewayFactory::class)->create();
                     $result = $this->paymentGateway->formatPlans($dataResponse, $this->selectedCurrency);
+
+                    if (isset($result[$this->selectedPlan]['order_bumps'])) {
+                        $this->bumps = $result[$this->selectedPlan]['order_bumps'];
+                    } else {
+                        $this->bumps = [];
+                    }
 
                     return $result;
                 })
@@ -193,13 +211,6 @@ class PagePay extends Component
 
     public function calculateTotals()
 {
-    // Ensure bumps are updated based on the currently selected plan
-    if (isset($this->plans[$this->selectedPlan]['order_bumps'])) {
-        $this->bumps = $this->plans[$this->selectedPlan]['order_bumps'];
-    } else {
-        $this->bumps = [];
-    }
-
     // 1. Verificamos se o plano selecionado realmente existe nos dados da API
     if (!isset($this->plans[$this->selectedPlan])) {
         Log::error('Plano selecionado não encontrado na resposta da API.', [
@@ -386,7 +397,6 @@ class PagePay extends Component
     public function acceptUpsell()
     {
         $this->selectedPlan = 'semi-annual';
-        $this->updateProductDetails(); // Ensure product details are updated
         $this->calculateTotals();
         $this->showUpsellModal = false;
         $this->sendCheckout();
@@ -575,7 +585,6 @@ class PagePay extends Component
     public function acceptDownsell()
     {
         $this->selectedPlan = 'quarterly'; // Assuming downsell is always to quarterly
-        $this->updateProductDetails();
         $this->calculateTotals();
         $this->showDownsellModal = false;
         $this->sendCheckout();
@@ -673,26 +682,6 @@ class PagePay extends Component
         } catch (\Exception $e) {
             // Se a API falhar, não fazemos nada e apenas registramos o erro
             Log::error('Falha ao verificar e-mail de usuário existente: ' . $e->getMessage());
-        }
-    }
-
-    private function updateProductDetails()
-    {
-        if (isset($this->plans[$this->selectedPlan])) {
-            $this->product = [
-                'hash' => $this->plans[$this->selectedPlan]['hash'] ?? null,
-                'title' => $this->plans[$this->selectedPlan]['label'] ?? '',
-                'price_id' => $this->plans[$this->selectedPlan]['prices'][$this->selectedCurrency]['id'] ?? null,
-            ];
-        } else {
-            $this->product = [
-                'hash' => null,
-                'title' => '',
-                'price_id' => null,
-            ];
-            Log::warning('No plan found for the selected option, product details not set.', [
-                'selectedPlan' => $this->selectedPlan,
-            ]);
         }
     }
 }
