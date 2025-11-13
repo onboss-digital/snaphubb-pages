@@ -92,4 +92,8 @@ return [
     'support' => 'Suporte',
     'copyright' => '© :year Snaphubb. Todos os direitos reservados.',
     'legal_notice' => 'Este site não é afiliado ao Facebook ou a qualquer entidade do Facebook. Depois de sair do Facebook, a responsabilidade não é deles e sim do nosso site.',
+
+    // Loader
+    'loader_processing' => 'Processando seu pagamento...',
+    'loader_wait' => 'Aguarde alguns segundos.',
 ];

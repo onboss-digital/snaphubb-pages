@@ -555,6 +555,18 @@ $gateway = config('services.default_payment_gateway', 'stripe');
 
 <x-checkout.footer />
 
+
+<!-- Full Screen Loader -->
+<div wire:loading.flex wire:target="startCheckout" class="fixed inset-0 bg-black bg-opacity-80 flex flex-col justify-center items-center text-white z-[9999]">
+    <svg class="animate-spin h-10 w-10 text-red-500 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V4a10 10 0 00-10 10h2zm8 8a8 8 0 01-8-8H4a10 10 0 0010 10v-2z"></path>
+    </svg>
+    <p class="text-lg font-semibold">{{ __('payment.loader_processing') }}</p>
+    <p class="text-sm mt-2 text-gray-400">{{ __('payment.loader_wait') }}</p>
+</div>
+
+
 </div>
 
 
@@ -643,14 +655,29 @@ $gateway = config('services.default_payment_gateway', 'stripe');
 
 <!-- Error Modal -->
 <div id="error-modal"
-    class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 @if (!$showErrorModal) hidden @endif">
-    <div class="bg-[#1F1F1F] rounded-xl p-8 max-w-md w-full mx-4 text-center">
-        <h3 class="text-xl font-bold text-white mb-2">{{ __('payment.processing_error') }}</h3>
-        <p class="text-gray-300">{{ $errorMessage }}</p>
-            <button id="close-error" wire:click.prevent="closeModal"
-                class="mt-4 bg-[#E50914] hover:bg-[#B8070F] text-white py-2 px-6 text-base font-semibold rounded-full shadow-lg w-auto min-w-[180px] max-w-xs mx-auto transition-all flex items-center justify-center cursor-pointer">
-                {{ __('payment.close') }}
-            </button>
+    class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 @if (!$showErrorModal) hidden @endif"
+    x-data="{ show: @entangle('showErrorModal') }"
+    x-show="show"
+    x-transition:enter="transition ease-out duration-300"
+    x-transition:enter-start="opacity-0 scale-90"
+    x-transition:enter-end="opacity-100 scale-100"
+    x-transition:leave="transition ease-in duration-200"
+    x-transition:leave-start="opacity-100 scale-100"
+    x-transition:leave-end="opacity-0 scale-90"
+    @keydown.escape.window="show = false"
+>
+    <div class="bg-[#1F1F1F] rounded-2xl p-8 max-w-md w-full mx-4 text-center border-2 border-red-500/50 shadow-2xl shadow-red-500/10">
+        <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-500/20 mb-4">
+            <svg class="h-8 w-8 text-red-500" stroke="currentColor" fill="none" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+            </svg>
+        </div>
+        <h3 class="text-2xl font-bold text-white mb-2">{{ __('payment.processing_error') }}</h3>
+        <p class="text-gray-300 text-base">{{ $errorMessage }}</p>
+        <button id="close-error" wire:click.prevent="closeModal"
+            class="mt-6 bg-[#E50914] hover:bg-[#B8070F] text-white py-3 px-8 text-lg font-bold rounded-xl transition-all w-full transform hover:scale-105">
+            {{ __('payment.close') }}
+        </button>
     </div>
 </div>
 
@@ -737,17 +764,6 @@ $gateway = config('services.default_payment_gateway', 'stripe');
 </div>
 
 
-<!-- Personalização Modal -->
-<div class="fixed inset-0 bg-black bg-opacity-80 flex flex-col justify-center items-center text-white z-50 @if (!$showLodingModal) hidden @endif">
-    <svg class="animate-spin h-10 w-10 text-red-500 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none"
-        viewBox="0 0 24 24">
-        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor"
-            stroke-width="4" />
-        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-    </svg>
-    <p class="text-lg">{{ __('payment.customizing') }}</p>
-    <p class="text-sm mt-2 text-gray-400">{{ __('payment.optimizing') }}</p>
-</div>
 
 
 <!-- Modal Usuário Existente -->

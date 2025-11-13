@@ -25,7 +25,6 @@ class PagePay extends Component
     public $showErrorModal = false;
     public $errorMessage = '';
     public $showSecure = false;
-    public $showLodingModal = false; // Note: "Loding" might be a typo for "Loading"
     public $showDownsellModal = false;
     public $showUpsellModal = false;
     public $showProcessingModal = false;
@@ -289,7 +288,6 @@ class PagePay extends Component
 
         try {
             $this->showSecure = true;
-            $this->showLodingModal = true;
             $this->loadingMessage = __('payment.processing_payment');
 
 
@@ -343,21 +341,17 @@ class PagePay extends Component
                 default:
                     $this->showProcessingModal = true;
                     $this->sendCheckout();
-                    $this->showLodingModal = false;
                     return;
             }
         } catch (\Illuminate\Validation\ValidationException $e) {
-            $this->showLodingModal = false;
             $this->dispatch('validation:failed');
             throw $e;
         } catch (\Exception $e) {
-            $this->showLodingModal = false;
             Log::error('start_checkout: API Error:', [
                 'message' => $e->getMessage(),
             ]);
         }
 
-        $this->showLodingModal = false;
     }
 
     public function rejectUpsell()
