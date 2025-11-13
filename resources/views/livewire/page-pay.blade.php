@@ -552,6 +552,9 @@ $gateway = config('services.default_payment_gateway', 'stripe');
 </div>
 
 </form>
+
+<x-checkout.footer />
+
 </div>
 
 
