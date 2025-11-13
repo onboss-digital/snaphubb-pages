@@ -120,4 +120,11 @@ return [
     'release' => '⏳ Liberación',
     'cancellation' => '🧾 Cancelación',
     'checkout_header' => '¡Estás a un paso de acceder al streaming privado + exclusivo de América Latina!',
+
+    // User Exists Modal
+    'user_exists_title' => '¡Ya tienes una cuenta!',
+    'user_exists_message' => 'Parece que este correo electrónico ya está registrado en nuestra plataforma. Inicia sesión para continuar justo donde lo dejaste.',
+    'go_to_login' => 'Iniciar sesión',
+    'not_me' => 'Usar otro correo',
+    'forgot_password_prompt' => 'Si has olvidado tu contraseña, puedes restablecerla en la siguiente pantalla.',
 ];

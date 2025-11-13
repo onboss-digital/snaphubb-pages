@@ -121,4 +121,11 @@ return [
     'release' => '⏳ Release',
     'cancellation' => '🧾 Cancellation',
     'checkout_header' => 'You are one step away from accessing the private + exclusive streaming in Latin America!',
+
+    // User Exists Modal
+    'user_exists_title' => 'You already have an account!',
+    'user_exists_message' => 'It looks like this email is already registered in our platform. Log in to continue right where you left off.',
+    'go_to_login' => 'Log in',
+    'not_me' => 'Use a different email',
+    'forgot_password_prompt' => 'If you have forgotten your password, you can reset it on the next screen.',
 ];
