@@ -545,7 +545,7 @@ class PagePay extends Component
             'language' => $this->selectedLanguage,
             'metadata' => [
                 'product_main_hash' => $this->product['hash'],
-                'bumps_selected' => collect($this->bumps)->where('active', true)->pluck('id')->toArray(),
+                'bumps_selected' => collect($this->bumps)->where('active', true)->pluck('id')->implode(','),
                 'utm_source' => $this->utm_source,
                 'utm_medium' => $this->utm_medium,
                 'utm_campaign' => $this->utm_campaign,
