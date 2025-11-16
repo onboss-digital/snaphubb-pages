@@ -3,6 +3,8 @@
 namespace App\Services\PaymentGateways;
 
 use App\Interfaces\PaymentGatewayInterface;
+use GuzzleHttp\Client;
+use Illuminate\Support\Facades\Log;
 
 class MercadoPagoGateway implements PaymentGatewayInterface
 {
@@ -118,7 +120,80 @@ class MercadoPagoGateway implements PaymentGatewayInterface
 
     public function createPixPayment(array $data): array
     {
-        // For bkp-local we provide a lightweight mock implementation so the UI can work locally.
+        // Prefer using Mercado Pago API when token is available
+        $env = env('MERCADOPAGO_ENV', 'sandbox');
+        $token = $env === 'production' ? env('MERCADOPAGO_PRODUCTION_TOKEN') : env('MERCADOPAGO_SANDBOX_TOKEN');
+
+        $amount = isset($data['amount']) ? (float)($data['amount'] / 100) : 0.0;
+
+        if (!empty($token)) {
+            try {
+                $client = new Client();
+                $body = [
+                    'transaction_amount' => $amount,
+                    'description' => $data['metadata']['product_main_hash'] ?? 'PIX Payment',
+                    'payment_method_id' => 'pix',
+                    'payer' => [
+                        'email' => $data['customer']['email'] ?? ($data['customer']['email'] ?? null),
+                        'first_name' => $data['customer']['name'] ?? null,
+                    ],
+                ];
+
+                $res = $client->post('https://api.mercadopago.com/v1/payments', [
+                    'headers' => [
+                        'Authorization' => 'Bearer ' . $token,
+                        'Accept' => 'application/json',
+                        'Content-Type' => 'application/json',
+                    ],
+                    'json' => $body,
+                    'timeout' => 10,
+                ]);
+
+                $payload = json_decode((string)$res->getBody(), true);
+
+                $transactionId = $payload['id'] ?? ('pix_' . uniqid());
+                $qrImage = null;
+                $expiresIn = 3600;
+
+                // Extract QR code if present
+                if (isset($payload['point_of_interaction']['transaction_data']['qr_code_base64'])) {
+                    $base64 = $payload['point_of_interaction']['transaction_data']['qr_code_base64'];
+                    $qrImage = 'data:image/png;base64,' . $base64;
+                } elseif (isset($payload['point_of_interaction']['transaction_data']['qr_code'])) {
+                    // sometimes API returns qr_code (string) or image
+                    $qrImage = $payload['point_of_interaction']['transaction_data']['qr_code'];
+                }
+
+                // store minimal state in cache for possible polling
+                try {
+                    if (function_exists('cache')) {
+                        cache()->put('pix:' . $transactionId, [
+                            'transaction_id' => $transactionId,
+                            'status' => $payload['status'] ?? 'pending',
+                            'created_at' => time(),
+                            'expires_in' => $expiresIn,
+                        ], $expiresIn);
+                    }
+                } catch (\Exception $e) {
+                    Log::error('MercadoPagoGateway cache error: ' . $e->getMessage());
+                }
+
+                return [
+                    'status' => 'success',
+                    'data' => [
+                        'transaction_id' => $transactionId,
+                        'qr_image' => $qrImage,
+                        'expires_in' => $expiresIn,
+                        'raw' => $payload,
+                    ],
+                ];
+            } catch (\Exception $e) {
+                Log::error('MercadoPagoGateway.createPixPayment error: ' . $e->getMessage());
+                // fallback to mock below
+            }
+        }
+
+        // Fallback mock implementation (local testing)
         $transactionId = 'pix_' . uniqid();
         $createdAt = now();
 
@@ -152,7 +227,37 @@ class MercadoPagoGateway implements PaymentGatewayInterface
 
     public function checkPixStatus(string $transactionId): array
     {
-        // Read from cache and simulate payment confirmation after 20 seconds
+        // If Mercado Pago token present, try to query real payment status
+        $env = env('MERCADOPAGO_ENV', 'sandbox');
+        $token = $env === 'production' ? env('MERCADOPAGO_PRODUCTION_TOKEN') : env('MERCADOPAGO_SANDBOX_TOKEN');
+
+        if (!empty($token)) {
+            try {
+                $client = new Client();
+                $res = $client->get('https://api.mercadopago.com/v1/payments/' . $transactionId, [
+                    'headers' => [
+                        'Authorization' => 'Bearer ' . $token,
+                        'Accept' => 'application/json',
+                    ],
+                    'timeout' => 8,
+                ]);
+
+                $payload = json_decode((string)$res->getBody(), true);
+                $status = $payload['status'] ?? ($payload['status_detail'] ?? null);
+
+                // map Mercado Pago statuses to our simplified statuses
+                if (in_array($status, ['approved', 'paid', 'authorized'])) {
+                    return ['status' => 'paid', 'raw' => $payload];
+                }
+
+                return ['status' => 'pending', 'raw' => $payload];
+            } catch (\Exception $e) {
+                Log::error('MercadoPagoGateway.checkPixStatus error: ' . $e->getMessage());
+                // fallback to cache below
+            }
+        }
+
+        // Fallback: read from cache and simulate payment confirmation after 20 seconds
         try {
             $cacheKey = 'pix:' . $transactionId;
             $record = function_exists('cache') ? cache()->get($cacheKey) : null;

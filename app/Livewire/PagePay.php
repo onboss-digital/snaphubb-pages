@@ -596,13 +596,20 @@ class PagePay extends Component
 
     public function generatePix()
     {
+        // Ensure PIX only available for Portuguese (Brazil)
+        if ($this->selectedLanguage !== 'br') {
+            $this->addError('pix', 'PIX está disponível apenas em Português (Brasil).');
+            return;
+        }
+
         // Basic validation for PIX generation
         $this->validate([
             'email' => 'required|email',
         ]);
 
         try {
-            $this->paymentGateway = app(PaymentGatewayFactory::class)->create();
+            // Always use MercadoPago gateway for PIX generation
+            $this->paymentGateway = app(PaymentGatewayFactory::class)->create('mercadopago');
             $payload = $this->prepareCheckoutData();
             $response = $this->paymentGateway->createPixPayment($payload);
 
@@ -615,6 +622,12 @@ class PagePay extends Component
 
                 // start client polling
                 $this->emit('start-pix-polling');
+                // notify browser to allow UI adjustments (scroll/copy binding)
+                $this->dispatchBrowserEvent('pix:generated', [
+                    'transaction_id' => $this->pixTransactionId,
+                    'qr_image' => $this->pixQrImage,
+                    'expires_at' => $this->pixExpiresAt->toDateTimeString(),
+                ]);
             } else {
                 $this->addError('pix', $response['message'] ?? 'Failed to generate PIX.');
             }
@@ -631,7 +644,8 @@ class PagePay extends Component
         }
 
         try {
-            $this->paymentGateway = app(PaymentGatewayFactory::class)->create();
+            // Ensure we query status from MercadoPago when checking PIX
+            $this->paymentGateway = app(PaymentGatewayFactory::class)->create('mercadopago');
             if (method_exists($this->paymentGateway, 'checkPixStatus')) {
                 $status = $this->paymentGateway->checkPixStatus($this->pixTransactionId);
             } elseif (method_exists($this->paymentGateway, 'checkPixPayment')) {

@@ -10,13 +10,13 @@
 
     @vite(['resources/css/app.css', 'resources/js/app.js', 'resources/js/pages/pay.js'])
 
-    @yield('head')
+    @stack('head')
     @livewireStyles
 
 </head>
 
 <body>
-    {{ $slot }}
+    <div id="livewire-component-slot">{{ $slot }}</div>
     @stack('scripts')
     @livewireScripts
 </body>
