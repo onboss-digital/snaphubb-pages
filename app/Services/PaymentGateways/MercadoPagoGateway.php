@@ -115,4 +115,64 @@ class MercadoPagoGateway implements PaymentGatewayInterface
 
         return $result;
     }
+
+    public function createPixPayment(array $data): array
+    {
+        // For bkp-local we provide a lightweight mock implementation so the UI can work locally.
+        $transactionId = 'pix_' . uniqid();
+        $createdAt = now();
+
+        // Simple SVG-based QR placeholder containing the transaction id (data-uri)
+        $svg = '<svg xmlns="http://www.w3.org/2000/svg" width="300" height="300"><rect width="100%" height="100%" fill="#fff"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-size="12" fill="#111">' . htmlentities($transactionId) . '</text></svg>';
+        $dataUri = 'data:image/svg+xml;base64,' . base64_encode($svg);
+
+        // Store in cache so we can simulate status on polling
+        try {
+            if (function_exists('cache')) {
+                cache()->put('pix:' . $transactionId, [
+                    'transaction_id' => $transactionId,
+                    'status' => 'pending',
+                    'created_at' => $createdAt->timestamp ?? time(),
+                    'expires_in' => 3600,
+                ], 3600);
+            }
+        } catch (\Exception $e) {
+            // ignore cache errors
+        }
+
+        return [
+            'status' => 'success',
+            'data' => [
+                'transaction_id' => $transactionId,
+                'qr_image' => $dataUri,
+                'expires_in' => 3600,
+            ],
+        ];
+    }
+
+    public function checkPixStatus(string $transactionId): array
+    {
+        // Read from cache and simulate payment confirmation after 20 seconds
+        try {
+            $cacheKey = 'pix:' . $transactionId;
+            $record = function_exists('cache') ? cache()->get($cacheKey) : null;
+            if (!$record) {
+                return ['status' => 'not_found'];
+            }
+
+            $createdAt = $record['created_at'] ?? time();
+            $elapsed = time() - $createdAt;
+            if ($elapsed > 20) {
+                // mark as paid
+                if (function_exists('cache')) {
+                    cache()->put($cacheKey, array_merge($record, ['status' => 'paid']), 3600);
+                }
+                return ['status' => 'paid', 'transaction_id' => $transactionId];
+            }
+
+            return ['status' => 'pending', 'transaction_id' => $transactionId, 'elapsed' => $elapsed];
+        } catch (\Exception $e) {
+            return ['status' => 'error', 'message' => $e->getMessage()];
+        }
+    }
 }

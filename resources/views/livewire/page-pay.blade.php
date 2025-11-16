@@ -204,6 +204,14 @@ $gateway = config('services.default_payment_gateway', 'stripe');
                                 </button>
                             </div>
 
+                            <!-- PIX option button -->
+                            <div class="mt-3">
+                                <button type="button" wire:click.prevent="$set('selectedPaymentMethod', 'pix')"
+                                    class="w-full py-2 px-4 rounded-md text-sm font-medium bg-[#2D2D2D] text-white border border-gray-700 hover:bg-[#333]">
+                                    📲 {{ __('payment.pix') ?? 'PIX' }}
+                                </button>
+                            </div>
+
                             <!-- Credit Card Form -->
                             <div x-show="selectedPaymentMethod === 'credit_card'">
                                 <div class="space-y-4 mt-4">
@@ -302,6 +310,36 @@ $gateway = config('services.default_payment_gateway', 'stripe');
                                 </div>
                             </div>
                         </div>
+
+                            <!-- PIX Modal trigger & modal -->
+                            <div x-show="selectedPaymentMethod === 'pix'" class="mt-4">
+                                <div class="bg-[#2D2D2D] rounded-lg p-4">
+                                    <p class="text-sm text-gray-300 mb-3">{{ __('payment.pay_with_pix') ?? 'Pague com PIX' }}</p>
+                                    <div class="space-y-2">
+                                        <label class="text-xs text-gray-300">{{ __('payment.email') }}</label>
+                                        <input name="pix_email" type="email" wire:model.defer="email" class="w-full bg-[#1F1F1F] text-white rounded-lg p-2 border border-gray-700" />
+
+                                        <label class="text-xs text-gray-300">{{ __('payment.phone') }}</label>
+                                        <input name="pix_phone" type="text" wire:model.defer="phone" class="w-full bg-[#1F1F1F] text-white rounded-lg p-2 border border-gray-700" />
+
+                                        <label class="text-xs text-gray-300">{{ __('payment.cpf') }}</label>
+                                        <input name="pix_cpf" type="text" wire:model.defer="cpf" class="w-full bg-[#1F1F1F] text-white rounded-lg p-2 border border-gray-700" />
+
+                                        <div class="flex items-center space-x-2 mt-3">
+                                            <button type="button" wire:click.prevent="generatePix" class="bg-[#E50914] text-white py-2 px-4 rounded-lg">{{ __('payment.generate_pix') ?? 'Gerar PIX' }}</button>
+                                            <button type="button" wire:click.prevent="$set('selectedPaymentMethod','credit_card')" class="bg-gray-700 text-white py-2 px-4 rounded-lg">{{ __('payment.back') ?? 'Voltar' }}</button>
+                                        </div>
+
+                                        @if($pixQrImage)
+                                            <div class="mt-4 text-center">
+                                                <p class="text-sm text-gray-300 mb-2">{{ __('payment.show_qr') ?? 'Escaneie o QR abaixo' }}</p>
+                                                <img src="{{ $pixQrImage }}" alt="PIX QR" class="mx-auto border border-gray-600 rounded-lg" style="max-width:300px;" />
+                                                <p class="text-xs text-gray-400 mt-2">{{ __('payment.pix_valid_until') ?? 'Válido até' }}: {{ optional($pixExpiresAt)->toDateTimeString() ?? '-' }}</p>
+                                            </div>
+                                        @endif
+                                    </div>
+                                </div>
+                            </div>
                     </div>
 
                     <!-- Order Bumps -->
@@ -797,7 +835,7 @@ $gateway = config('services.default_payment_gateway', 'stripe');
 <!-- Stripe JS -->
 @push('scripts')
 @vite('resources/js/pages/pay.js')
-@if($gateway === 'stripe')
+@if($gateway === 'stripe' || config('services.stripe.api_public_key'))
 <script src="https://js.stripe.com/v3/"></script>
 <script>
     let stripeCard = null;

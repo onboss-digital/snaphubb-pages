@@ -75,6 +75,11 @@ class PagePay extends Component
     private PaymentGatewayInterface $paymentGateway; // Added
 
     public $gateway;
+    // PIX properties
+    public $showPixModal = false;
+    public $pixTransactionId = null;
+    public $pixQrImage = null;
+    public $pixExpiresAt = null;
     protected $apiUrl;
     private $httpClient;
     public function __construct()
@@ -584,7 +589,70 @@ class PagePay extends Component
     {
         return [
             'updatePhone' => 'updatePhone',
+            'updatePixPhone' => 'updatePhone',
+            'checkPixPaymentStatus' => 'checkPixPaymentStatus',
         ];
+    }
+
+    public function generatePix()
+    {
+        // Basic validation for PIX generation
+        $this->validate([
+            'email' => 'required|email',
+        ]);
+
+        try {
+            $this->paymentGateway = app(PaymentGatewayFactory::class)->create();
+            $payload = $this->prepareCheckoutData();
+            $response = $this->paymentGateway->createPixPayment($payload);
+
+            if (isset($response['status']) && $response['status'] === 'success') {
+                $data = $response['data'] ?? [];
+                $this->pixTransactionId = $data['transaction_id'] ?? ($data['id'] ?? null);
+                $this->pixQrImage = $data['qr_image'] ?? null;
+                $this->pixExpiresAt = now()->addSeconds($data['expires_in'] ?? 3600);
+                $this->showPixModal = true;
+
+                // start client polling
+                $this->emit('start-pix-polling');
+            } else {
+                $this->addError('pix', $response['message'] ?? 'Failed to generate PIX.');
+            }
+        } catch (\Exception $e) {
+            Log::error('generatePix error: ' . $e->getMessage());
+            $this->addError('pix', 'Erro ao gerar PIX: ' . $e->getMessage());
+        }
+    }
+
+    public function checkPixPaymentStatus()
+    {
+        if (empty($this->pixTransactionId)) {
+            return;
+        }
+
+        try {
+            $this->paymentGateway = app(PaymentGatewayFactory::class)->create();
+            if (method_exists($this->paymentGateway, 'checkPixStatus')) {
+                $status = $this->paymentGateway->checkPixStatus($this->pixTransactionId);
+            } elseif (method_exists($this->paymentGateway, 'checkPixPayment')) {
+                $status = $this->paymentGateway->checkPixPayment($this->pixTransactionId);
+            } else {
+                $status = ['status' => 'unsupported'];
+            }
+
+            if (isset($status['status']) && $status['status'] === 'paid') {
+                // stop polling and show success
+                $this->emit('stop-pix-polling');
+                $this->showPixModal = false;
+                $this->showSuccessModal = true;
+                $this->showProcessingModal = false;
+                // optionally clear pix fields
+                $this->pixTransactionId = null;
+                $this->pixQrImage = null;
+            }
+        } catch (\Exception $e) {
+            Log::error('checkPixPaymentStatus error: ' . $e->getMessage());
+        }
     }
 
     public function updatePhone($event = null)
