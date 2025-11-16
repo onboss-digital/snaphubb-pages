@@ -6,6 +6,7 @@ use App\Interfaces\PaymentGatewayInterface;
 use App\Services\PaymentGateways\TriboPayGateway;
 use App\Services\PaymentGateways\For4PaymentGateway;
 use App\Services\PaymentGateways\StripeGateway;
+use App\Services\PaymentGateways\MercadoPagoGateway;
 use Illuminate\Support\Facades\Log;
 use InvalidArgumentException;
 
@@ -23,6 +24,10 @@ class PaymentGatewayFactory
                 return app(TriboPayGateway::class);
             case 'stripe':
                 return app(StripeGateway::class);
+            case 'mercadopago':
+            case 'mercadopago_gateway':
+            case 'mercadopag':
+                return app(MercadoPagoGateway::class);
             case 'for4payment':
                 return app(For4PaymentGateway::class);
             // Add other gateways here
