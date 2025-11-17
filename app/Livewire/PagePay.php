@@ -5,6 +5,7 @@ namespace App\Livewire;
 use App\Factories\PaymentGatewayFactory; // Added
 use App\Interfaces\PaymentGatewayInterface; // Added
 use App\Rules\ValidPhoneNumber;
+use App\Services\MercadoPagoPixService; // Added for PIX payments
 use GuzzleHttp\Client;
 use GuzzleHttp\Psr7\Request;
 use Livewire\Component;
@@ -15,6 +16,7 @@ class PagePay extends Component
 {
 
     public $paymentMethodId, $cardName, $cardNumber, $cardExpiry, $cardCvv, $email, $phone, $cpf,
+        $pixName, $pixEmail, $pixCpf, $pixPhone,
         $plans, $modalData, $product, $testimonials = [],
         $utm_source, $utm_medium, $utm_campaign, $utm_id, $utm_term, $utm_content, $src, $sck;
 
@@ -79,9 +81,14 @@ class PagePay extends Component
     public $showPixModal = false;
     public $pixTransactionId = null;
     public $pixQrImage = null;
+    public $pixQrCodeText = null;
     public $pixExpiresAt = null;
+    public $pixAmount = null;
+    public $pixStatus = 'pending';
+    public $pixError = null;
     protected $apiUrl;
     private $httpClient;
+    private MercadoPagoPixService $pixService;
     public function __construct()
     {
         $this->httpClient = new Client([
@@ -89,6 +96,7 @@ class PagePay extends Component
         ]);
         $this->apiUrl = config('services.streamit.api_url'); // Assuming you'll store the API URL in config
         $this->gateway = config('services.default_payment_gateway');
+        $this->pixService = app(MercadoPagoPixService::class); // Injetar serviço PIX
     }
 
     protected function rules()
@@ -589,84 +597,231 @@ class PagePay extends Component
     {
         return [
             'updatePhone' => 'updatePhone',
-            'updatePixPhone' => 'updatePhone',
             'checkPixPaymentStatus' => 'checkPixPaymentStatus',
         ];
     }
 
+    /**
+     * Gera um novo pagamento PIX
+     * Valida dados, cria a transação e prepara modal de exibição
+     */
     public function generatePix()
     {
-        // Ensure PIX only available for Portuguese (Brazil)
+        // PIX está disponível apenas em Português (Brasil)
         if ($this->selectedLanguage !== 'br') {
-            $this->addError('pix', 'PIX está disponível apenas em Português (Brasil).');
+            $this->addError('pix', __('payment.pix_only_portuguese'));
             return;
         }
 
-        // Basic validation for PIX generation
+        // Validação de dados obrigatórios
         $this->validate([
             'email' => 'required|email',
+            'cardName' => 'required|string|max:255',
+        ], [
+            'email.required' => __('payment.email_required'),
+            'email.email' => __('payment.email_invalid'),
+            'cardName.required' => __('payment.card_name_required'),
         ]);
 
         try {
-            // Always use MercadoPago gateway for PIX generation
-            $this->paymentGateway = app(PaymentGatewayFactory::class)->create('mercadopago');
-            $payload = $this->prepareCheckoutData();
-            $response = $this->paymentGateway->createPixPayment($payload);
+            // Limpa erros anteriores
+            $this->pixError = null;
+            $this->pixStatus = 'pending';
 
-            if (isset($response['status']) && $response['status'] === 'success') {
-                $data = $response['data'] ?? [];
-                $this->pixTransactionId = $data['transaction_id'] ?? ($data['id'] ?? null);
-                $this->pixQrImage = $data['qr_image'] ?? null;
-                $this->pixExpiresAt = now()->addSeconds($data['expires_in'] ?? 3600);
-                $this->showPixModal = true;
+            // Calcula o valor final em centavos
+            $numeric_final_price = floatval(str_replace(',', '.', str_replace('.', '', $this->totals['final_price'])));
+            $amountInCents = (int)round($numeric_final_price * 100);
 
-                // start client polling
-                $this->emit('start-pix-polling');
-                // notify browser to allow UI adjustments (scroll/copy binding)
-                $this->dispatchBrowserEvent('pix:generated', [
-                    'transaction_id' => $this->pixTransactionId,
-                    'qr_image' => $this->pixQrImage,
-                    'expires_at' => $this->pixExpiresAt->toDateTimeString(),
+            Log::channel('payment_checkout')->info('PagePay: Iniciando geração de PIX', [
+                'email' => $this->email,
+                'amount' => $amountInCents,
+                'currency' => $this->selectedCurrency,
+            ]);
+
+            // Chama o serviço PIX para criar o pagamento
+            $response = $this->pixService->createPixPayment([
+                'amount' => $amountInCents,
+                'description' => 'Pagamento - ' . ($this->product['title'] ?? 'Produto'),
+                'customerEmail' => $this->email,
+                'customerName' => $this->cardName,
+            ]);
+
+            // Trata erros da criação do PIX
+            if ($response['status'] === 'error') {
+                Log::error('PagePay: Erro ao gerar PIX', [
+                    'message' => $response['message'],
                 ]);
-            } else {
-                $this->addError('pix', $response['message'] ?? 'Failed to generate PIX.');
+                $this->pixError = $response['message'];
+                $this->addError('pix', $response['message']);
+                return;
             }
+
+            // Extrai dados do PIX da resposta bem-sucedida
+            $pixData = $response['data'];
+            
+            $this->pixTransactionId = $pixData['payment_id'] ?? null;
+            $this->pixQrImage = $pixData['qr_code_base64'] ?? null;
+            $this->pixQrCodeText = $pixData['qr_code'] ?? null;
+            $this->pixAmount = $numeric_final_price;
+            $this->pixExpiresAt = now()->addMinutes(30); // PIX expira em 30 minutos por padrão
+            $this->showPixModal = true;
+
+            Log::channel('payment_checkout')->info('PagePay: PIX gerado com sucesso', [
+                'payment_id' => $this->pixTransactionId,
+            ]);
+
+            // Notifica o frontend para iniciar polling
+            $this->dispatch('start-pix-polling');
+            
         } catch (\Exception $e) {
-            Log::error('generatePix error: ' . $e->getMessage());
-            $this->addError('pix', 'Erro ao gerar PIX: ' . $e->getMessage());
+            Log::error('PagePay: Erro ao gerar PIX', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            
+            $this->pixError = 'Erro ao gerar PIX. Tente novamente.';
+            $this->addError('pix', $this->pixError);
         }
     }
 
+    /**
+     * Consulta o status do pagamento PIX
+     * Chamado via polling a cada 3-5 segundos
+     */
     public function checkPixPaymentStatus()
     {
         if (empty($this->pixTransactionId)) {
+            Log::warning('PagePay: checkPixPaymentStatus chamado sem pixTransactionId');
             return;
         }
 
         try {
-            // Ensure we query status from MercadoPago when checking PIX
-            $this->paymentGateway = app(PaymentGatewayFactory::class)->create('mercadopago');
-            if (method_exists($this->paymentGateway, 'checkPixStatus')) {
-                $status = $this->paymentGateway->checkPixStatus($this->pixTransactionId);
-            } elseif (method_exists($this->paymentGateway, 'checkPixPayment')) {
-                $status = $this->paymentGateway->checkPixPayment($this->pixTransactionId);
-            } else {
-                $status = ['status' => 'unsupported'];
+            // Consulta o status do pagamento PIX
+            $response = $this->pixService->getPaymentStatus((int)$this->pixTransactionId);
+
+            if ($response['status'] === 'error') {
+                Log::warning('PagePay: Erro ao consultar status do PIX', [
+                    'payment_id' => $this->pixTransactionId,
+                    'message' => $response['message'],
+                ]);
+                return;
             }
 
-            if (isset($status['status']) && $status['status'] === 'paid') {
-                // stop polling and show success
-                $this->emit('stop-pix-polling');
-                $this->showPixModal = false;
-                $this->showSuccessModal = true;
-                $this->showProcessingModal = false;
-                // optionally clear pix fields
-                $this->pixTransactionId = null;
-                $this->pixQrImage = null;
+            $paymentData = $response['data'];
+            $paymentStatus = $paymentData['payment_status'] ?? 'pending';
+
+            Log::channel('payment_checkout')->debug('PagePay: Status do PIX consultado', [
+                'payment_id' => $this->pixTransactionId,
+                'status' => $paymentStatus,
+            ]);
+
+            // Atualiza o status local
+            $this->pixStatus = $paymentStatus;
+
+            // Trata diferentes status de pagamento
+            if ($paymentStatus === 'approved') {
+                // Pagamento aprovado - redireciona para sucesso
+                $this->handlePixApproved();
+            } elseif ($paymentStatus === 'rejected' || $paymentStatus === 'cancelled') {
+                // Pagamento rejeitado/cancelado
+                $this->handlePixRejected();
+            } elseif ($paymentStatus === 'expired') {
+                // Pagamento expirou
+                $this->handlePixExpired();
             }
+            // else: mantém 'pending' e continua polling
+
         } catch (\Exception $e) {
-            Log::error('checkPixPaymentStatus error: ' . $e->getMessage());
+            Log::error('PagePay: Erro ao verificar status do PIX', [
+                'message' => $e->getMessage(),
+            ]);
         }
+    }
+
+    /**
+     * Processa PIX aprovado
+     */
+    private function handlePixApproved()
+    {
+        Log::info('PagePay: PIX aprovado', [
+            'payment_id' => $this->pixTransactionId,
+        ]);
+
+        // Para o polling
+        $this->dispatch('stop-pix-polling');
+
+        // Mostra modal de sucesso
+        $this->showPixModal = false;
+        $this->showSuccessModal = true;
+        $this->showProcessingModal = false;
+
+        // Dispatch evento de sucesso para tracking (Facebook Pixel, etc)
+        $this->dispatch('checkout-success', purchaseData: [
+            'transaction_id' => $this->pixTransactionId,
+            'value' => $this->pixAmount,
+            'currency' => $this->selectedCurrency,
+        ]);
+
+        // Redireciona após 2 segundos
+        $this->dispatch('redirect-success', url: 'https://web.snaphubb.online/obg/');
+    }
+
+    /**
+     * Processa PIX rejeitado/cancelado
+     */
+    private function handlePixRejected()
+    {
+        Log::warning('PagePay: PIX rejeitado/cancelado', [
+            'payment_id' => $this->pixTransactionId,
+        ]);
+
+        // Para o polling
+        $this->dispatch('stop-pix-polling');
+
+        // Mostra erro
+        $this->pixError = __('payment.pix_rejected');
+        $this->showPixModal = false;
+        $this->showErrorModal = true;
+        $this->addError('pix', $this->pixError);
+
+        // Limpa dados do PIX
+        $this->pixTransactionId = null;
+        $this->pixQrImage = null;
+        $this->pixQrCodeText = null;
+    }
+
+    /**
+     * Processa PIX expirado
+     */
+    private function handlePixExpired()
+    {
+        Log::warning('PagePay: PIX expirou', [
+            'payment_id' => $this->pixTransactionId,
+        ]);
+
+        // Para o polling
+        $this->dispatch('stop-pix-polling');
+
+        // Mostra mensagem de expiração
+        $this->pixError = __('payment.pix_expired');
+        $this->pixStatus = 'expired';
+
+        // Notifica frontend para mostrar botão de gerar novo PIX
+        $this->dispatch('pix-expired');
+    }
+
+    /**
+     * Redefine modal de PIX para gerar novo
+     */
+    public function closePix()
+    {
+        $this->showPixModal = false;
+        $this->pixTransactionId = null;
+        $this->pixQrImage = null;
+        $this->pixQrCodeText = null;
+        $this->pixError = null;
+        $this->pixStatus = 'pending';
+        $this->dispatch('stop-pix-polling');
     }
 
     public function updatePhone($event = null)
@@ -769,5 +924,145 @@ class PagePay extends Component
                 'selectedPlan' => $this->selectedPlan,
             ]);
         }
+    }
+
+    public function generatePixPayment()
+    {
+        try {
+            // Validar dados obrigatórios do PIX
+            $errors = [];
+
+            // Validar Nome (obrigatório)
+            if (empty($this->pixName) || strlen(trim($this->pixName)) === 0) {
+                $errors[] = __('payment.pix_field_name_label') . ' é obrigatório';
+            }
+
+            // Validar Email (obrigatório)
+            if (empty($this->pixEmail) || !filter_var($this->pixEmail, FILTER_VALIDATE_EMAIL)) {
+                $errors[] = __('payment.pix_field_email_label') . ' é obrigatório';
+            }
+
+            // Validar CPF (obrigatório)
+            if (empty($this->pixCpf) || !$this->isValidCpf($this->pixCpf)) {
+                $errors[] = __('payment.pix_field_cpf_label') . ' é obrigatório';
+            }
+
+            // Se houver erros de validação, mostrar e retornar
+            if (!empty($errors)) {
+                $this->errorMessage = implode("\n", $errors);
+                $this->showErrorModal = true;
+                return;
+            }
+
+            // Mostrar modal de processamento
+            $this->showProcessingModal = true;
+            $this->loadingMessage = __('payment.loader_processing');
+
+            // Calcular o total a ser pago em centavos
+            $totalAmount = $this->getTotalPixAmount() * 100; // Converter para centavos
+
+            if ($totalAmount <= 0) {
+                $this->errorMessage = __('payment.invalid_amount');
+                $this->showErrorModal = true;
+                $this->showProcessingModal = false;
+                return;
+            }
+
+            // Gerar PIX via Mercado Pago
+            $response = $this->pixService->createPixPayment([
+                'amount' => (int) $totalAmount,
+                'description' => 'Assinatura SnapHubb - ' . $this->selectedPlan,
+                'customerName' => trim($this->pixName),
+                'customerEmail' => trim($this->pixEmail),
+            ]);
+
+            if ($response['status'] === 'success' && isset($response['data'])) {
+                $pixData = $response['data'];
+                $this->pixTransactionId = $pixData['payment_id'] ?? null;
+                $this->pixQrImage = $pixData['qr_code_base64'] ?? null;
+                $this->pixQrCodeText = $pixData['qr_code'] ?? null;
+                $this->pixAmount = $pixData['amount'] ?? ($totalAmount / 100);
+                $this->pixExpiresAt = $pixData['expiration_date'] ?? null;
+                $this->pixStatus = $pixData['status'] ?? 'pending';
+                $this->showPixModal = true;
+                $this->showProcessingModal = false;
+
+                // Iniciar polling para checar status
+                if ($this->pixTransactionId) {
+                    $this->dispatch('startPixPolling', transactionId: $this->pixTransactionId);
+                }
+            } else {
+                $this->errorMessage = $response['message'] ?? __('payment.pix_generation_failed');
+                $this->showErrorModal = true;
+                $this->showProcessingModal = false;
+            }
+        } catch (\Exception $e) {
+            Log::error('Erro ao gerar PIX: ' . $e->getMessage(), [
+                'exception' => $e,
+                'pixName' => $this->pixName,
+                'pixEmail' => $this->pixEmail,
+            ]);
+            $this->errorMessage = __('payment.pix_generation_error');
+            $this->showErrorModal = true;
+            $this->showProcessingModal = false;
+        }
+    }
+
+    /**
+     * Valida um CPF
+     */
+    private function isValidCpf($cpf): bool
+    {
+        // Remove pontuação
+        $cpf = preg_replace('/[^0-9]/', '', $cpf);
+
+        // CPF deve ter 11 dígitos
+        if (strlen($cpf) !== 11) {
+            return false;
+        }
+
+        // Verifica se todos os dígitos são iguais
+        if (preg_match('/^(\d)\1{10}$/', $cpf)) {
+            return false;
+        }
+
+        // Valida primeiro dígito verificador
+        $sum = 0;
+        for ($i = 0; $i < 9; $i++) {
+            $sum += intval($cpf[$i]) * (10 - $i);
+        }
+        $firstVerifier = 11 - ($sum % 11);
+        $firstVerifier = $firstVerifier >= 10 ? 0 : $firstVerifier;
+
+        if (intval($cpf[9]) !== $firstVerifier) {
+            return false;
+        }
+
+        // Valida segundo dígito verificador
+        $sum = 0;
+        for ($i = 0; $i < 10; $i++) {
+            $sum += intval($cpf[$i]) * (11 - $i);
+        }
+        $secondVerifier = 11 - ($sum % 11);
+        $secondVerifier = $secondVerifier >= 10 ? 0 : $secondVerifier;
+
+        if (intval($cpf[10]) !== $secondVerifier) {
+            return false;
+        }
+
+        return true;
+    }
+
+    private function getTotalPixAmount()
+    {
+        if (!isset($this->totals) || empty($this->totals)) {
+            $this->calculateTotals();
+        }
+
+        $totalData = $this->totals[0] ?? [];
+        $finalPrice = $totalData['final_price'] ?? '0,00';
+
+        // Converter formato brasileiro (1.234,56) para decimal (1234.56)
+        return (float) str_replace(['.', ','], ['', '.'], $finalPrice);
     }
 }

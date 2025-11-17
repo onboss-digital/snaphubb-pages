@@ -2,7 +2,7 @@
 
 return [
     // Header
-    'title' => 'Snaphubb - Pago',
+    'title' => 'SNAPHUBB Premium - Checkout',
     'start_subscription' => 'Inicia tu suscripción Premium',
     'unlock_access' => 'Desbloquea acceso exclusivo a todo nuestro contenido premium.',
 
@@ -107,6 +107,7 @@ return [
 
     // Processing
     'processing_payment' => 'Procesando pago...',
+    'generating_pix' => 'Generando PIX...',
     'please_wait' => 'Un momento',
 
     // Customization
@@ -119,25 +120,36 @@ return [
     'billing' => '📌 Facturación',
     'release' => '⏳ Liberación',
     'cancellation' => '🧾 Cancelación',
-    'checkout_header' => '¡Estás a un paso de acceder al streaming privado + exclusivo de América Latina!',
 
-    // User Exists Modal
-    'user_exists_title' => '¡Ya tienes una cuenta!',
-    'user_exists_message' => 'Parece que este correo electrónico ya está registrado en nuestra plataforma. Inicia sesión para continuar justo donde lo dejaste.',
-    'go_to_login' => 'Iniciar sesión',
-    'not_me' => 'Usar otro correo',
-    'forgot_password_prompt' => 'Si has olvidado tu contraseña, puedes restablecerla en la siguiente pantalla.',
-
-    // Footer
-    'secure_payment' => 'Pago 100% seguro con encriptación SSL.',
-    'certified_by' => 'Certificado por Cloudflare Secure Gateway.',
-    'terms_of_use' => 'Términos de Uso',
-    'privacy_policy' => 'Política de Privacidad',
-    'support' => 'Soporte',
-    'copyright' => '© :year Snaphubb. Todos los derechos reservados.',
-    'legal_notice' => 'Este sitio no está afiliado a Facebook ni a ninguna entidad de Facebook. Después de salir de Facebook, la responsabilidad no es de ellos sino de nuestro sitio.',
-
-    // Loader
-    'loader_processing' => 'Procesando tu pago...',
-    'loader_wait' => 'Espera unos segundos.',
+    // PIX
+    'pix' => 'PIX',
+    'pix_generated_title' => '¡Casi listo! Ahora solo paga',
+    'pix_instructions' => 'Escanea el código QR o copia el código para pagar',
+    'pix_copy_paste' => 'Código PIX (Copia y Pega)',
+    'pix_description' => 'Transferencia instantánea • Sin comisión',
+    'credit_card_description' => 'Débito o crédito',
+    'pix_amount' => 'Cantidad',
+    'pix_expires_in' => 'Expira en',
+    'pix_status_pending' => 'Esperando pago',
+    'pix_status_approved' => '¡Pago aprobado!',
+    'pix_expired' => 'PIX expirado',
+    'pix_new_payment' => 'Generar nuevo PIX',
+    'pix_understand' => 'Entiendo',
+    'pix_rejected' => 'El pago PIX fue rechazado',
+    'pix_error' => 'Error al procesar PIX',
+    'pix_copy_success' => '¡Código PIX copiado!',
+    'copy' => 'Copiar',
+    'copied' => '¡Copiado!',
+    'generate_pix' => 'Generar PIX',
+    'pix_almost_done' => '¡Casi listo!',
+    'pix_scan_qr' => 'Escanee el código QR a continuación con su aplicación bancaria para pagar.',
+    'pix_or_copy' => 'O copie el código y pague en su aplicación:',
+    'pix_copied' => '¡Código PIX copiado!',
+    'pix_waiting_payment' => 'Esperando el pago...',
+    'pix_wrong_data' => '¿Datos incorrectos? Volver y corregir.',
+    'complete_to_generate_pix' => 'Complete sus datos para generar el PIX',
+    'pix_access_for_life' => 'Acceso de por vida por un solo pago.',
+    'full_name' => 'Nombre completo',
+    'pix_title' => 'Pago vía PIX',
+    'cancel' => 'Cancelar',
 ];

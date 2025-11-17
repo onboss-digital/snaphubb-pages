@@ -2,7 +2,7 @@
 
 return [
     // Header
-    'title' => 'Snaphubb - Checkout',
+    'title' => 'SNAPHUBB Premium - Checkout',
     'start_subscription' => 'Start your Premium subscription',
     'unlock_access' => 'Unlock exclusive access to all our premium content.',
 
@@ -107,6 +107,7 @@ return [
 
     // Processing
     'processing_payment' => 'Processing payment...',
+    'generating_pix' => 'Generating PIX...',
     'please_wait' => 'Just a moment',
 
 
@@ -120,25 +121,33 @@ return [
     'billing' => '📌 Billing',
     'release' => '⏳ Release',
     'cancellation' => '🧾 Cancellation',
-    'checkout_header' => 'You are one step away from accessing the private + exclusive streaming in Latin America!',
 
-    // User Exists Modal
-    'user_exists_title' => 'You already have an account!',
-    'user_exists_message' => 'It looks like this email is already registered in our platform. Log in to continue right where you left off.',
-    'go_to_login' => 'Log in',
-    'not_me' => 'Use a different email',
-    'forgot_password_prompt' => 'If you have forgotten your password, you can reset it on the next screen.',
-
-    // Footer
-    'secure_payment' => '100% secure payment with SSL encryption.',
-    'certified_by' => 'Certified by Cloudflare Secure Gateway.',
-    'terms_of_use' => 'Terms of Use',
-    'privacy_policy' => 'Privacy Policy',
-    'support' => 'Support',
-    'copyright' => '© :year Snaphubb. All rights reserved.',
-    'legal_notice' => 'This site is not affiliated with Facebook or any Facebook entity. After you leave Facebook, the responsibility is not theirs but our site\'s.',
-
-    // Loader
-    'loader_processing' => 'Processing your payment...',
-    'loader_wait' => 'Please wait a few seconds.',
+    // PIX
+    'pix' => 'PIX',
+    'pix_description' => 'Instant transfer • No fees',
+    'credit_card_description' => 'Debit or credit',
+    'pix_generated_title' => 'Almost there! Now just pay',
+    'pix_instructions' => 'Scan the QR Code or copy the code to pay',
+    'pix_copy_paste' => 'PIX Code (Copy and Paste)',
+    'pix_amount' => 'Amount',
+    'pix_expires_in' => 'Expires in',
+    'pix_status_pending' => 'Waiting for payment',
+    'pix_status_approved' => 'Payment approved!',
+    'pix_expired' => 'PIX expired',
+    'pix_new_payment' => 'Generate new PIX',
+    'pix_understand' => 'I understand',
+    'pix_rejected' => 'PIX payment was rejected',
+    'pix_error' => 'Error processing PIX',
+    'pix_copy_success' => 'PIX code copied!',
+    'copy' => 'Copy',
+    'copied' => 'Copied!',
+    'generate_pix' => 'Generate PIX',
+    'pix_almost_done' => 'Almost there!',
+    'pix_scan_qr' => 'Scan the QR Code below with your banking app to pay.',
+    'pix_or_copy' => 'Or copy the code and pay in your app:',
+    'pix_copied' => 'PIX code copied!',
+    'pix_waiting_payment' => 'Waiting for payment...',
+    'pix_wrong_data' => 'Incorrect data? Go back and correct.',
+    'complete_to_generate_pix' => 'Fill in your details to generate the PIX',
+    'pix_access_for_life' => 'Lifetime access for just one payment.',
 ];

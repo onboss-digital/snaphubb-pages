@@ -1,82 +1,4 @@
-@section('head')
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Urbanist:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<link rel="icon" type="image/ico" href="{{ asset('imgs/mini_logo.png') }}" />
-
-@php
-$gateway = config('services.default_payment_gateway', 'stripe');
-@endphp
-
-<style>
-    body {
-        font-family: 'Urbanist', sans-serif;
-        background-color: #121212;
-        color: white;
-    }
-
-    .animate-fade {
-        animation: fadeIn 0.5s ease-in-out;
-    }
-
-    @keyframes fadeIn {
-        from {
-            opacity: 0;
-        }
-
-        to {
-            opacity: 1;
-        }
-    }
-
-    .sticky-summary {
-        position: fixed;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        z-index: 50;
-        transform: translateY(0);
-        /* Always visible on mobile */
-        transition: none;
-    }
-</style>
-<script type="text/javascript">
-    (function(c, l, a, r, i, t, y) {
-        c[a] = c[a] || function() {
-            (c[a].q = c[a].q || []).push(arguments)
-        };
-        t = l.createElement(r);
-        t.async = 1;
-        t.src = "https://www.clarity.ms/tag/" + i;
-        y = l.getElementsByTagName(r)[0];
-        y.parentNode.insertBefore(t, y);
-    })(window, document, "clarity", "script", "rtcb4op3g8");
-</script>
-
-<!-- Google Analytics -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-VYXG6DL5W4"></script>
-<script>
-    window.dataLayer = window.dataLayer || [];
-
-    function gtag() {
-        dataLayer.push(arguments);
-    }
-    gtag('js', new Date());
-
-    gtag('config', 'G-VYXG6DL5W4');
-</script>
-<!-- End Google Analytics -->
-@endsection
-
-@section('scripts')
-<script>
-
-</script>
-@endsection
-
-
-<div>
+<div id="page-pay-root">
     <div class="container mx-auto px-4 py-8 max-w-4xl pb-24 md:pb-8">
 
         <!-- Header -->
@@ -114,6 +36,37 @@ $gateway = config('services.default_payment_gateway', 'stripe');
                     </div>
                 </div>
             </div>
+
+        <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // Copy PIX code
+            function copyPixCode() {
+                const btn = document.getElementById('pix-copy-btn');
+                if (!btn) return;
+                btn.addEventListener('click', function () {
+                    const input = document.getElementById('pix-code');
+                    if (!input) return;
+                    input.select();
+                    try {
+                        document.execCommand('copy');
+                        btn.textContent = 'Copiado';
+                        setTimeout(() => btn.textContent = '{{ __('payment.copy') }}', 2000);
+                    } catch (e) {
+                        console.warn('Copy failed', e);
+                    }
+                });
+            }
+
+            copyPixCode();
+
+            // Scroll to QR when pix:generated event is dispatched
+            window.addEventListener('pix:generated', function (ev) {
+                const el = document.getElementById('pix-result');
+                if (!el) return;
+                el.scrollIntoView({behavior: 'smooth', block: 'center'});
+            });
+        });
+        </script>
 
             @php
             $banners = [
@@ -196,143 +149,146 @@ $gateway = config('services.default_payment_gateway', 'stripe');
                                 </div>
                             </div>
 
-                            <!-- Payment Method Selector -->
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <!-- Credit Card Option -->
-                                <div class="relative">
-                                    <input type="radio" id="method_credit_card" name="payment_method" value="credit_card"
-                                        x-on:change="selectedPaymentMethod = 'credit_card'" 
-                                        wire:model="selectedPaymentMethod"
-                                        class="hidden"
-                                        @if ($selectedPaymentMethod === 'credit_card') checked @endif />
-                                    <label for="method_credit_card" 
-                                        class="block relative cursor-pointer p-4 rounded-xl border-2 transition-all
-                                        @if ($selectedPaymentMethod === 'credit_card') border-[#E50914] bg-[#2D2D2D] @else border-gray-700 bg-[#1F1F1F] hover:border-gray-600 @endif">
-                                        <div class="flex items-center justify-between">
-                                            <div class="flex items-center gap-3">
-                                                <div class="text-2xl">💳</div>
-                                                <div>
-                                                    <p class="text-white font-semibold">{{ __('payment.credit_card') }}</p>
-                                                    <p class="text-gray-400 text-sm">{{ __('payment.instant_confirmation') ?? 'Instant confirmation' }}</p>
-                                                </div>
-                                            </div>
-                                            <div class="flex items-center justify-center w-6 h-6 rounded-full border-2 
-                                                @if ($selectedPaymentMethod === 'credit_card') border-[#E50914] bg-[#E50914] @else border-gray-600 @endif">
-                                                @if ($selectedPaymentMethod === 'credit_card')
-                                                    <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path>
-                                                    </svg>
-                                                @endif
-                                            </div>
-                                        </div>
-                                    </label>
-                                </div>
-
-                                <!-- PIX Option (only for Brasil) -->
-                                @if ($selectedLanguage === 'br')
-                                    <div class="relative">
-                                        <input type="radio" id="method_pix" name="payment_method" value="pix"
-                                            x-on:change="selectedPaymentMethod = 'pix'" 
-                                            wire:model="selectedPaymentMethod"
-                                            class="hidden"
-                                            @if ($selectedPaymentMethod === 'pix') checked @endif />
-                                        <label for="method_pix" 
-                                            class="block relative cursor-pointer p-4 rounded-xl border-2 transition-all
-                                            @if ($selectedPaymentMethod === 'pix') border-green-500 bg-[#2D2D2D] @else border-gray-700 bg-[#1F1F1F] hover:border-gray-600 @endif">
-                                            <div class="flex items-center justify-between">
-                                                <div class="flex items-center gap-3">
-                                                    <div class="text-2xl">🎯</div>
-                                                    <div>
-                                                        <p class="text-white font-semibold">{{ __('payment.pix_title') }}</p>
-                                                        <p class="text-gray-400 text-sm">{{ __('payment.pix_description') ?? 'Instant transfer' }}</p>
-                                                    </div>
-                                                </div>
-                                                <div class="flex items-center justify-center w-6 h-6 rounded-full border-2 
-                                                    @if ($selectedPaymentMethod === 'pix') border-green-500 bg-green-500 @else border-gray-600 @endif">
-                                                    @if ($selectedPaymentMethod === 'pix')
-                                                        <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path>
-                                                        </svg>
-                                                    @endif
-                                                </div>
-                                            </div>
-                                        </label>
+                            <!-- Payment Method Selector (card + pix) -->
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                <button type="button" @click="selectedPaymentMethod = 'credit_card'"
+                                    :class="selectedPaymentMethod === 'credit_card' ? 'border-2 border-red-600 bg-[#1b1b1b]' : 'border border-gray-700 bg-[#2D2D2D]'"
+                                    :style="selectedPaymentMethod === 'credit_card' ? 'box-shadow:0 8px 24px rgba(229,9,20,0.12), 0 0 36px rgba(229,9,20,0.06)' : ''"
+                                    class="relative rounded-lg p-4 flex items-start gap-3 text-left">
+                                    <div class="w-8 h-8 rounded-md bg-[#111] flex items-center justify-center text-white">
+                                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-6z" />
+                                        </svg>
                                     </div>
+                                    <div>
+                                        <div class="font-semibold text-white">{{ __('payment.credit_card') }}</div>
+                                        <div class="text-xs text-gray-400">{{ __('payment.card_description') ?? 'payment.card_description' }}</div>
+                                    </div>
+                                </button>
+
+                                @if($selectedLanguage === 'br')
+                                <button type="button" @click="selectedPaymentMethod = 'pix'"
+                                    :class="selectedPaymentMethod === 'pix' ? 'border-2 border-red-600 bg-[#1b1b1b]' : 'border border-gray-700 bg-[#2D2D2D]'"
+                                    :style="selectedPaymentMethod === 'pix' ? 'box-shadow:0 8px 24px rgba(229,9,20,0.12), 0 0 36px rgba(229,9,20,0.06)' : ''"
+                                    class="relative rounded-lg p-4 flex items-start gap-3 text-left">
+                                    <div class="w-8 h-8 rounded-md bg-[#111] flex items-center justify-center text-white">
+                                        <!-- Stylized PIX icon -->
+                                        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                            <path d="M12 4C7.58 4 4 7.58 4 12s3.58 8 8 8 8-3.58 8-8-3.58-8-8-8z" stroke="currentColor" stroke-width="1" opacity="0.12"/>
+                                            <path d="M9 12h6M12 9v6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <div class="font-semibold text-white">PIX</div>
+                                        <div class="text-xs text-gray-400">{{ __('payment.pix_description') ?? 'payment.pix_description' }}</div>
+                                    </div>
+                                    <div class="absolute top-3 right-3">
+                                        <div x-show="selectedPaymentMethod === 'pix'" x-cloak class="w-6 h-6 bg-red-600 rounded-full flex items-center justify-center text-white text-xs">✓</div>
+                                        <div x-show="selectedPaymentMethod !== 'pix'" x-cloak class="w-6 h-6 border border-gray-600 rounded-full flex items-center justify-center text-gray-400 text-xs">●</div>
+                                    </div>
+                                </button>
                                 @endif
                             </div>
 
                             <!-- Credit Card Form -->
-                            <div x-show="selectedPaymentMethod === 'credit_card'">
-                                <div class="space-y-4 mt-4">
-                                    @if ($gateway !== 'stripe')
-                                        <div>
-                                            <label
-                                                class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.card_number') }}</label>
-                                            <input name="card_number" type="text" id="card-number"
-                                                x-mask="9999 9999 9999 9999" placeholder="0000 0000 0000 0000"
-                                                wire:model.defer="cardNumber"
-                                                class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
-                                            @error('cardNumber')
-                                                <span class="text-red-500 text-xs mt-1">{{ $message }}</span>
-                                            @enderror
-                                        </div>
-                                        <div class="grid grid-cols-2 gap-4">
+                            <div x-show="selectedPaymentMethod === 'pix'" class="mt-4" x-cloak>
+                                <div class="bg-[#0e1c12] rounded-lg p-6 border border-green-600">
+                                    <div class="mb-4">
+                                        <div class="flex items-center gap-3">
+                                            <svg class="h-6 w-6 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c1.657 0 3-1.343 3-3S13.657 2 12 2 9 3.343 9 5s1.343 3 3 3zM6 22v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg>
                                             <div>
-                                                <label
-                                                    class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.expiry_date') }}</label>
-                                                <input name="card_expiry" type="text" id="card-expiry" x-mask="99/99"
-                                                    placeholder="MM/YY" wire:model.defer="cardExpiry"
-                                                    class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
-                                                @error('cardExpiry')
-                                                    <span class="text-red-500 text-xs mt-1">{{ $message }}</span>
-                                                @enderror
-                                            </div>
-                                            <div>
-                                                <label
-                                                    class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.security_code') }}</label>
-                                                <input name="card_cvv" type="text" id="card-cvv" placeholder="CVV"
-                                                    x-mask="9999" wire:model.defer="cardCvv"
-                                                    class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
-                                                @error('cardCvv')
-                                                    <span class="text-red-500 text-xs mt-1">{{ $message }}</span>
-                                                @enderror
+                                                <div class="text-xl font-bold text-white">{{ __('payment.pix_heading') }}</div>
+                                                <div class="text-sm text-green-200">{{ __('payment.pix_subheading') }}</div>
                                             </div>
                                         </div>
-                                    @else
+                                    </div>
+
+                                    <!-- Form fields (single column) -->
+                                    <div class="space-y-4">
                                         <div>
-                                            <label
-                                                class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.card_number') }}</label>
-                                            <div id="card-element"
-                                                class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all"
-                                                wire:ignore></div>
-                                            <div id="card-errors"></div>
-                                            <input name="payment_method_id" type="hidden"
-                                                wire:model.defer="paymentMethodId" id="payment-method-id">
+                                            <label class="text-sm font-medium text-white">{{ __('payment.pix_field_name_label') }}</label>
+                                            <div class="mt-1 relative">
+                                                <input name="pix_name" type="text" wire:model.defer="cardName" class="w-full bg-[#07120b] text-white rounded-lg p-3 border border-green-700 placeholder-gray-400" placeholder="Nome Completo" />
+                                            </div>
+                                            <div class="text-xs text-gray-400 mt-1">{{ __('payment.pix_field_name_hint') }}</div>
                                         </div>
-                                    @endif
 
-                                    <div>
-                                        <label
-                                            class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.card_name') }}</label>
-                                        <input name="card_name" type="text"
-                                            placeholder="{{ __('payment.card_name') }}" wire:model.defer="cardName"
-                                            class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
-                                        @error('cardName')
-                                            <span class="text-red-500 text-xs mt-1">{{ $message }}</span>
-                                        @enderror
+                                        <div>
+                                            <label class="text-sm font-medium text-white">{{ __('payment.pix_field_email_label') }}</label>
+                                            <input name="pix_email" type="email" wire:model.defer="email" class="w-full bg-[#07120b] text-white rounded-lg p-3 border border-green-700 placeholder-gray-400 mt-1" placeholder="seu@email.com" />
+                                            <div class="text-xs text-gray-400 mt-1">{{ __('payment.pix_field_email_hint') }}</div>
+                                        </div>
+
+                                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div>
+                                                <label class="text-sm font-medium text-white">{{ __('payment.pix_field_cpf_label') }}</label>
+                                                <input name="pix_cpf" type="text" wire:model.defer="cpf" class="w-full bg-[#07120b] text-white rounded-lg p-3 border border-green-700 placeholder-gray-400 mt-1" placeholder="000.000.000-00" />
+                                                <div class="text-xs text-gray-400 mt-1">{{ __('payment.pix_field_cpf_hint') }}</div>
+                                            </div>
+                                            <div>
+                                                <label class="text-sm font-medium text-white">{{ __('payment.pix_field_phone_label') }}</label>
+                                                <input name="pix_phone" type="text" wire:model.defer="phone" class="w-full bg-[#07120b] text-white rounded-lg p-3 border border-green-700 placeholder-gray-400 mt-1" placeholder="+55 (XX) XXXXX-XXXX" />
+                                                <div class="text-xs text-gray-400 mt-1">{{ __('payment.pix_field_phone_hint') }}</div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Main CTA full width -->
+                                        <div>
+                                            <button type="button" wire:click.prevent="generatePix" class="w-full bg-green-500 hover:bg-green-600 text-black font-semibold py-3 rounded-lg">{{ __('payment.generate_pix') }}</button>
+                                        </div>
                                     </div>
 
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-300 mb-1">E-mail</label>
-                                        <input name="email" type="email" placeholder="seu@email.com"
-                                            wire:model.live.debounce.500ms="email"
-                                            class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
-                                        <div id="email-suggestion" class="text-xs text-yellow-400 mt-1"></div>
-                                        @error('email')
-                                            <span class="text-red-500 text-xs mt-1">{{ $message }}</span>
-                                        @enderror
+                                    <!-- After generate: QR and code (centered) -->
+                                    <div class="mt-6">
+                                        @if($pixQrImage)
+                                            <div id="pix-result" class="bg-[#08120a] border border-green-700 rounded-lg p-5 text-center">
+                                                <div class="text-sm text-green-200 mb-3 font-medium">{{ __('payment.show_qr') }}</div>
+                                                <div class="flex justify-center mb-3">
+                                                    <div class="bg-white p-3 rounded">
+                                                        <img src="{{ $pixQrImage }}" alt="PIX QR" class="w-56 h-56 object-contain" />
+                                                    </div>
+                                                </div>
+                                                <div class="text-xs text-gray-400 mb-2">{{ __('payment.pix_valid_until') }}: {{ optional($pixExpiresAt)->toDateTimeString() ?? '-' }}</div>
+
+                                                <div class="mt-2">
+                                                    <div class="w-full">
+                                                        <input id="pix-code" readonly type="text" value="{{ $rawPixCode ?? $pixTransactionId }}" class="w-full bg-[#07120b] text-white rounded-lg p-2 border border-gray-700 text-sm overflow-hidden" style="white-space:nowrap; text-overflow:ellipsis;" />
+                                                    </div>
+                                                    <div class="mt-3 flex gap-2 justify-center">
+                                                        <button id="pix-copy-btn" type="button" class="bg-green-500 hover:bg-green-600 text-black font-semibold py-2 px-4 rounded-lg">{{ __('payment.copy') }}</button>
+                                                        @if(isset($raw['point_of_interaction']['transaction_data']['ticket_url']))
+                                                            <a href="{{ $raw['point_of_interaction']['transaction_data']['ticket_url'] }}" target="_blank" class="bg-transparent border border-green-500 text-green-300 py-2 px-4 rounded-lg">Abrir cobrança</a>
+                                                        @endif
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        @else
+                                            <div class="text-center text-gray-400">{{ __('payment.pix_instructions') }}</div>
+                                        @endif
                                     </div>
 
+                                    <!-- Order summary (below QR) -->
+                                    <div class="mt-6 bg-[#08120a] border border-green-700 rounded-lg p-4">
+                                        <div class="font-semibold text-white">{{ __('payment.order_summary_title') }}</div>
+                                        <div class="text-xs text-gray-400 mt-1">{{ __('payment.order_summary_check') }}</div>
+                                        <div class="mt-3 flex items-center gap-3">
+                                            <div class="w-12 h-12 bg-gray-200 rounded overflow-hidden">
+                                                <img src="{{ $product['image'] ?? 'https://d2lr0gp42cdhn1.cloudfront.net/3057842714/products/hfb81x1mas92t9jwrav1fjldj' }}" alt="{{ __('payment.product_image_alt') }}" class="w-full h-full object-cover" />
+                                            </div>
+                                            <div class="flex-1">
+                                                <div class="text-white text-sm font-medium">{{ $product['title'] ?? 'Produto' }}</div>
+                                                <div class="text-xs text-gray-400">{{ $product['hash'] ?? '' }}</div>
+                                            </div>
+                                        </div>
+                                        <div class="mt-3 text-sm space-y-1">
+                                            <div class="flex justify-between text-gray-400"><span>{{ __('payment.original_price') }}</span><span class="text-white">{{ $totals['total_price'] ?? '-' }}</span></div>
+                                            <div class="flex justify-between text-gray-400"><span>{{ __('payment.total_to_pay') }}</span><span class="text-white font-semibold">{{ $totals['final_price'] ?? '-' }}</span></div>
+                                            <div class="text-green-300 text-sm mt-2">{{ __('payment.pix_discount_success') }}</div>
+                                            <div class="text-xs text-gray-400 mt-2">{{ __('payment.secure_data') }}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                                     <div>
                                         <label
                                             class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.phone') }}</label>
@@ -347,7 +303,7 @@ $gateway = config('services.default_payment_gateway', 'stripe');
                                     @if ($selectedLanguage === 'br')
                                         <div>
                                             <label
-                                                class="block text-sm font-medium text-gray-300 mb-1">CPF</label>
+                                                class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.cpf') }}</label>
                                             <input name="cpf" type="text" x-mask="999.999.999-99"
                                                 placeholder="000.000.000-00" wire:model.defer="cpf"
                                                 class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
@@ -358,61 +314,80 @@ $gateway = config('services.default_payment_gateway', 'stripe');
                                     @endif
                                 </div>
                             </div>
+                        </div>
 
-                            <!-- PIX Form -->
-                            <div x-show="selectedPaymentMethod === 'pix'">
-                                <div class="space-y-4 mt-4">
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.pix_field_name_label') }}</label>
-                                        <input name="pix_name" type="text" placeholder="{{ __('payment.pix_field_name_hint') }}"
-                                            wire:model.defer="pixName"
-                                            class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-green-500 transition-all" />
-                                        @error('pixName')
-                                            <span class="text-red-500 text-xs mt-1">{{ $message }}</span>
-                                        @enderror
+                            <!-- PIX block (shows only in pt-BR when selected) -->
+                            <div x-show="selectedPaymentMethod === 'pix'" class="mt-4" x-cloak>
+                                <div class="bg-gradient-to-b from-[#0f1f12] via-[#122014] to-[#0f1f12] rounded-lg p-4 border-2 border-green-600">
+                                    <div class="flex items-center justify-between mb-3">
+                                        <div>
+                                                <div class="text-lg font-semibold text-white">{{ __('payment.pix_heading') }}</div>
+                                                <div class="text-sm text-green-200">{{ __('payment.pix_subheading') }}</div>
+                                        </div>
+                                        <div>
+                                            <button type="button" wire:click.prevent="generatePix" class="bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-lg">{{ __('payment.generate_pix') ?? 'Gerar PIX' }}</button>
+                                        </div>
                                     </div>
 
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.pix_field_email_label') }}</label>
-                                        <input name="pix_email" type="email" placeholder="{{ __('payment.pix_field_email_hint') }}"
-                                            wire:model.live.debounce.500ms="pixEmail"
-                                            class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-green-500 transition-all" />
-                                        <div id="pix-email-suggestion" class="text-xs text-yellow-400 mt-1"></div>
-                                        @error('pixEmail')
-                                            <span class="text-red-500 text-xs mt-1">{{ $message }}</span>
-                                        @enderror
-                                    </div>
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label class="text-sm font-medium text-white">{{ __('payment.pix_field_name_label') }}</label>
+                                            <input name="pix_name" type="text" wire:model.defer="cardName" class="w-full bg-[#111] text-white rounded-lg p-2 border border-gray-700 mt-1" />
+                                            <div class="text-xs text-gray-400 mt-1">{{ __('payment.pix_field_name_hint') }}</div>
 
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.pix_field_cpf_label') }}</label>
-                                        <input name="pix_cpf" type="text" x-mask="999.999.999-99" placeholder="000.000.000-00"
-                                            wire:model.defer="pixCpf"
-                                            class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-green-500 transition-all" />
-                                        @error('pixCpf')
-                                            <span class="text-red-500 text-xs mt-1">{{ $message }}</span>
-                                        @enderror
-                                    </div>
+                                            <label class="text-sm font-medium text-white mt-3 block">{{ __('payment.pix_field_email_label') }}</label>
+                                            <input name="pix_email" type="email" wire:model.defer="email" class="w-full bg-[#111] text-white rounded-lg p-2 border border-gray-700 mt-1" />
+                                            <div class="text-xs text-gray-400 mt-1">{{ __('payment.pix_field_email_hint') }}</div>
 
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.pix_field_phone_label') }}</label>
-                                        <input name="pix_phone" id="pix_phone" type="tel" placeholder=""
-                                            wire:model="pixPhone"
-                                            class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-green-500 transition-all" />
-                                        @error('pixPhone')
-                                            <span class="text-red-500 text-xs mt-1">{{ $message }}</span>
-                                        @enderror
-                                    </div>
+                                            <label class="text-sm font-medium text-white mt-3 block">{{ __('payment.pix_field_cpf_label') }}</label>
+                                            <input name="pix_cpf" type="text" wire:model.defer="cpf" class="w-full bg-[#111] text-white rounded-lg p-2 border border-gray-700 mt-1" />
+                                            <div class="text-xs text-gray-400 mt-1">{{ __('payment.pix_field_cpf_hint') }}</div>
 
-                                    <button type="button" wire:click="generatePixPayment"
-                                        class="w-full bg-green-500 hover:bg-green-600 text-white py-3 px-4 text-base font-semibold rounded-lg shadow-lg transition-all flex items-center justify-center gap-2 mt-4">
-                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
-                                        </svg>
-                                        {{ __('payment.generate_pix') }}
-                                    </button>
+                                            <label class="text-sm font-medium text-white mt-3 block">{{ __('payment.pix_field_phone_label') }}</label>
+                                            <input name="pix_phone" type="text" wire:model.defer="phone" class="w-full bg-[#111] text-white rounded-lg p-2 border border-gray-700 mt-1" />
+                                            <div class="text-xs text-gray-400 mt-1">{{ __('payment.pix_field_phone_hint') }}</div>
+
+                                            <div class="mt-4 bg-[#08120a] border border-green-700 rounded-lg p-3">
+                                                <div class="text-sm font-semibold text-white">{{ __('payment.order_summary_title') }}</div>
+                                                <div class="text-xs text-gray-400 mt-1">{{ __('payment.order_summary_check') }}</div>
+                                                <div class="flex items-center gap-3 mt-3">
+                                                    <div class="w-12 h-12 bg-gray-200 rounded">
+                                                        <img src="{{ $product['image'] ?? 'https://d2lr0gp42cdhn1.cloudfront.net/3057842714/products/hfb81x1mas92t9jwrav1fjldj' }}" alt="{{ __('payment.product_image_alt') }}" class="w-full h-full object-cover rounded" />
+                                                    </div>
+                                                    <div class="flex-1">
+                                                        <div class="text-white text-sm font-medium">{{ $product['title'] ?? '-' }}</div>
+                                                        <div class="text-xs text-gray-400">{{ $product['hash'] ?? '' }}</div>
+                                                    </div>
+                                                </div>
+                                                <div class="mt-3 text-sm">
+                                                    <div class="text-gray-400">{{ __('payment.original_price') }}: <span class="text-white">{{ $totals['total_price'] ?? '-' }}</span></div>
+                                                    <div class="text-gray-400">{{ __('payment.total_to_pay') }}: <span class="text-white font-semibold">{{ $totals['final_price'] ?? '-' }}</span></div>
+                                                    <div class="text-green-300 text-sm mt-2">{{ __('payment.pix_discount_success') }}</div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="flex flex-col items-center justify-center">
+                                            @if($pixQrImage)
+                                                <div id="pix-result" class="w-full bg-[#0b1a12] rounded-lg p-4 text-center border border-green-700 overflow-auto">
+                                                    <p class="text-sm text-green-200 mb-2">{{ __('payment.show_qr') }}</p>
+                                                    <div class="mx-auto bg-white p-2 rounded-md inline-block max-w-full">
+                                                        <img src="{{ $pixQrImage }}" alt="PIX QR" class="w-full h-auto max-w-[260px]" />
+                                                    </div>
+                                                    <p class="text-xs text-gray-400 mt-2">{{ __('payment.pix_valid_until') }}: {{ optional($pixExpiresAt)->toDateTimeString() ?? '-' }}</p>
+
+                                                    <div class="mt-3 w-full flex items-center gap-2">
+                                                        <input id="pix-code" readonly type="text" value="{{ $pixTransactionId }}" class="flex-1 bg-[#07120b] text-white rounded-lg p-2 border border-gray-700" />
+                                                        <button id="pix-copy-btn" type="button" class="pix-copy-btn bg-red-600 hover:bg-red-700 text-white py-2 px-3 rounded-lg">{{ __('payment.copy') }}</button>
+                                                    </div>
+                                                </div>
+                                            @else
+                                                <div class="w-full text-center text-gray-400">{{ __('payment.pix_instructions') }}</div>
+                                            @endif
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
                     </div>
 
                     <!-- Order Bumps -->
@@ -619,30 +594,21 @@ $gateway = config('services.default_payment_gateway', 'stripe');
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
                             @if (is_array($testimonials) && !empty($testimonials))
                                 @foreach ($testimonials as $testimonial)
-                                    <div
-                                        class="bg-gray-800 bg-opacity-50 p-6 rounded-xl border border-gray-700 shadow-lg flex flex-col h-full transform transition-transform hover:scale-105">
-                                        <div class="flex-shrink-0">
-                                            <div class="flex items-center mb-4">
-                                                <img src="https://ui-avatars.com/api/?name={{ substr($testimonial['name'], 0, 1) }}&color=FFFFFF&background=E50914&bold=true&size=48"
-                                                    alt="Avatar"
-                                                    class="w-12 h-12 rounded-full mr-4 border-2 border-red-500">
-                                                <div>
-                                                    <p class="font-bold text-white text-lg">{{ $testimonial['name'] }}
-                                                    </p>
+                                        <div class="bg-[#151515] rounded-2xl p-6 shadow-2xl border border-gray-800 hover:shadow-2xl transform transition-transform hover:-translate-y-1">
+                                            <div class="flex items-start gap-4 mb-3">
+                                                <div class="w-12 h-12 rounded-full bg-[#E50914] flex items-center justify-center text-white font-bold text-lg">{{ strtoupper(substr($testimonial['name'], 0, 1)) }}</div>
+                                                <div class="flex-1">
+                                                    <div class="flex items-center justify-between">
+                                                        <div>
+                                                            <p class="font-semibold text-white">{{ $testimonial['name'] }}</p>
+                                                            <p class="text-xs text-gray-400">{{ $testimonial['location'] ?? '' }}</p>
+                                                        </div>
+                                                        <div class="text-sm text-yellow-400">★★★★★</div>
+                                                    </div>
                                                 </div>
                                             </div>
+                                            <div class="text-gray-300 text-sm leading-relaxed">{{ $testimonial['text'] }}</div>
                                         </div>
-                                        <div class="relative flex-grow">
-                                            <svg class="absolute top-0 left-0 w-8 h-8 text-gray-600 transform -translate-x-2 -translate-y-2"
-                                                fill="currentColor" viewBox="0 0 24 24">
-                                                <path
-                                                    d="M6.5 10c-1.38 0-2.5 1.12-2.5 2.5s1.12 2.5 2.5 2.5 2.5-1.12 2.5-2.5-1.12-2.5-2.5-2.5zm11 0c-1.38 0-2.5 1.12-2.5 2.5s1.12 2.5 2.5 2.5 2.5-1.12 2.5-2.5-1.12-2.5-2.5-2.5zM20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm-8 14c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z"
-                                                    opacity=".2" />
-                                            </svg>
-                                            <p class="text-gray-300 text-base italic pl-4 border-l-4 border-red-500">
-                                                "{{ $testimonial['text'] }}"</p>
-                                        </div>
-                                    </div>
                                 @endforeach
                             @endif
                         </div>
@@ -660,6 +626,7 @@ $gateway = config('services.default_payment_gateway', 'stripe');
             <span class="truncate">{{ __('checkout.cta_button') }}</span>
         </button>
     </div>
+</div>
 </div>
 
 </form>
@@ -784,7 +751,7 @@ $gateway = config('services.default_payment_gateway', 'stripe');
             </svg>
         </div>
         <h3 class="text-2xl font-bold text-white mb-2">{{ __('payment.processing_error') }}</h3>
-        <p class="text-gray-300 text-base whitespace-pre-wrap text-left">{{ $errorMessage }}</p>
+        <p class="text-gray-300 text-base">{{ $errorMessage }}</p>
         <button id="close-error" wire:click.prevent="closeModal"
             class="mt-6 bg-[#E50914] hover:bg-[#B8070F] text-white py-3 px-8 text-lg font-bold rounded-xl transition-all w-full transform hover:scale-105">
             {{ __('payment.close') }}
@@ -872,13 +839,9 @@ $gateway = config('services.default_payment_gateway', 'stripe');
             </div>
         </div>
     </div>
-</div>
 
-
-
-
-<!-- Modal Usuário Existente -->
-<div id="user-exists-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 @if (!$showUserExistsModal) hidden @endif">
+    <!-- Modal Usuário Existente -->
+    <div id="user-exists-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 @if (!$showUserExistsModal) hidden @endif">
     <div class="bg-[#1F1F1F] rounded-xl p-8 max-w-md w-full mx-4 text-center">
         <div class="text-center mb-4">
             <div class="bg-[#E50914] rounded-full h-16 w-16 flex items-center justify-center mx-auto mb-4">
@@ -903,12 +866,10 @@ $gateway = config('services.default_payment_gateway', 'stripe');
             {{ __("payment.forgot_password_prompt") }}
         </p>
     </div>
-</div>
+    </div>
 
-<!-- Stripe JS -->
-@push('scripts')
-@vite('resources/js/pages/pay.js')
-@if($gateway === 'stripe')
+    <!-- Stripe JS -->
+    @if($gateway === 'stripe' || config('services.stripe.api_public_key'))
 <script src="https://js.stripe.com/v3/"></script>
 <script>
     let stripeCard = null;
@@ -1008,5 +969,43 @@ $gateway = config('services.default_payment_gateway', 'stripe');
     });
 </script>
 @endif
-@endpush
+
+<script>
+    // Handle PIX generated browser event to scroll to result and optionally show small animation
+    window.addEventListener('pix:generated', function(e) {
+        try {
+            setTimeout(function(){
+                var el = document.getElementById('pix-result');
+                if (el) {
+                    el.scrollIntoView({behavior: 'smooth', block: 'center'});
+                }
+            }, 100);
+        } catch (err) {
+            console.warn('pix:generated handler error', err);
+        }
+    });
+
+    // Copy PIX code button handling (delegated)
+    document.addEventListener('click', function(event) {
+        var target = event.target;
+        if (target && target.classList && target.classList.contains('pix-copy-btn')) {
+            var input = document.getElementById('pix-code');
+            if (!input) return;
+            var text = input.value || input.getAttribute('value') || '';
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text).then(function() {
+                    var original = target.textContent;
+                    target.textContent = 'Copiado';
+                    setTimeout(function(){ target.textContent = original; }, 2000);
+                }).catch(function(err){
+                    console.warn('Could not copy text: ', err);
+                });
+            } else {
+                // fallback
+                input.select && input.select();
+                try { document.execCommand('copy'); target.textContent = 'Copiado'; setTimeout(function(){ target.textContent = 'Copiar'; },2000); } catch(e) { console.warn('execCommand copy failed', e); }
+            }
+        }
+    });
+</script>
 </div>

@@ -87,5 +87,10 @@ return [
     'support' => 'Suporte',
     'copyright' => '2025© Snaphubb. Todos os direitos reservados.',
     'legal_notice' => 'Aviso Legal',
+    'required_field' => 'Campo obrigatório',
+    'pix_generation_failed' => 'Falha ao gerar PIX. Tente novamente.',
+    'pix_generation_error' => 'Erro ao gerar PIX',
+    'instant_confirmation' => 'Confirmação instantânea',
+    'invalid_amount' => 'Valor inválido para pagamento',
 ];
 
