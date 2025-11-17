@@ -8,6 +8,7 @@ use App\Rules\ValidPhoneNumber;
 use App\Services\MercadoPagoPixService; // Added for PIX payments
 use GuzzleHttp\Client;
 use GuzzleHttp\Psr7\Request;
+use Illuminate\Support\Facades\Http;
 use Livewire\Component;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Log;
@@ -926,6 +927,80 @@ class PagePay extends Component
         }
     }
 
+    /**
+     * Prepara dados do PIX sincronizados com o Stripe
+     * Reutiliza o mesmo valor e estrutura de carrinho
+     */
+    private function preparePIXData(): array
+    {
+        // 1. EXTRAIR VALOR DA FONTE DE VERDADE ($this->totals)
+        $numeric_final_price = floatval(
+            str_replace(',', '.', 
+                str_replace('.', '', $this->totals['final_price'])
+            )
+        );
+        
+        // 2. PREPARAR DADOS DO CLIENTE
+        $customerData = [
+            'name' => $this->pixName,
+            'email' => $this->pixEmail,
+            'phone_number' => preg_replace('/[^0-9+]/', '', $this->pixPhone),
+        ];
+        
+        if ($this->selectedLanguage === 'br' && $this->pixCpf) {
+            $customerData['document'] = preg_replace('/\D/', '', $this->pixCpf);
+        }
+        
+        // 3. PREPARAR ITENS DO CARRINHO (MESMO QUE STRIPE)
+        $cartItems = [];
+        $currentPlanDetails = $this->plans[$this->selectedPlan];
+        $currentPlanPriceInfo = $currentPlanDetails['prices'][$this->selectedCurrency];
+        
+        $cartItems[] = [
+            'product_hash' => $currentPlanDetails['hash'],
+            'title' => $this->product['title'] . ' - ' . $currentPlanDetails['label'],
+            'price' => (int)round(floatval($currentPlanPriceInfo['descont_price']) * 100),
+            'quantity' => 1,
+            'operation_type' => 1,
+        ];
+        
+        // 4. ADICIONAR ORDER BUMPS (se houver)
+        foreach ($this->bumps as $bump) {
+            if (!empty($bump['active'])) {
+                $cartItems[] = [
+                    'product_hash' => $bump['hash'],
+                    'title' => $bump['title'],
+                    'price' => (int)round(floatval($bump['price']) * 100),
+                    'quantity' => 1,
+                    'operation_type' => 2,
+                ];
+            }
+        }
+        
+        // 5. ESTRUTURAR DADOS FINAIS
+        return [
+            'amount' => (int)round($numeric_final_price * 100),
+            'currency_code' => $this->selectedCurrency,
+            'plan_key' => $this->selectedPlan,
+            'offer_hash' => $currentPlanDetails['hash'],
+            'customer' => $customerData,
+            'cart' => $cartItems,
+            'gateway' => 'mercadopago',
+            'metadata' => [
+                'product_main_hash' => $this->product['hash'],
+                'bumps_selected' => collect($this->bumps)->where('active', true)->pluck('id')->implode(','),
+                'utm_source' => $this->utm_source,
+                'utm_medium' => $this->utm_medium,
+                'utm_campaign' => $this->utm_campaign,
+                'utm_id' => $this->utm_id,
+                'utm_term' => $this->utm_term,
+                'utm_content' => $this->utm_content,
+                'language' => $this->selectedLanguage,
+                'payment_method' => 'pix',
+            ]
+        ];
+    }
+
     public function generatePixPayment()
     {
         try {
@@ -958,23 +1033,18 @@ class PagePay extends Component
             $this->showProcessingModal = true;
             $this->loadingMessage = __('payment.loader_processing');
 
-            // Calcular o total a ser pago em centavos
-            $totalAmount = $this->getTotalPixAmount() * 100; // Converter para centavos
+            // Preparar dados do PIX sincronizados com Stripe
+            $pixData = $this->preparePIXData();
 
-            if ($totalAmount <= 0) {
+            if ($pixData['amount'] <= 0) {
                 $this->errorMessage = __('payment.invalid_amount');
                 $this->showErrorModal = true;
                 $this->showProcessingModal = false;
                 return;
             }
 
-            // Gerar PIX via Mercado Pago
-            $response = $this->pixService->createPixPayment([
-                'amount' => (int) $totalAmount,
-                'description' => 'Assinatura SnapHubb - ' . $this->selectedPlan,
-                'customerName' => trim($this->pixName),
-                'customerEmail' => trim($this->pixEmail),
-            ]);
+            // Enviar para backend (que valida e chama Mercado Pago)
+            $response = $this->sendPixToBackend($pixData);
 
             if ($response['status'] === 'success' && isset($response['data'])) {
                 $pixData = $response['data'];
@@ -1005,6 +1075,37 @@ class PagePay extends Component
             $this->errorMessage = __('payment.pix_generation_error');
             $this->showErrorModal = true;
             $this->showProcessingModal = false;
+        }
+    }
+
+    /**
+     * Envia dados do PIX para o backend para processamento seguro
+     */
+    private function sendPixToBackend(array $pixData): array
+    {
+        try {
+            $response = Http::withHeaders([
+                'Accept' => 'application/json',
+                'X-Requested-With' => 'XMLHttpRequest',
+            ])->post(route('api.pix.create'), $pixData);
+
+            if ($response->successful()) {
+                return $response->json();
+            }
+
+            return [
+                'status' => 'error',
+                'message' => $response->json('message') ?? __('payment.pix_generation_failed'),
+            ];
+        } catch (\Exception $e) {
+            Log::error('Erro ao enviar PIX para backend: ' . $e->getMessage(), [
+                'exception' => $e,
+                'pixData' => $pixData,
+            ]);
+            return [
+                'status' => 'error',
+                'message' => __('payment.pix_generation_error'),
+            ];
         }
     }
 

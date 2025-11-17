@@ -7,6 +7,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Http;
 
 /**
  * Controller para gerenciar pagamentos PIX
@@ -23,74 +24,272 @@ class PixController extends Controller
 
     /**
      * POST /api/pix/create
-     * Cria um novo pagamento PIX
+     * Cria um novo pagamento PIX com validação de integridade
      */
-    public function createPayment(Request $request): JsonResponse
+    public function create(Request $request): JsonResponse
     {
         try {
-            // Validação dos dados recebidos
-            $validator = Validator::make($request->all(), [
-                'amount' => 'required|numeric|min:1',
-                'description' => 'nullable|string|max:255',
-                'customer_email' => 'required|email',
-                'customer_name' => 'required|string|max:255',
-            ], [
-                'amount.required' => 'O valor do pagamento é obrigatório.',
-                'amount.numeric' => 'O valor deve ser um número válido.',
-                'amount.min' => 'O valor deve ser maior que zero.',
-                'customer_email.required' => 'O email do cliente é obrigatório.',
-                'customer_email.email' => 'O email deve ser válido.',
-                'customer_name.required' => 'O nome do cliente é obrigatório.',
+            // 1. VALIDAR DADOS OBRIGATÓRIOS DO FRONTEND
+            $validated = $request->validate([
+                'amount' => 'required|integer|min:50', // Mínimo 0.50 em centavos
+                'currency_code' => 'required|in:BRL,USD,EUR',
+                'plan_key' => 'required|string',
+                'offer_hash' => 'required|string',
+                'customer' => 'required|array',
+                'customer.name' => 'required|string|min:3',
+                'customer.email' => 'required|email',
+                'customer.phone_number' => 'nullable|string',
+                'customer.document' => 'nullable|string',
+                'cart' => 'required|array|min:1',
+                'metadata' => 'nullable|array',
             ]);
 
-            if ($validator->fails()) {
-                Log::warning('PixController: Validação falhou ao criar PIX', [
-                    'errors' => $validator->errors(),
+            // 2. VALIDAR INTEGRIDADE DA TRANSAÇÃO
+            // SEGURANÇA: Verificar que o amount corresponde ao plan_key solicitado
+            $validAmount = $this->isValidAmountForPlan(
+                $validated['plan_key'],
+                $validated['amount'],
+                $validated['currency_code'],
+                $validated['cart']
+            );
+
+            if (!$validAmount) {
+                Log::warning('Tentativa de pagamento com valor inválido', [
+                    'plan_key' => $validated['plan_key'],
+                    'amount' => $validated['amount'],
+                    'ip' => $request->ip(),
                 ]);
 
                 return response()->json([
                     'status' => 'error',
-                    'message' => 'Dados inválidos.',
-                    'errors' => $validator->errors(),
+                    'message' => 'Valor do pagamento não corresponde ao plano selecionado',
                 ], 422);
             }
 
-            // Prepara os dados para o serviço
-            $paymentData = [
-                'amount' => (int) $request->input('amount'),
-                'description' => $request->input('description', 'Pagamento PIX'),
-                'customerEmail' => $request->input('customer_email'),
-                'customerName' => $request->input('customer_name'),
-            ];
-
-            Log::channel('payment_checkout')->info('PixController: Criando pagamento PIX', [
-                'amount' => $paymentData['amount'],
-                'customer_email' => $paymentData['customerEmail'],
-            ]);
-
-            // Chama o serviço para criar o pagamento
-            $result = $this->pixService->createPixPayment($paymentData);
-
-            if ($result['status'] === 'error') {
-                return response()->json($result, 400);
+            // 3. VALIDAR DOCUMENTO (CPF) SE FORNECIDO
+            if (!empty($validated['customer']['document'])) {
+                if (!$this->isValidCpf($validated['customer']['document'])) {
+                    return response()->json([
+                        'status' => 'error',
+                        'message' => 'CPF inválido',
+                    ], 422);
+                }
             }
 
-            // Retorna os dados do PIX com sucesso
+            // 4. CRIAR DESCRIÇÃO DO PAGAMENTO
+            $description = $this->buildPaymentDescription(
+                $validated['plan_key'],
+                $validated['customer']['name']
+            );
+
+            // 5. CHAMAR MERCADO PAGO PARA GERAR PIX
+            $pixPaymentData = [
+                'amount' => (int) $validated['amount'],
+                'description' => $description,
+                'customerName' => $validated['customer']['name'],
+                'customerEmail' => $validated['customer']['email'],
+                'customerPhone' => $validated['customer']['phone_number'] ?? null,
+                'customerDocument' => $validated['customer']['document'] ?? null,
+            ];
+
+            $pixResponse = $this->pixService->createPixPayment($pixPaymentData);
+
+            if ($pixResponse['status'] !== 'success') {
+                Log::error('Erro ao criar PIX no Mercado Pago', [
+                    'response' => $pixResponse,
+                    'customer_email' => $validated['customer']['email'],
+                ]);
+
+                return response()->json([
+                    'status' => 'error',
+                    'message' => $pixResponse['message'] ?? 'Erro ao gerar código PIX',
+                ], 500);
+            }
+
+            // 6. LOG PARA AUDITORIA
+            Log::info('PIX criado com sucesso', [
+                'payment_id' => $pixResponse['data']['payment_id'] ?? null,
+                'amount' => $validated['amount'],
+                'customer_email' => $validated['customer']['email'],
+                'plan_key' => $validated['plan_key'],
+            ]);
+
+            // 7. RETORNAR DADOS DO PIX PARA O FRONTEND
             return response()->json([
                 'status' => 'success',
-                'data' => $result['data'],
+                'data' => [
+                    'payment_id' => $pixResponse['data']['payment_id'] ?? null,
+                    'qr_code_base64' => $pixResponse['data']['qr_code_base64'] ?? null,
+                    'qr_code' => $pixResponse['data']['qr_code'] ?? null,
+                    'amount' => $validated['amount'],
+                    'expiration_date' => $pixResponse['data']['expiration_date'] ?? null,
+                    'status' => $pixResponse['data']['status'] ?? 'pending',
+                ],
             ], 201);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            Log::warning('Validação falhou ao criar PIX', [
+                'errors' => $e->errors(),
+                'ip' => $request->ip(),
+            ]);
+
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Dados de validação inválidos',
+                'errors' => $e->errors(),
+            ], 422);
+
         } catch (\Exception $e) {
-            Log::error('PixController: Erro ao criar pagamento PIX', [
-                'message' => $e->getMessage(),
+            Log::error('Erro ao criar pagamento PIX', [
+                'exception' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
 
             return response()->json([
                 'status' => 'error',
-                'message' => 'Erro interno ao processar o pagamento.',
+                'message' => 'Erro ao processar pagamento',
             ], 500);
         }
+    }
+
+    /**
+     * SEGURANÇA: Valida que o valor do pagamento corresponde ao plano
+     * Previne tentativas de alterar valores no frontend
+     */
+    private function isValidAmountForPlan(
+        string $planKey,
+        int $amount,
+        string $currencyCode,
+        array $cart
+    ): bool
+    {
+        try {
+            // 1. Buscar preço esperado da API (mesma fonte que frontend)
+            $apiUrl = env('PLANS_API_URL') ?? 'https://snaphubb.com/api/get-plans';
+            $response = Http::timeout(10)->get($apiUrl);
+
+            if (!$response->successful()) {
+                Log::warning('Erro ao buscar planos para validação', [
+                    'plan_key' => $planKey,
+                ]);
+                return false;
+            }
+
+            $plansData = $response->json('planos', []);
+
+            // 2. Encontrar o plano solicitado
+            $planFound = false;
+            $expectedAmount = 0;
+
+            foreach ($plansData as $plan) {
+                if ($plan['key'] === $planKey) {
+                    $planFound = true;
+
+                    // Encontrar preço na moeda solicitada
+                    if (isset($plan['prices'][$currencyCode])) {
+                        $priceData = $plan['prices'][$currencyCode];
+                        $basePrice = floatval($priceData['descont_price'] ?? $priceData['price'] ?? 0);
+                        $expectedAmount = (int)round($basePrice * 100);
+                    }
+                    break;
+                }
+            }
+
+            if (!$planFound) {
+                Log::warning('Plano não encontrado para validação', [
+                    'plan_key' => $planKey,
+                ]);
+                return false;
+            }
+
+            // 3. Somar valores dos bumps (order bumps)
+            $bumpsTotal = 0;
+            foreach ($cart as $item) {
+                if (($item['operation_type'] ?? 0) === 2) { // operation_type 2 = bump
+                    $bumpsTotal += $item['price'] ?? 0;
+                }
+            }
+
+            $totalExpected = $expectedAmount + $bumpsTotal;
+
+            // 4. VALIDAR: O amount recebido deve ser igual ao total esperado
+            // Tolerância: 5% para erros de conversão de moedas
+            $tolerance = (int)round($totalExpected * 0.05);
+            $isValid = abs($amount - $totalExpected) <= $tolerance;
+
+            if (!$isValid) {
+                Log::warning('Valor do pagamento não corresponde ao plano', [
+                    'expected_amount' => $totalExpected,
+                    'received_amount' => $amount,
+                    'plan_key' => $planKey,
+                    'difference' => abs($amount - $totalExpected),
+                ]);
+            }
+
+            return $isValid;
+
+        } catch (\Exception $e) {
+            Log::error('Erro ao validar quantidade do plano', [
+                'exception' => $e->getMessage(),
+                'plan_key' => $planKey,
+            ]);
+            // Por segurança, rejeitar se não conseguir validar
+            return false;
+        }
+    }
+
+    /**
+     * Valida CPF com algoritmo de dígitos verificadores
+     */
+    private function isValidCpf(string $cpf): bool
+    {
+        // Remove pontuação
+        $cpf = preg_replace('/[^0-9]/', '', $cpf);
+
+        // CPF deve ter 11 dígitos
+        if (strlen($cpf) !== 11) {
+            return false;
+        }
+
+        // Verifica se todos os dígitos são iguais
+        if (preg_match('/^(\d)\1{10}$/', $cpf)) {
+            return false;
+        }
+
+        // Valida primeiro dígito verificador
+        $sum = 0;
+        for ($i = 0; $i < 9; $i++) {
+            $sum += intval($cpf[$i]) * (10 - $i);
+        }
+        $firstVerifier = 11 - ($sum % 11);
+        $firstVerifier = $firstVerifier >= 10 ? 0 : $firstVerifier;
+
+        if (intval($cpf[9]) !== $firstVerifier) {
+            return false;
+        }
+
+        // Valida segundo dígito verificador
+        $sum = 0;
+        for ($i = 0; $i < 10; $i++) {
+            $sum += intval($cpf[$i]) * (11 - $i);
+        }
+        $secondVerifier = 11 - ($sum % 11);
+        $secondVerifier = $secondVerifier >= 10 ? 0 : $secondVerifier;
+
+        if (intval($cpf[10]) !== $secondVerifier) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Constrói a descrição do pagamento
+     */
+    private function buildPaymentDescription(string $planKey, string $customerName): string
+    {
+        $timestamp = now()->format('d/m/Y H:i');
+        return "Assinatura SnapHubb - Plano {$planKey} - {$customerName} - {$timestamp}";
     }
 
     /**
