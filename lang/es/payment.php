@@ -147,7 +147,7 @@ return [
     'pix_copied' => '¡Código PIX copiado!',
     'pix_waiting_payment' => 'Esperando el pago...',
     'pix_wrong_data' => '¿Datos incorrectos? Volver y corregir.',
-    'complete_to_generate_pix' => 'Complete sus datos para generar el PIX',
+    'complete_to_generate_pix' => 'Complete sus datos para recibir su acceso',
     'pix_access_for_life' => 'Acceso de por vida por un solo pago.',
     'full_name' => 'Nombre completo',
     'pix_title' => 'Pago vía PIX',

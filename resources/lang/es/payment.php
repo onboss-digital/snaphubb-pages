@@ -71,7 +71,11 @@ return [
     'support' => 'Soporte',
     'copyright' => '© :year Snaphubb. Todos los derechos reservados.',
     'instant_confirmation' => 'Confirmación instantánea',
+    'optional' => 'opcional',
     // PIX translations (fallbacks)
+    'loader_processing' => 'Procesando su pago...',
+    'loader_wait' => 'Por favor, espere un momento.',
+    'complete_to_generate_pix' => 'Complete sus datos para recibir su acceso',
     'pix_title' => 'Pagar con PIX',
     'pix_description' => 'Pagar con PIX (solo Brasil)',
     'pix_field_name_label' => 'Nombre Completo',

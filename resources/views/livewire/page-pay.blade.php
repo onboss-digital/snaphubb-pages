@@ -273,13 +273,13 @@ document.addEventListener('DOMContentLoaded', function(){
                                 <!-- Credit Card Option -->
                                 <div class="relative">
                                     <input type="radio" id="method_credit_card" name="payment_method" value="credit_card"
-                                        x-on:change="selectedPaymentMethod = 'credit_card'" 
-                                        wire:model="selectedPaymentMethod"
+                                        x-on:change="selectedPaymentMethod = 'credit_card'; $nextTick(()=>{ const el = document.querySelector('input[name=card_name]'); if(el) el.focus(); })"
                                         class="hidden"
-                                        @if ($selectedPaymentMethod === 'credit_card') checked @endif />
+                                        :checked="selectedPaymentMethod === 'credit_card'" />
                                     <label for="method_credit_card" 
-                                        class="block relative cursor-pointer p-4 rounded-xl border-2 transition-all h-28 flex items-center payment-option
-                                        @if ($selectedPaymentMethod === 'credit_card') border-[#E50914] bg-gradient-to-r from-[#2b2b2b] to-[#161616] @else border-gray-700 bg-[#0f0f10] hover:border-gray-600 @endif">
+                                        :class="selectedPaymentMethod === 'credit_card' 
+                                            ? 'block relative cursor-pointer p-4 rounded-xl border-2 h-28 flex items-center payment-option border-[#E50914] bg-gradient-to-r from-[#2b2b2b] to-[#161616]'
+                                            : 'block relative cursor-pointer p-4 rounded-xl border-2 h-28 flex items-center payment-option border-gray-700 bg-[#0f0f10] hover:border-gray-600'">
                                         <div class="flex items-center justify-between w-full">
                                             <div class="flex items-center gap-4">
                                                 <div class="icon-box p-2 rounded-md bg-gradient-to-br from-[#111827] to-[#0b1220] ring-1 ring-[#7C3AED]/20 flex items-center justify-center">
@@ -296,13 +296,11 @@ document.addEventListener('DOMContentLoaded', function(){
                                                     <p class="text-gray-400 text-sm leading-tight">&nbsp;</p>
                                                 </div>
                                             </div>
-                                            <div class="select-indicator flex items-center justify-center rounded-full border-2 
-                                                @if ($selectedPaymentMethod === 'credit_card') border-[#E50914] bg-[#E50914] @else border-gray-600 @endif">
-                                                @if ($selectedPaymentMethod === 'credit_card')
-                                                    <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path>
-                                                    </svg>
-                                                @endif
+                                            <div class="select-indicator flex items-center justify-center rounded-full border-2"
+                                                :class="selectedPaymentMethod === 'credit_card' ? 'border-[#E50914] bg-[#E50914]' : 'border-gray-600'">
+                                                <svg x-show="selectedPaymentMethod === 'credit_card'" class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path>
+                                                </svg>
                                             </div>
                                         </div>
                                     </label>
@@ -312,13 +310,13 @@ document.addEventListener('DOMContentLoaded', function(){
                                 @if ($selectedLanguage === 'br')
                                     <div class="relative">
                                         <input type="radio" id="method_pix" name="payment_method" value="pix"
-                                            x-on:change="selectedPaymentMethod = 'pix'" 
-                                            wire:model="selectedPaymentMethod"
+                                            x-on:change="selectedPaymentMethod = 'pix'; $nextTick(()=>{ const el = document.querySelector('input[name=pix_name]'); if(el) el.focus(); })"
                                             class="hidden"
-                                            @if ($selectedPaymentMethod === 'pix') checked @endif />
+                                            :checked="selectedPaymentMethod === 'pix'" />
                                         <label for="method_pix" 
-                                            class="block relative cursor-pointer p-4 rounded-xl border-2 transition-all h-28 flex items-center
-                                            @if ($selectedPaymentMethod === 'pix') border-green-400 bg-gradient-to-r from-[#0f1f12] to-[#07120a] @else border-gray-700 bg-[#0f0f10] hover:border-gray-600 @endif">
+                                            :class="selectedPaymentMethod === 'pix'
+                                                ? 'block relative cursor-pointer p-4 rounded-xl border-2 h-28 flex items-center border-green-400 bg-gradient-to-r from-[#0f1f12] to-[#07120a]'
+                                                : 'block relative cursor-pointer p-4 rounded-xl border-2 h-28 flex items-center border-gray-700 bg-[#0f0f10] hover:border-gray-600'">
                                             <div class="flex items-center justify-between w-full">
                                                     <div class="flex items-center gap-4">
                                                         <div class="icon-box text-2xl p-2 rounded-md bg-gradient-to-br from-[#061212] to-[#06231a] ring-1 ring-green-400/20 flex items-center justify-center">
@@ -364,13 +362,11 @@ document.addEventListener('DOMContentLoaded', function(){
                                                         </p>
                                                     </div>
                                                 </div>
-                                                <div class="flex items-center justify-center w-7 h-7 rounded-full border-2 
-                                                    @if ($selectedPaymentMethod === 'pix') border-green-400 bg-green-400 @else border-gray-600 @endif">
-                                                    @if ($selectedPaymentMethod === 'pix')
-                                                        <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path>
-                                                        </svg>
-                                                    @endif
+                                                <div class="flex items-center justify-center w-7 h-7 rounded-full border-2"
+                                                    :class="selectedPaymentMethod === 'pix' ? 'border-green-400 bg-green-400' : 'border-gray-600'">
+                                                    <svg x-show="selectedPaymentMethod === 'pix'" class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path>
+                                                    </svg>
                                                 </div>
                                             </div>
                                         </label>
@@ -379,8 +375,13 @@ document.addEventListener('DOMContentLoaded', function(){
                             </div>
 
                             <!-- Credit Card Form -->
-                            <div x-show="selectedPaymentMethod === 'credit_card'">
+                            <div x-show="selectedPaymentMethod === 'credit_card'" id="card-form-section">
                                 <div class="space-y-4 mt-4">
+                                    @if($cardValidationError)
+                                        <div class="bg-red-500/10 border border-red-500 rounded-lg p-3 mb-4">
+                                            <p class="text-red-500 text-sm font-medium text-center">{{ $cardValidationError }}</p>
+                                        </div>
+                                    @endif
                                     @if ($gateway !== 'stripe')
                                         <div>
                                             <label
@@ -388,6 +389,7 @@ document.addEventListener('DOMContentLoaded', function(){
                                             <input name="card_number" type="text" id="card-number"
                                                 x-mask="9999 9999 9999 9999" placeholder="0000 0000 0000 0000"
                                                 wire:model.defer="cardNumber"
+                                                inputmode="numeric" autocomplete="cc-number" pattern="[0-9\s]{13,19}"
                                                 class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
                                             @error('cardNumber')
                                                 <span class="text-red-500 text-xs mt-1">{{ $message }}</span>
@@ -399,6 +401,7 @@ document.addEventListener('DOMContentLoaded', function(){
                                                     class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.expiry_date') }}</label>
                                                 <input name="card_expiry" type="text" id="card-expiry" x-mask="99/99"
                                                     placeholder="MM/YY" wire:model.defer="cardExpiry"
+                                                    inputmode="numeric" autocomplete="cc-exp" pattern="(0[1-9]|1[0-2])\/([0-9]{2})"
                                                     class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
                                                 @error('cardExpiry')
                                                     <span class="text-red-500 text-xs mt-1">{{ $message }}</span>
@@ -408,7 +411,7 @@ document.addEventListener('DOMContentLoaded', function(){
                                                 <label
                                                     class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.security_code') }}</label>
                                                 <input name="card_cvv" type="text" id="card-cvv" placeholder="CVV"
-                                                    x-mask="9999" wire:model.defer="cardCvv"
+                                                    x-mask="9999" wire:model.defer="cardCvv" inputmode="numeric" autocomplete="cc-csc" pattern="[0-9]{3,4}"
                                                     class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
                                                 @error('cardCvv')
                                                     <span class="text-red-500 text-xs mt-1">{{ $message }}</span>
@@ -433,6 +436,7 @@ document.addEventListener('DOMContentLoaded', function(){
                                             class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.card_name') }}</label>
                                         <input name="card_name" type="text"
                                             placeholder="{{ __('payment.card_name') }}" wire:model.defer="cardName"
+                                            autocomplete="cc-name" spellcheck="false"
                                             class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
                                         @error('cardName')
                                             <span class="text-red-500 text-xs mt-1">{{ $message }}</span>
@@ -440,9 +444,10 @@ document.addEventListener('DOMContentLoaded', function(){
                                     </div>
 
                                     <div>
-                                        <label class="block text-sm font-medium text-gray-300 mb-1">E-mail</label>
-                                        <input name="email" type="email" placeholder="seu@email.com"
+                                        <label class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.email') }}:</label>
+                                        <input name="email" type="email" placeholder="{{ __('payment.pix_field_email_hint') }}"
                                             wire:model.live.debounce.500ms="email"
+                                            autocomplete="email" inputmode="email" spellcheck="false"
                                             class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
                                         <div id="email-suggestion" class="text-xs mt-1">
                                             @if(isset($emailCheckStatus) && $emailCheckStatus === 'checking')
@@ -462,9 +467,9 @@ document.addEventListener('DOMContentLoaded', function(){
 
                                     <div>
                                         <label
-                                            class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.phone') }}</label>
-                                        <input name="phone" id="phone" type="tel" placeholder=""
-                                            wire:model="phone"
+                                            class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.pix_field_phone_label') }} ({{ __('payment.optional') }}):</label>
+                                        <input name="phone" id="phone" type="tel" placeholder="{{ __('payment.pix_field_phone_hint') }}"
+                                            wire:model="phone" inputmode="tel" autocomplete="tel"
                                             class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
                                         @error('phone')
                                             <span class="text-red-500 text-xs mt-1">{{ $message }}</span>
@@ -476,7 +481,7 @@ document.addEventListener('DOMContentLoaded', function(){
                                             <label
                                                 class="block text-sm font-medium text-gray-300 mb-1">CPF</label>
                                             <input name="cpf" type="text" x-mask="999.999.999-99"
-                                                placeholder="000.000.000-00" wire:model.defer="cpf"
+                                                placeholder="000.000.000-00" wire:model.defer="cpf" inputmode="numeric" autocomplete="off"
                                                 class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
                                             @error('cpf')
                                                 <span class="text-red-500 text-xs mt-1">{{ $message }}</span>
@@ -497,7 +502,7 @@ document.addEventListener('DOMContentLoaded', function(){
                                     <div>
                                         <label class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.pix_field_name_label') }}</label>
                                         <input name="pix_name" type="text" placeholder="{{ __('payment.pix_field_name_hint') }}"
-                                            wire:model.defer="pixName"
+                                            wire:model.defer="pixName" autocomplete="name" spellcheck="false"
                                             class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-green-500 transition-all" />
                                         @error('pixName')
                                             <span class="text-red-500 text-xs mt-1">{{ $message }}</span>
@@ -505,9 +510,9 @@ document.addEventListener('DOMContentLoaded', function(){
                                     </div>
 
                                     <div>
-                                        <label class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.pix_field_email_label') }}</label>
+                                        <label class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.pix_field_email_label') }}:</label>
                                         <input name="pix_email" type="email" placeholder="{{ __('payment.pix_field_email_hint') }}"
-                                            wire:model.live.debounce.500ms="pixEmail"
+                                            wire:model.live.debounce.500ms="pixEmail" autocomplete="email" inputmode="email" spellcheck="false"
                                             class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-green-500 transition-all" />
                                         <div id="pix-email-suggestion" class="text-xs text-yellow-400 mt-1"></div>
                                         @error('pixEmail')
@@ -518,7 +523,7 @@ document.addEventListener('DOMContentLoaded', function(){
                                     <div>
                                         <label class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.pix_field_cpf_label') }}</label>
                                         <input name="pix_cpf" type="text" x-mask="999.999.999-99" placeholder="000.000.000-00"
-                                            wire:model.defer="pixCpf"
+                                            wire:model.defer="pixCpf" inputmode="numeric" autocomplete="off"
                                             class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-green-500 transition-all" />
                                         @error('pixCpf')
                                             <span class="text-red-500 text-xs mt-1">{{ $message }}</span>
@@ -526,9 +531,9 @@ document.addEventListener('DOMContentLoaded', function(){
                                     </div>
 
                                     <div>
-                                        <label class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.pix_field_phone_label') }}</label>
-                                        <input name="pix_phone" id="pix_phone" type="tel" placeholder=""
-                                            wire:model="pixPhone"
+                                        <label class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.pix_field_phone_label') }} ({{ __('payment.optional') }}):</label>
+                                        <input name="pix_phone" id="pix_phone" type="tel" placeholder="{{ __('payment.pix_field_phone_hint') }}"
+                                            wire:model="pixPhone" inputmode="tel" autocomplete="tel"
                                             class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-green-500 transition-all" />
                                         @error('pixPhone')
                                             <span class="text-red-500 text-xs mt-1">{{ $message }}</span>
@@ -536,7 +541,7 @@ document.addEventListener('DOMContentLoaded', function(){
                                     </div>
 
                                     <button type="button" onclick="startClientPixFlow(event)"
-                                        class="w-full bg-green-500 hover:bg-green-600 text-white py-3 px-4 text-base font-semibold rounded-lg shadow-lg transition-all flex items-center justify-center gap-2 mt-4">
+                                        class="w-full bg-green-500 hover:bg-green-600 text-white py-3 px-4 text-base font-semibold rounded-lg shadow-lg transition-all flex items-center justify-center gap-2 mt-4 cursor-pointer">
                                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
                                         </svg>
@@ -959,7 +964,7 @@ document.addEventListener('DOMContentLoaded', function(){
 
 
 <!-- Full Screen Loader -->
-<div wire:loading.flex wire:target="startCheckout" class="fixed inset-0 bg-black bg-opacity-80 flex flex-col justify-center items-center text-white z-[9999]">
+<div wire:loading.flex wire:target="isProcessingCard" class="fixed inset-0 bg-black bg-opacity-80 flex flex-col justify-center items-center text-white z-[9999]">
     <svg class="animate-spin h-10 w-10 text-red-500 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V4a10 10 0 00-10 10h2zm8 8a8 8 0 01-8-8H4a10 10 0 0010 10v-2z"></path>
@@ -1071,6 +1076,19 @@ document.addEventListener('DOMContentLoaded', function(){
                 // Focar no primeiro campo vazio
                 setTimeout(() => {
                     const firstInput = pixForm.querySelector('input[name="pix_name"]');
+                    if (firstInput) {
+                        firstInput.focus();
+                    }
+                }, 500);
+            }
+        });
+
+        Livewire.on('scroll-to-card-form', () => {
+            const cardForm = document.getElementById('card-form-section');
+            if (cardForm) {
+                cardForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                setTimeout(() => {
+                    const firstInput = cardForm.querySelector('input[name="card_name"]');
                     if (firstInput) {
                         firstInput.focus();
                     }

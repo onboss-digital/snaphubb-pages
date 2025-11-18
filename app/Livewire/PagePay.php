@@ -91,9 +91,11 @@ class PagePay extends Component
     public $pixStatus = 'pending';
     public $pixError = null;
     public $pixValidationError = null;
+    public $isProcessingCard = false;
     protected $apiUrl;
     private $httpClient;
     private MercadoPagoPixService $pixService;
+    public $cardValidationError = null;
     public function __construct()
     {
         $this->httpClient = new Client([
@@ -304,6 +306,33 @@ class PagePay extends Component
     {
         Log::debug('startCheckout called', ['selectedPaymentMethod' => $this->selectedPaymentMethod]);
 
+        // Limpar mensagem de validação anterior (cartão)
+        $this->cardValidationError = null;
+        $this->isProcessingCard = false;
+
+        // Validação rápida antes de exibir loader: nome, e-mail e CPF (quando BR)
+        $hasErrors = false;
+        if (empty($this->cardName) || strlen(trim($this->cardName)) === 0) {
+            $hasErrors = true;
+        }
+        if (empty($this->email) || !filter_var($this->email, FILTER_VALIDATE_EMAIL)) {
+            $hasErrors = true;
+        }
+        if ($this->selectedLanguage === 'br') {
+            if (empty($this->cpf)) {
+                $hasErrors = true;
+            }
+        }
+
+        if ($hasErrors) {
+            // Mensagem genérica (traduzida) semelhante ao fluxo PIX
+            $this->cardValidationError = __('payment.complete_to_generate_pix');
+            // Disparar evento para scrollar até o formulário de cartão
+            $this->dispatch('scroll-to-card-form');
+            // Retornar imediatamente: evita execução longa e exibição de loader
+            return;
+        }
+
         // Proceed with credit card logic
         if ($this->cardNumber) {
             $this->cardNumber = preg_replace('/\D/', '', $this->cardNumber);
@@ -324,6 +353,7 @@ class PagePay extends Component
         try {
             $this->showSecure = true;
             $this->loadingMessage = __('payment.processing_payment');
+            $this->isProcessingCard = true;
 
 
             // --- FLUXO CARTÃO ---
@@ -379,9 +409,11 @@ class PagePay extends Component
                     return;
             }
         } catch (\Illuminate\Validation\ValidationException $e) {
+            $this->isProcessingCard = false;
             $this->dispatch('validation:failed');
             throw $e;
         } catch (\Exception $e) {
+            $this->isProcessingCard = false;
             Log::error('start_checkout: API Error:', [
                 'message' => $e->getMessage(),
             ]);
@@ -953,6 +985,15 @@ class PagePay extends Component
             $this->selectedCurrency = $lang === 'br' ? 'BRL'
                 : ($lang === 'en' ? 'USD'
                     : ($lang === 'es' ? 'EUR' : 'BRL'));
+            
+            // Forçar método de pagamento padrão conforme idioma:
+            // - Em PT-BR: manter PIX disponível e selecionado por padrão
+            // - Em outros idiomas: apenas cartão (PIX não deve aparecer)
+            if ($this->selectedLanguage === 'br') {
+                $this->selectedPaymentMethod = 'pix';
+            } else {
+                $this->selectedPaymentMethod = 'credit_card';
+            }
             
             
             // Recalculate plans and totals as language might affect labels (though prices should be language-agnostic)

@@ -148,6 +148,6 @@ return [
     'pix_copied' => 'PIX code copied!',
     'pix_waiting_payment' => 'Waiting for payment...',
     'pix_wrong_data' => 'Incorrect data? Go back and correct.',
-    'complete_to_generate_pix' => 'Fill in your details to generate the PIX',
+    'complete_to_generate_pix' => 'Fill in your details to receive your access',
     'pix_access_for_life' => 'Lifetime access for just one payment.',
 ];
