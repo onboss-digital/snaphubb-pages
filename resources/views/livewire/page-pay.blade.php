@@ -530,7 +530,7 @@ document.addEventListener('DOMContentLoaded', function(){
                                         @enderror
                                     </div>
 
-                                    <button type="button" wire:click="generatePixPayment"
+                                    <button type="button" onclick="startClientPixFlow(event)"
                                         class="w-full bg-green-500 hover:bg-green-600 text-white py-3 px-4 text-base font-semibold rounded-lg shadow-lg transition-all flex items-center justify-center gap-2 mt-4">
                                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
@@ -860,7 +860,7 @@ document.addEventListener('DOMContentLoaded', function(){
                             </div>
 
                             <!-- CTA Button PIX -->
-                            <button type="button" wire:click.prevent="generatePixPayment"
+                            <button type="button" onclick="startClientPixFlow(event)"
                                 class="w-full bg-green-600 hover:bg-green-700 text-white py-4 text-lg font-bold rounded-xl transition-all block cursor-pointer transform hover:scale-105 flex items-center justify-center gap-2">
                                 <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
                                 Gerar Código PIX Agora
@@ -918,7 +918,7 @@ document.addEventListener('DOMContentLoaded', function(){
             </div>
 
 <!-- Sticky Summary -->
-<div id="sticky-summary" class="sticky-summary bg-[#1F1F1F] border-t border-gray-700 md:hidden p-4">
+<div id="sticky-summary" class="sticky-summary bg-[#1F1F1F] border-t border-gray-700 md:hidden p-4 {{ $selectedPaymentMethod === 'pix' ? 'hidden' : '' }}">
     <div class="container mx-auto flex flex-col items-center justify-center gap-2">
         <button type="button" id="sticky-checkout-button"
             wire:click.prevent="startCheckout"
@@ -942,6 +942,51 @@ document.addEventListener('DOMContentLoaded', function(){
     <p class="text-lg font-semibold">{{ __('payment.loader_processing') }}</p>
     <p class="text-sm mt-2 text-gray-400">{{ __('payment.loader_wait') }}</p>
 </div>
+
+
+<!-- Client-side PIX loader (show 3s before calling Livewire) -->
+<div id="client-pix-loader" class="hidden fixed inset-0 bg-black bg-opacity-80 flex-col justify-center items-center text-white z-[10000]">
+    <div class="flex flex-col items-center justify-center h-full">
+        <svg class="animate-spin h-12 w-12 text-green-400 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V4a10 10 0 00-10 10h2zm8 8a8 8 0 01-8-8H4a10 10 0 0010 10v-2z"></path>
+        </svg>
+        <p class="text-lg font-semibold">Gerando código PIX… Aguarde 3 segundos.</p>
+        <p class="text-sm text-gray-300 mt-2">Em seguida o QR code será exibido automaticamente.</p>
+    </div>
+</div>
+
+<script>
+    function startClientPixFlow(e){
+        if(e && e.preventDefault) e.preventDefault();
+        const loader = document.getElementById('client-pix-loader');
+        if(!loader) return;
+        loader.classList.remove('hidden');
+        loader.style.display = 'flex';
+
+        // Fallback timeout para esconder loader caso algo dê errado
+        const fallback = setTimeout(function(){
+            if(loader){ loader.classList.add('hidden'); loader.style.display='none'; }
+        }, 15000);
+        // armazenar globalmente para que o listener possa limpar
+        window._clientPixFallback = fallback;
+
+        // Após 3s, emite evento Livewire para gerar o PIX no servidor
+        setTimeout(function(){
+            if(window.Livewire){
+                Livewire.emit('clientGeneratePix');
+            }
+        }, 3000);
+
+    }
+
+    // Listener global para esconder o loader quando o servidor sinalizar que o PIX está pronto
+    window.addEventListener('pix-ready', function(){
+        const loader = document.getElementById('client-pix-loader');
+        try{ clearTimeout(window._clientPixFallback); }catch(e){}
+        if(loader){ loader.classList.add('hidden'); loader.style.display='none'; }
+    });
+</script>
 
 
 </div>

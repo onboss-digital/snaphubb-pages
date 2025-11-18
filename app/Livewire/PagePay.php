@@ -626,6 +626,8 @@ class PagePay extends Component
         return [
             'updatePhone' => 'updatePhone',
             'checkPixPaymentStatus' => 'checkPixPaymentStatus',
+            // Evento disparado pelo client-side para iniciar fluxo com loader
+            'clientGeneratePix' => 'generatePixPayment',
         ];
     }
 
@@ -775,10 +777,14 @@ class PagePay extends Component
             if ($response['status'] === 'error') {
                 Log::warning('PagePay: Erro ao consultar status do PIX', [
                     'payment_id' => $this->pixTransactionId,
+                    }
+
+                    // Notifica o front-end que o PIX está pronto (para esconder loader cliente)
+                    try {
+                        $this->dispatchBrowserEvent('pix-ready', ['payment_id' => $this->pixTransactionId]);
+                    } catch (\Exception $_) {
+                        // não-fatal
                     'message' => $response['message'],
-                ]);
-                return;
-            }
 
             $paymentData = $response['data'];
             $paymentStatus = $paymentData['payment_status'] ?? 'pending';
@@ -1222,6 +1228,12 @@ class PagePay extends Component
                 // Iniciar polling para checar status
                 if ($this->pixTransactionId) {
                     $this->dispatch('startPixPolling', transactionId: $this->pixTransactionId);
+                }
+                // Notifica o front-end que o PIX está pronto (para esconder loader cliente)
+                try {
+                    $this->dispatchBrowserEvent('pix-ready', ['payment_id' => $this->pixTransactionId]);
+                } catch (\Exception $_) {
+                    // não-fatal
                 }
             } else {
                 $this->errorMessage = $response['message'] ?? __('payment.pix_generation_failed');
