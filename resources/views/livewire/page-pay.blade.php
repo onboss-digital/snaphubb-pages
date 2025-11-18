@@ -959,13 +959,19 @@ document.addEventListener('DOMContentLoaded', function(){
 <script>
     function startClientPixFlow(e){
         if(e && e.preventDefault) e.preventDefault();
+        console.log('startClientPixFlow: iniciando...');
         const loader = document.getElementById('client-pix-loader');
-        if(!loader) return;
+        if(!loader) {
+            console.error('Loader não encontrado!');
+            return;
+        }
         loader.classList.remove('hidden');
         loader.style.display = 'flex';
+        console.log('Loader exibido, aguardando 3s...');
 
         // Fallback timeout para esconder loader caso algo dê errado
         const fallback = setTimeout(function(){
+            console.warn('Fallback: escondendo loader após 15s');
             if(loader){ loader.classList.add('hidden'); loader.style.display='none'; }
         }, 15000);
         // armazenar globalmente para que o listener possa limpar
@@ -973,18 +979,28 @@ document.addEventListener('DOMContentLoaded', function(){
 
         // Após 3s, emite evento Livewire para gerar o PIX no servidor
         setTimeout(function(){
+            console.log('3s passados, chamando Livewire...');
             if(window.Livewire){
-                Livewire.emit('clientGeneratePix');
+                // Livewire 3 usa dispatch() ao invés de emit()
+                Livewire.dispatch('clientGeneratePix');
+                console.log('Evento clientGeneratePix disparado');
+            } else {
+                console.error('Livewire não está disponível!');
             }
         }, 3000);
 
     }
 
     // Listener global para esconder o loader quando o servidor sinalizar que o PIX está pronto
-    window.addEventListener('pix-ready', function(){
+    window.addEventListener('pix-ready', function(event){
+        console.log('Evento pix-ready recebido:', event.detail);
         const loader = document.getElementById('client-pix-loader');
         try{ clearTimeout(window._clientPixFallback); }catch(e){}
-        if(loader){ loader.classList.add('hidden'); loader.style.display='none'; }
+        if(loader){ 
+            loader.classList.add('hidden'); 
+            loader.style.display='none'; 
+            console.log('Loader escondido após pix-ready');
+        }
     });
 </script>
 

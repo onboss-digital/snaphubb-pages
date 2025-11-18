@@ -777,14 +777,10 @@ class PagePay extends Component
             if ($response['status'] === 'error') {
                 Log::warning('PagePay: Erro ao consultar status do PIX', [
                     'payment_id' => $this->pixTransactionId,
-                    }
-
-                    // Notifica o front-end que o PIX está pronto (para esconder loader cliente)
-                    try {
-                        $this->dispatchBrowserEvent('pix-ready', ['payment_id' => $this->pixTransactionId]);
-                    } catch (\Exception $_) {
-                        // não-fatal
                     'message' => $response['message'],
+                ]);
+                return;
+            }
 
             $paymentData = $response['data'];
             $paymentStatus = $paymentData['payment_status'] ?? 'pending';
