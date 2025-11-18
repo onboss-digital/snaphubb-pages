@@ -448,8 +448,13 @@ class PagePay extends Component
                 'content_type' => 'product',
             ];
 
-            // Dispatch the event to the browser
+            // Dispatch the event to the browser (Livewire emit and browser event)
             $this->dispatch('checkout-success', purchaseData: $purchaseData);
+            try {
+                $this->dispatchBrowserEvent('checkout-success', $purchaseData);
+            } catch (\Exception $e) {
+                Log::warning('Could not dispatch browser event checkout-success: ' . $e->getMessage());
+            }
 
             if (isset($response['data']['redirect_url']) && !empty($response['data']['redirect_url'])) {
                 $customerId = $response['data']['customerId'] ?? null;
@@ -826,11 +831,20 @@ class PagePay extends Component
         $this->showProcessingModal = false;
 
         // Dispatch evento de sucesso para tracking (Facebook Pixel, etc)
-        $this->dispatch('checkout-success', purchaseData: [
+        $purchaseData = [
             'transaction_id' => $this->pixTransactionId,
             'value' => $this->pixAmount,
             'currency' => $this->selectedCurrency,
-        ]);
+            'content_ids' => [$this->product['hash'] ?? null],
+            'content_type' => 'product',
+        ];
+
+        $this->dispatch('checkout-success', purchaseData: $purchaseData);
+        try {
+            $this->dispatchBrowserEvent('checkout-success', $purchaseData);
+        } catch (\Exception $e) {
+            Log::warning('Could not dispatch browser event checkout-success (pix): ' . $e->getMessage());
+        }
 
         // Marcar sessão para indicar que devemos exibir o upsell
         try {

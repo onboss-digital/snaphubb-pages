@@ -54,24 +54,96 @@ $gateway = config('services.default_payment_gateway', 'stripe');
     })(window, document, "clarity", "script", "rtcb4op3g8");
 </script>
 
-<!-- Google Analytics -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-VYXG6DL5W4"></script>
+<!-- Google Analytics (GA4) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-G6FBHCNW8X"></script>
 <script>
     window.dataLayer = window.dataLayer || [];
-
-    function gtag() {
-        dataLayer.push(arguments);
-    }
-    gtag('js', new Date());
-
-    gtag('config', 'G-VYXG6DL5W4');
+    function gtag(){dataLayer.push(arguments);} gtag('js', new Date());
+    gtag('config', 'G-G6FBHCNW8X');
 </script>
 <!-- End Google Analytics -->
 @endsection
 
 @section('scripts')
 <script>
+document.addEventListener('DOMContentLoaded', function(){
+    try{
+        // Build checkout data from server variables
+        window.checkoutData = {
+            value: parseFloat("{{ isset($totals['final_price']) ? str_replace(',', '.', str_replace('.', '', $totals['final_price'])) : '0' }}"),
+            currency: '{{ $selectedCurrency ?? 'BRL' }}',
+            content_ids: {!! json_encode(isset($product['hash']) ? [$product['hash']] : []) !!}
+        };
 
+        // Helper to safely call fbq when it's available (prevents lost events)
+        function safeFbqTrack(eventName, params){
+            if (typeof fbq === 'function') { try { fbq('track', eventName, params); } catch(e){ console.warn('fbq track failed', e); } return; }
+            var tries = 0;
+            var iv = setInterval(function(){
+                if (typeof fbq === 'function'){
+                    clearInterval(iv);
+                    try{ fbq('track', eventName, params); }catch(e){ console.warn('fbq track failed after wait', e); }
+                }
+                tries++;
+                if (tries > 20) { clearInterval(iv); console.warn('fbq not available to track', eventName); }
+            }, 250);
+        }
+
+        // InitiateCheckout (FB) and begin_checkout (GA4)
+        safeFbqTrack('InitiateCheckout', {
+            content_category: 'checkout',
+            value: window.checkoutData.value || 0,
+            currency: window.checkoutData.currency || 'BRL'
+        });
+
+        if (typeof gtag === 'function') {
+            gtag('event', 'begin_checkout', {
+                currency: window.checkoutData.currency || 'BRL',
+                value: window.checkoutData.value || 0,
+                items: (window.checkoutData.content_ids || []).map(function(id){ return {id: id, item_brand: 'Snaphubb', item_category: 'checkout'}; })
+            });
+        }
+
+        // Listen for payment method changes to fire add_payment_info (GA4)
+        var paymentInputs = document.querySelectorAll('input[name="payment_method"]');
+        paymentInputs.forEach(function(inp){
+            inp.addEventListener('change', function(e){
+                var method = e.target.value || (e.target.getAttribute('value') || 'unknown');
+                if (typeof gtag === 'function') {
+                    gtag('event', 'add_payment_info', {payment_type: method});
+                }
+            });
+        });
+
+        // Listen for checkout-success Livewire event (server-side approved)
+        if (window.Livewire) {
+            Livewire.on('checkout-success', function(payload){
+                var purchase = (payload && payload.purchaseData) ? payload.purchaseData : payload || {};
+                var value = parseFloat(purchase.value || window.checkoutData.value || 0);
+                var currency = purchase.currency || window.checkoutData.currency || 'BRL';
+                var content_ids = purchase.content_ids || window.checkoutData.content_ids || [];
+
+                // Facebook Purchase (use safe wrapper in case fbq not yet ready)
+                safeFbqTrack('Purchase', {
+                    value: value,
+                    currency: currency,
+                    content_ids: content_ids,
+                    content_type: 'product'
+                });
+
+                // GA4 purchase
+                if (typeof gtag === 'function') {
+                    gtag('event', 'purchase', {
+                        transaction_id: purchase.transaction_id || null,
+                        value: value,
+                        currency: currency,
+                        items: (content_ids || []).map(function(id){ return {id: id, item_brand: 'Snaphubb', item_category: 'purchase'}; })
+                    });
+                }
+            });
+        }
+    }catch(e){ console.error('analytics error', e); }
+});
 </script>
 @endsection
 
