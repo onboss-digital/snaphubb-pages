@@ -18,7 +18,8 @@ class PagePay extends Component
 
     public $paymentMethodId, $cardName, $cardNumber, $cardExpiry, $cardCvv, $email, $phone, $cpf,
         $pixName, $pixEmail, $pixCpf, $pixPhone,
-        $emailCheckStatus, $emailCheckMessage,
+        
+        
         $plans, $modalData, $product, $testimonials = [],
         $utm_source, $utm_medium, $utm_campaign, $utm_id, $utm_term, $utm_content, $src, $sck,
         $usingPixMock = false;
@@ -989,62 +990,9 @@ class PagePay extends Component
 
     public function updatedEmail($email)
     {
-        // Primeiro, valida o formato para não fazer chamadas à API com e-mails inválidos
-        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            $this->emailCheckStatus = null;
-            $this->emailCheckMessage = null;
-            return;
-        }
-
-        // Esconde o modal caso o usuário corrija o e-mail
-        $this->showUserExistsModal = false;
-        // Indica estado de verificação para a view
-        $this->emailCheckStatus = 'checking';
-        $this->emailCheckMessage = __('payment.checking_email') ?? 'Verificando...';
-
-        try {
-            $url = rtrim($this->apiUrl, '/') . '/check-user-exists';
-            Log::debug('updatedEmail: calling check-user-exists (GET)', ['url' => $url, 'email' => $email]);
-
-            $response = $this->httpClient->get($url, [
-                'headers' => [
-                    'Accept' => 'application/json',
-                    'X-Requested-With' => 'XMLHttpRequest',
-                ],
-                'query' => ['email' => $email],
-                'timeout' => 5,
-            ]);
-
-            $statusCode = $response->getStatusCode();
-            $contentType = $response->getHeaderLine('Content-Type');
-            $body = $response->getBody()->getContents();
-            Log::debug('updatedEmail: response (GET)', ['status' => $statusCode, 'content_type' => $contentType, 'body_snippet' => substr($body,0,1000)]);
-
-            if (stripos($contentType, 'application/json') !== false) {
-                $data = json_decode($body, true);
-                if (isset($data['exists']) && $data['exists']) {
-                    $this->showUserExistsModal = true;
-                    $this->emailCheckStatus = 'exists';
-                    $this->emailCheckMessage = __('payment.user_exists_message_short') ?? 'Usuário já existe';
-                } else {
-                    $this->emailCheckStatus = 'not_found';
-                    $this->emailCheckMessage = __('payment.email_available') ?? 'E-mail disponível';
-                }
-            } else {
-                Log::warning('updatedEmail: expected JSON but got different content type', ['content_type' => $contentType, 'body_snippet' => substr($body, 0, 500)]);
-                $this->emailCheckStatus = 'error';
-                $this->emailCheckMessage = __('payment.email_check_failed') ?? 'Erro ao verificar e-mail';
-            }
-        } catch (\GuzzleHttp\Exception\ClientException $e) {
-            // Client errors (4xx) - log full response if available
-            Log::error('Falha ao verificar e-mail de usuário existente: ' . $e->getMessage());
-            $this->emailCheckStatus = 'error';
-            $this->emailCheckMessage = __('payment.email_check_failed') ?? 'Erro ao verificar e-mail';
-        } catch (\Exception $e) {
-            Log::error('Falha ao verificar e-mail de usuário existente: ' . $e->getMessage());
-            $this->emailCheckStatus = 'error';
-            $this->emailCheckMessage = __('payment.email_check_failed') ?? 'Erro ao verificar e-mail';
-        }
+        // removed email existence check - no-op to avoid external verification
+        // Keeping method intentionally empty so Livewire updates don't trigger external calls
+        return;
     }
 
     private function updateProductDetails()
