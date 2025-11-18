@@ -19,14 +19,14 @@ class MercadoPagoPixService
 
     public function __construct()
     {
-        // Determina o ambiente baseado na variável MERCADOPAGO_ENV
-        $this->environment = env('MERCADOPAGO_ENV', 'sandbox');
-        
-        // Seleciona o token baseado no ambiente
+        // Determina o ambiente a partir do arquivo de configuração
+        $this->environment = config('services.mercadopago.env', 'sandbox');
+
+        // Seleciona o token baseado no ambiente, lendo do arquivo de configuração
         if ($this->environment === 'production') {
-            $this->accessToken = env('MERCADOPAGO_PRODUCTION_TOKEN', '');
+            $this->accessToken = config('services.mercadopago.production_token', '');
         } else {
-            $this->accessToken = env('MERCADOPAGO_SANDBOX_TOKEN', '');
+            $this->accessToken = config('services.mercadopago.sandbox_token', '');
         }
         
         // Inicializa o cliente HTTP com verificação SSL desabilitada em debug
