@@ -124,7 +124,7 @@ class UpsellOffer extends Component
 
     public function declineOffer()
     {
-        return redirect('/upsell/thank-you');
+        return redirect('/upsell/thank-you-recused');
     }
 
     private function getCustomerData()

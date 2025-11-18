@@ -21,6 +21,11 @@ Route::get('/upsell/thank-you', function(){
 	return view('upsell.thank');
 })->name('upsell.thank');
 
+// Página quando o usuário recusa o upsell
+Route::get('/upsell/thank-you-recused', function(){
+    return view('upsell.thank-you-recused');
+})->name('upsell.thank_recused');
+
 // Debug: Rota para simular sessão de cliente (apenas para testes locais)
 Route::get('/debug/set-last-customer', function(){
 	session(['last_order_customer' => [
