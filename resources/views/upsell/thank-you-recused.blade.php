@@ -6,7 +6,7 @@
     <title>Parabéns — Snaphubb</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body class="min-h-screen bg-black text-white overflow-hidden">
+<body class="min-h-screen bg-black text-white">
   <!-- Animated Background -->
   <div class="fixed inset-0 overflow-hidden pointer-events-none">
     <div class="absolute top-0 left-1/4 w-96 h-96 bg-red-600/20 rounded-full blur-3xl animate-pulse"></div>
@@ -173,7 +173,7 @@
         }
         if(seconds === 0){
           clearInterval(interval);
-          window.location.href = 'https://snaphubb.com/login';
+          // Não redirecionar automaticamente — manter o usuário na página
         }
       }, 1000);
 
