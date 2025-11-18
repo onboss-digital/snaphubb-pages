@@ -89,6 +89,7 @@ class PagePay extends Component
     public $pixAmount = null;
     public $pixStatus = 'pending';
     public $pixError = null;
+    public $pixValidationError = null;
     protected $apiUrl;
     private $httpClient;
     private MercadoPagoPixService $pixService;
@@ -1168,28 +1169,31 @@ class PagePay extends Component
     public function generatePixPayment()
     {
         try {
+            // Limpar mensagem de validação anterior
+            $this->pixValidationError = null;
+            
             // Validar dados obrigatórios do PIX
-            $errors = [];
+            $hasErrors = false;
 
             // Validar Nome (obrigatório)
             if (empty($this->pixName) || strlen(trim($this->pixName)) === 0) {
-                $errors[] = __('payment.pix_field_name_label') . ' é obrigatório';
+                $hasErrors = true;
             }
 
             // Validar Email (obrigatório)
             if (empty($this->pixEmail) || !filter_var($this->pixEmail, FILTER_VALIDATE_EMAIL)) {
-                $errors[] = __('payment.pix_field_email_label') . ' é obrigatório';
+                $hasErrors = true;
             }
 
             // Validar CPF (obrigatório)
             if (empty($this->pixCpf) || !$this->isValidCpf($this->pixCpf)) {
-                $errors[] = __('payment.pix_field_cpf_label') . ' é obrigatório';
+                $hasErrors = true;
             }
 
-            // Se houver erros de validação, mostrar e retornar
-            if (!empty($errors)) {
-                $this->errorMessage = implode("\n", $errors);
-                $this->showErrorModal = true;
+            // Se houver erros de validação, mostrar mensagem e disparar scroll
+            if ($hasErrors) {
+                $this->pixValidationError = 'Preencha os dados para receber seu acesso';
+                $this->dispatch('scroll-to-pix-form');
                 return;
             }
 

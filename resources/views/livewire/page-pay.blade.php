@@ -487,8 +487,13 @@ document.addEventListener('DOMContentLoaded', function(){
                             </div>
 
                             <!-- PIX Form -->
-                            <div x-show="selectedPaymentMethod === 'pix'">
+                            <div x-show="selectedPaymentMethod === 'pix'" id="pix-form-section">
                                 <div class="space-y-4 mt-4">
+                                    @if($pixValidationError)
+                                        <div class="bg-red-500/10 border border-red-500 rounded-lg p-3 mb-4">
+                                            <p class="text-red-500 text-sm font-medium text-center">{{ $pixValidationError }}</p>
+                                        </div>
+                                    @endif
                                     <div>
                                         <label class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.pix_field_name_label') }}</label>
                                         <input name="pix_name" type="text" placeholder="{{ __('payment.pix_field_name_hint') }}"
@@ -880,9 +885,29 @@ document.addEventListener('DOMContentLoaded', function(){
                             {{ __('checkout.testimonials_title') }}</h2>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                             @if (is_array($testimonials) && !empty($testimonials))
-                                @foreach ($testimonials as $testimonial)
+                                @foreach ($testimonials as $index => $testimonial)
                                     @php
-                                        $displayTime = $testimonial['time'] ?? 'há ' . rand(1, 6) . ' dias';
+                                        // Gera dias de forma dinâmica mas consistente baseado no índice e data atual
+                                        // Isso faz com que os dias mudem a cada 1-2 dias de forma realista
+                                        $dayOfYear = (int)date('z'); // Dia do ano (0-365)
+                                        $baseDay = (int)($dayOfYear / 2); // Muda a cada 2 dias
+                                        $seed = $baseDay + (int)$index; // Seed único por testimonial
+                                        
+                                        // Gera um número pseudo-aleatório consistente (1-14 dias)
+                                        $daysAgo = (int)((($seed * 9301 + 49297) % 233280) % 14 + 1);
+                                        
+                                        // Formata a mensagem de tempo
+                                        if (isset($testimonial['time'])) {
+                                            $displayTime = $testimonial['time'];
+                                        } elseif ($daysAgo == 1) {
+                                            $displayTime = 'há 1 dia';
+                                        } elseif ($daysAgo < 7) {
+                                            $displayTime = 'há ' . strval($daysAgo) . ' dias';
+                                        } elseif ($daysAgo < 14) {
+                                            $displayTime = 'há 1 semana';
+                                        } else {
+                                            $displayTime = 'há 2 semanas';
+                                        }
                                     @endphp
                                     <div class="rounded-2xl bg-[#0f172a]/90 border border-gray-700/60 shadow-[0_15px_45px_rgba(0,0,0,0.55)] p-6 flex flex-col gap-5 transition duration-300 hover:-translate-y-1 hover:border-[#7C3AED]">
                                         <div class="flex items-start gap-4">
@@ -960,6 +985,27 @@ document.addEventListener('DOMContentLoaded', function(){
     function startClientPixFlow(e){
         if(e && e.preventDefault) e.preventDefault();
         console.log('startClientPixFlow: iniciando...');
+        
+        // Validar campos antes de mostrar o loader
+        const pixName = document.querySelector('input[name="pix_name"]');
+        const pixEmail = document.querySelector('input[name="pix_email"]');
+        const pixCpf = document.querySelector('input[name="pix_cpf"]');
+        
+        // Verificar se os campos estão preenchidos
+        const isNameValid = pixName && pixName.value.trim().length > 0;
+        const isEmailValid = pixEmail && pixEmail.value.trim().length > 0 && /\S+@\S+\.\S+/.test(pixEmail.value);
+        const isCpfValid = pixCpf && pixCpf.value.replace(/\D/g, '').length >= 11;
+        
+        if (!isNameValid || !isEmailValid || !isCpfValid) {
+            console.log('Campos não preenchidos, chamando validação do backend...');
+            // Chamar diretamente o backend para validar e mostrar mensagem
+            if(window.Livewire){
+                Livewire.dispatch('clientGeneratePix');
+            }
+            return;
+        }
+        
+        // Se os campos estão preenchidos, mostrar o loader
         const loader = document.getElementById('client-pix-loader');
         if(!loader) {
             console.error('Loader não encontrado!');
@@ -967,27 +1013,35 @@ document.addEventListener('DOMContentLoaded', function(){
         }
         loader.classList.remove('hidden');
         loader.style.display = 'flex';
-        console.log('Loader exibido, aguardando 3s...');
+        loader.style.opacity = '0';
+        // Fade in suave
+        setTimeout(() => {
+            loader.style.transition = 'opacity 0.3s ease-in-out';
+            loader.style.opacity = '1';
+        }, 10);
+        console.log('Loader exibido, chamando Livewire imediatamente...');
 
-        // Fallback timeout para esconder loader caso algo dê errado
+        // Fallback timeout para esconder loader caso algo dê errado (30s)
         const fallback = setTimeout(function(){
-            console.warn('Fallback: escondendo loader após 15s');
-            if(loader){ loader.classList.add('hidden'); loader.style.display='none'; }
-        }, 15000);
+            console.warn('Fallback: escondendo loader após 30s');
+            if(loader){ 
+                loader.style.opacity = '0';
+                setTimeout(() => {
+                    loader.classList.add('hidden'); 
+                    loader.style.display='none';
+                }, 300);
+            }
+        }, 30000);
         // armazenar globalmente para que o listener possa limpar
         window._clientPixFallback = fallback;
 
-        // Após 3s, emite evento Livewire para gerar o PIX no servidor
-        setTimeout(function(){
-            console.log('3s passados, chamando Livewire...');
-            if(window.Livewire){
-                // Livewire 3 usa dispatch() ao invés de emit()
-                Livewire.dispatch('clientGeneratePix');
-                console.log('Evento clientGeneratePix disparado');
-            } else {
-                console.error('Livewire não está disponível!');
-            }
-        }, 3000);
+        // Chamar Livewire imediatamente para gerar o PIX
+        if(window.Livewire){
+            Livewire.dispatch('clientGeneratePix');
+            console.log('Evento clientGeneratePix disparado');
+        } else {
+            console.error('Livewire não está disponível!');
+        }
 
     }
 
@@ -997,10 +1051,32 @@ document.addEventListener('DOMContentLoaded', function(){
         const loader = document.getElementById('client-pix-loader');
         try{ clearTimeout(window._clientPixFallback); }catch(e){}
         if(loader){ 
-            loader.classList.add('hidden'); 
-            loader.style.display='none'; 
-            console.log('Loader escondido após pix-ready');
+            // Fade out suave
+            loader.style.transition = 'opacity 0.5s ease-out';
+            loader.style.opacity = '0';
+            setTimeout(() => {
+                loader.classList.add('hidden'); 
+                loader.style.display='none';
+                console.log('Loader escondido após pix-ready');
+            }, 500);
         }
+    });
+
+    // Listener para scroll até o formulário PIX quando houver erro de validação
+    document.addEventListener('livewire:initialized', () => {
+        Livewire.on('scroll-to-pix-form', () => {
+            const pixForm = document.getElementById('pix-form-section');
+            if (pixForm) {
+                pixForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                // Focar no primeiro campo vazio
+                setTimeout(() => {
+                    const firstInput = pixForm.querySelector('input[name="pix_name"]');
+                    if (firstInput) {
+                        firstInput.focus();
+                    }
+                }, 500);
+            }
+        });
     });
 </script>
 
@@ -1093,7 +1169,7 @@ document.addEventListener('DOMContentLoaded', function(){
 
 <!-- PIX Modal - Fully Responsive, No Scroll -->
 @if($showPixModal)
-<div id="pix-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-2 sm:p-4" wire:poll.5s="checkPixPaymentStatus">
+<div id="pix-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-2 sm:p-4 animate-fade-in" wire:poll.5s="checkPixPaymentStatus" style="animation: fadeIn 0.5s ease-in-out;">
     <div class="w-full max-w-md md:max-w-lg flex flex-col max-h-[90vh] md:max-h-auto">
         <div class="bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 rounded-2xl md:rounded-3xl overflow-hidden flex flex-col border border-slate-700 shadow-2xl">
             
