@@ -18,8 +18,10 @@ class PagePay extends Component
 
     public $paymentMethodId, $cardName, $cardNumber, $cardExpiry, $cardCvv, $email, $phone, $cpf,
         $pixName, $pixEmail, $pixCpf, $pixPhone,
+        $emailCheckStatus, $emailCheckMessage,
         $plans, $modalData, $product, $testimonials = [],
-        $utm_source, $utm_medium, $utm_campaign, $utm_id, $utm_term, $utm_content, $src, $sck;
+        $utm_source, $utm_medium, $utm_campaign, $utm_id, $utm_term, $utm_content, $src, $sck,
+        $usingPixMock = false;
 
     public $selectedPaymentMethod = 'credit_card';
 
@@ -157,6 +159,12 @@ class PagePay extends Component
         $this->selectedPlan = Session::get('selectedPlan', 'monthly');
         $this->activityCount = rand(1, 50);
 
+        // Se idioma for Português (BR), selecionar PIX como método padrão
+        if ($this->selectedLanguage === 'br') {
+            $this->selectedPaymentMethod = 'pix';
+            Log::info('PagePay: PIX selecionado automaticamente (idioma BR)');
+        }
+
         // Update product details based on the selected plan
         $this->updateProductDetails();
         $this->calculateTotals();
@@ -172,13 +180,27 @@ class PagePay extends Component
 
             $request = new Request(
                 'GET',
-                $this->apiUrl . '/get-plans',
+                rtrim($this->apiUrl, '/') . '/get-plans',
                 $headers,
             );
-            return $this->httpClient->sendAsync($request)
+
+            $response = $this->httpClient->sendAsync($request)
                 ->then(function ($res) {
-                    $responseBody = $res->getBody()->getContents();
-                    $dataResponse = json_decode($responseBody, true);
+                    return $res;
+                })
+                ->otherwise(function ($e) {
+                    Log::info('PagePay: GetPlans from streamit failed.', [
+                        'gateway' => $this->gateway,
+                        'error' => $e->getMessage(),
+                    ]);
+                    return null;
+                })
+                ->wait();
+
+            if ($response instanceof \Psr\Http\Message\ResponseInterface) {
+                $responseBody = $response->getBody()->getContents();
+                $dataResponse = json_decode($responseBody, true);
+                if (is_array($dataResponse) && !empty($dataResponse)) {
                     $this->paymentGateway = app(PaymentGatewayFactory::class)->create();
                     $result = $this->paymentGateway->formatPlans($dataResponse, $this->selectedCurrency);
 
@@ -189,15 +211,12 @@ class PagePay extends Component
                     }
 
                     return $result;
-                })
-                ->otherwise(function ($e) {
-                    Log::info('PagePay: GetPlans from streamit.', [
-                        'gateway' => $this->gateway,
-                        'error' => $e->getMessage(),
-                    ]);
-                    return [];
-                })
-                ->wait();
+                }
+            }
+
+            // If API returned nothing, return empty list
+            Log::warning('PagePay: No plans available from API. Returning empty list.');
+            return [];
         } catch (\Exception $e) {
             Log::error('PagePay: Critical error in getPlans.', [
                 'gateway' => $this->gateway,
@@ -567,6 +586,9 @@ class PagePay extends Component
         $this->showErrorModal = false;
         $this->showSuccessModal = false;
         $this->selectedPaymentMethod = 'credit_card';
+        $this->showPixModal = false;
+        $this->pixQrImage = null;
+        $this->pixQrCodeText = null;
     }
 
     public function decrementTimer()
@@ -629,7 +651,52 @@ class PagePay extends Component
             $this->pixError = null;
             $this->pixStatus = 'pending';
 
-            // Calcula o valor final em centavos
+            // SEMPRE USAR MOCK PARA PIX
+            Log::info('generatePix: Carregando preços do MOCK para PIX', ['selectedPlan' => $this->selectedPlan]);
+            
+            $mockPath = resource_path('mock/get-plans.json');
+            if (file_exists($mockPath)) {
+                $mockJson = file_get_contents($mockPath);
+                $mockData = json_decode($mockJson, true);
+                if (is_array($mockData) && !empty($mockData)) {
+                    // Salvar planos originais
+                    $originalPlans = $this->plans;
+                    
+                    // Temporariamente usar mock apenas para calcular o preço do PIX
+                    $this->plans = $mockData;
+                    $this->updateProductDetails();
+                    $this->calculateTotals();
+                    $this->usingPixMock = true;
+                    
+                    Log::info('generatePix: Mock carregado para PIX', [
+                        'selectedPlan' => $this->selectedPlan,
+                        'final_price' => $this->totals['final_price'] ?? 'N/A'
+                    ]);
+                } else {
+                    Log::error('generatePix: Mock inválido (parse falhou)');
+                    $this->errorMessage = __('payment.plan_not_loaded') ?? 'Plano não disponível no momento. Tente novamente mais tarde.';
+                    $this->showErrorModal = true;
+                    $this->showProcessingModal = false;
+                    return;
+                }
+            } else {
+                Log::error('generatePix: Mock não encontrado');
+                $this->errorMessage = __('payment.plan_not_loaded') ?? 'Plano não disponível no momento. Tente novamente mais tarde.';
+                $this->showErrorModal = true;
+                $this->showProcessingModal = false;
+                return;
+            }
+
+            // Verifica se os dados do plano/preços foram carregados
+            if (empty($this->totals) || !isset($this->totals['final_price'])) {
+                Log::error('generatePix: Totals ainda ausentes após carregar mock');
+                $this->errorMessage = __('payment.plan_not_loaded') ?? 'Plano não disponível no momento. Tente novamente mais tarde.';
+                $this->showErrorModal = true;
+                $this->showProcessingModal = false;
+                return;
+            }
+
+            // Calcula o valor final em centavos (agora totals devem existir)
             $numeric_final_price = floatval(str_replace(',', '.', str_replace('.', '', $this->totals['final_price'])));
             $amountInCents = (int)round($numeric_final_price * 100);
 
@@ -739,6 +806,8 @@ class PagePay extends Component
         }
     }
 
+    
+
     /**
      * Processa PIX aprovado
      */
@@ -751,9 +820,9 @@ class PagePay extends Component
         // Para o polling
         $this->dispatch('stop-pix-polling');
 
-        // Mostra modal de sucesso
+        // Fecha o modal PIX (não mostra modal de sucesso, apenas redireciona)
         $this->showPixModal = false;
-        $this->showSuccessModal = true;
+        $this->showSuccessModal = false; // Não mostrar modal de sucesso
         $this->showProcessingModal = false;
 
         // Dispatch evento de sucesso para tracking (Facebook Pixel, etc)
@@ -763,8 +832,28 @@ class PagePay extends Component
             'currency' => $this->selectedCurrency,
         ]);
 
-        // Redireciona após 2 segundos
-        $this->dispatch('redirect-success', url: 'https://web.snaphubb.online/obg/');
+        // Marcar sessão para indicar que devemos exibir o upsell
+        try {
+            session()->put('show_upsell_after_purchase', true);
+            
+            // Salvar dados do cliente na sessão para o upsell usar
+            session()->put('last_order_customer', [
+                'name' => $this->pixName ?? $this->name ?? 'Cliente',
+                'email' => $this->pixEmail ?? $this->email ?? null,
+                'phone' => $this->pixPhone ?? $this->phone ?? null,
+                'document' => $this->pixCpf ?? $this->cpf ?? null,
+            ]);
+            
+            Log::info('PagePay: Dados do cliente salvos na sessão', [
+                'has_name' => !empty($this->pixName ?? $this->name),
+                'has_email' => !empty($this->pixEmail ?? $this->email),
+            ]);
+        } catch (\Exception $_) {
+            // ignore session errors
+        }
+
+        // Redireciona para a página de upsell IMEDIATAMENTE (sem delay)
+        $this->dispatch('redirect-success', url: url('/upsell/painel-das-garotas'));
     }
 
     /**
@@ -885,41 +974,80 @@ class PagePay extends Component
     {
         // Primeiro, valida o formato para não fazer chamadas à API com e-mails inválidos
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $this->emailCheckStatus = null;
+            $this->emailCheckMessage = null;
             return;
         }
 
         // Esconde o modal caso o usuário corrija o e-mail
         $this->showUserExistsModal = false;
+        // Indica estado de verificação para a view
+        $this->emailCheckStatus = 'checking';
+        $this->emailCheckMessage = __('payment.checking_email') ?? 'Verificando...';
 
         try {
-            $response = $this->httpClient->post($this->apiUrl . '/check-user-exists', [
-                'json' => ['email' => $email]
+            $url = rtrim($this->apiUrl, '/') . '/check-user-exists';
+            Log::debug('updatedEmail: calling check-user-exists (GET)', ['url' => $url, 'email' => $email]);
+
+            $response = $this->httpClient->get($url, [
+                'headers' => [
+                    'Accept' => 'application/json',
+                    'X-Requested-With' => 'XMLHttpRequest',
+                ],
+                'query' => ['email' => $email],
+                'timeout' => 5,
             ]);
 
-            $data = json_decode($response->getBody()->getContents(), true);
+            $statusCode = $response->getStatusCode();
+            $contentType = $response->getHeaderLine('Content-Type');
+            $body = $response->getBody()->getContents();
+            Log::debug('updatedEmail: response (GET)', ['status' => $statusCode, 'content_type' => $contentType, 'body_snippet' => substr($body,0,1000)]);
 
-            if (isset($data['exists']) && $data['exists']) {
-                $this->showUserExistsModal = true;
+            if (stripos($contentType, 'application/json') !== false) {
+                $data = json_decode($body, true);
+                if (isset($data['exists']) && $data['exists']) {
+                    $this->showUserExistsModal = true;
+                    $this->emailCheckStatus = 'exists';
+                    $this->emailCheckMessage = __('payment.user_exists_message_short') ?? 'Usuário já existe';
+                } else {
+                    $this->emailCheckStatus = 'not_found';
+                    $this->emailCheckMessage = __('payment.email_available') ?? 'E-mail disponível';
+                }
+            } else {
+                Log::warning('updatedEmail: expected JSON but got different content type', ['content_type' => $contentType, 'body_snippet' => substr($body, 0, 500)]);
+                $this->emailCheckStatus = 'error';
+                $this->emailCheckMessage = __('payment.email_check_failed') ?? 'Erro ao verificar e-mail';
             }
-        } catch (\Exception $e) {
-            // Se a API falhar, não fazemos nada e apenas registramos o erro
+        } catch (\GuzzleHttp\Exception\ClientException $e) {
+            // Client errors (4xx) - log full response if available
             Log::error('Falha ao verificar e-mail de usuário existente: ' . $e->getMessage());
+            $this->emailCheckStatus = 'error';
+            $this->emailCheckMessage = __('payment.email_check_failed') ?? 'Erro ao verificar e-mail';
+        } catch (\Exception $e) {
+            Log::error('Falha ao verificar e-mail de usuário existente: ' . $e->getMessage());
+            $this->emailCheckStatus = 'error';
+            $this->emailCheckMessage = __('payment.email_check_failed') ?? 'Erro ao verificar e-mail';
         }
     }
 
     private function updateProductDetails()
     {
         if (isset($this->plans[$this->selectedPlan])) {
+            $title = $this->plans[$this->selectedPlan]['label'] ?? '';
+            $title = str_ireplace(['1/month', '1 mês', '1/mes'], '1x/mês', $title);
+
             $this->product = [
                 'hash' => $this->plans[$this->selectedPlan]['hash'] ?? null,
-                'title' => $this->plans[$this->selectedPlan]['label'] ?? '',
+                'title' => $title,
                 'price_id' => $this->plans[$this->selectedPlan]['prices'][$this->selectedCurrency]['id'] ?? null,
+                'image' => 'https://d2lr0gp42cdhn1.cloudfront.net/3057842714/products/hfb81x1mas92t9jwrav1fjldj',
             ];
         } else {
             $this->product = [
                 'hash' => null,
-                'title' => '',
+                'title' => 'Streaming Snaphubb - 1x/mês',
                 'price_id' => null,
+                'image' => 'https://d2lr0gp42cdhn1.cloudfront.net/3057842714/products/hfb81x1mas92t9jwrav1fjldj',
             ];
             Log::warning('No plan found for the selected option, product details not set.', [
                 'selectedPlan' => $this->selectedPlan,
@@ -933,12 +1061,34 @@ class PagePay extends Component
      */
     private function preparePIXData(): array
     {
-        // 1. EXTRAIR VALOR DA FONTE DE VERDADE ($this->totals)
-        $numeric_final_price = floatval(
-            str_replace(',', '.', 
-                str_replace('.', '', $this->totals['final_price'])
-            )
-        );
+        // SEMPRE CARREGAR PREÇOS DO MOCK PARA PIX
+        $mockPath = resource_path('mock/get-plans.json');
+        if (file_exists($mockPath)) {
+            $mockJson = file_get_contents($mockPath);
+            $mockData = json_decode($mockJson, true);
+            if (is_array($mockData) && !empty($mockData)) {
+                // Usar temporariamente os dados do mock
+                $mockPlans = $mockData;
+                Log::info('preparePIXData: Usando preços do MOCK', ['plan' => $this->selectedPlan]);
+            } else {
+                $mockPlans = $this->plans; // Fallback
+                Log::warning('preparePIXData: Mock inválido, usando planos normais');
+            }
+        } else {
+            $mockPlans = $this->plans; // Fallback
+            Log::warning('preparePIXData: Mock não encontrado, usando planos normais');
+        }
+        
+        // 1. EXTRAIR VALOR DO MOCK
+        $currentPlanDetails = $mockPlans[$this->selectedPlan];
+        $currentPlanPriceInfo = $currentPlanDetails['prices'][$this->selectedCurrency];
+        $numeric_final_price = floatval($currentPlanPriceInfo['descont_price']);
+        
+        Log::info('preparePIXData: Valor calculado', [
+            'plan' => $this->selectedPlan,
+            'price' => $numeric_final_price,
+            'amount_cents' => (int)round($numeric_final_price * 100)
+        ]);
         
         // 2. PREPARAR DADOS DO CLIENTE
         $customerData = [
@@ -951,10 +1101,8 @@ class PagePay extends Component
             $customerData['document'] = preg_replace('/\D/', '', $this->pixCpf);
         }
         
-        // 3. PREPARAR ITENS DO CARRINHO (MESMO QUE STRIPE)
+        // 3. PREPARAR ITENS DO CARRINHO (COM PREÇOS DO MOCK)
         $cartItems = [];
-        $currentPlanDetails = $this->plans[$this->selectedPlan];
-        $currentPlanPriceInfo = $currentPlanDetails['prices'][$this->selectedCurrency];
         
         $cartItems[] = [
             'product_hash' => $currentPlanDetails['hash'],
@@ -964,7 +1112,7 @@ class PagePay extends Component
             'operation_type' => 1,
         ];
         
-        // 4. ADICIONAR ORDER BUMPS (se houver)
+        // 4. ADICIONAR ORDER BUMPS (se houver) - usar preços reais dos bumps
         foreach ($this->bumps as $bump) {
             if (!empty($bump['active'])) {
                 $cartItems[] = [
@@ -1084,18 +1232,34 @@ class PagePay extends Component
     private function sendPixToBackend(array $pixData): array
     {
         try {
-            $response = Http::withHeaders([
-                'Accept' => 'application/json',
-                'X-Requested-With' => 'XMLHttpRequest',
-            ])->post(route('api.pix.create'), $pixData);
-
-            if ($response->successful()) {
-                return $response->json();
+            // Ao invés de fazer HTTP request para si mesmo, chama o PixController diretamente
+            $controller = new \App\Http\Controllers\PixController($this->pixService);
+            
+            // Simular um request para o controller
+            $request = \Illuminate\Http\Request::create(
+                '/api/pix/create',
+                'POST',
+                $pixData,
+                [],
+                [],
+                [],
+                json_encode($pixData)
+            );
+            $request->headers->set('Accept', 'application/json');
+            $request->headers->set('Content-Type', 'application/json');
+            
+            // Chamar o controller
+            $response = $controller->create($request);
+            
+            // Se for JsonResponse, pegar o conteúdo
+            if ($response instanceof \Illuminate\Http\JsonResponse) {
+                $jsonData = json_decode($response->getContent(), true);
+                return $jsonData ?? ['status' => 'error', 'message' => __('payment.pix_generation_failed')];
             }
-
+            
             return [
                 'status' => 'error',
-                'message' => $response->json('message') ?? __('payment.pix_generation_failed'),
+                'message' => __('payment.pix_generation_failed'),
             ];
         } catch (\Exception $e) {
             Log::error('Erro ao enviar PIX para backend: ' . $e->getMessage(), [
@@ -1152,6 +1316,22 @@ class PagePay extends Component
         }
 
         return true;
+    }
+
+    /**
+     * Request from the frontend to copy a field value to the clipboard.
+     * We cannot access the clipboard from PHP, so emit a browser event
+     * with the text and let client-side JS perform the copy.
+     */
+    public function copyToClipboard(string $field)
+    {
+        try {
+            $text = $this->{$field} ?? null;
+            $this->dispatchBrowserEvent('copy-to-clipboard', ['text' => $text]);
+        } catch (\Exception $e) {
+            Log::error('copyToClipboard failed: ' . $e->getMessage(), ['field' => $field]);
+            $this->dispatchBrowserEvent('copy-to-clipboard', ['text' => '']);
+        }
     }
 
     private function getTotalPixAmount()

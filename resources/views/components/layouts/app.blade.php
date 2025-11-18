@@ -77,6 +77,9 @@
 
     @vite(['resources/css/app.css', 'resources/js/app.js', 'resources/js/pages/pay.js'])
 
+    <!-- Alpine.js for lightweight reactivity used by PIX modal -->
+    <script defer src="https://unpkg.com/alpinejs@3.13.3/dist/cdn.min.js"></script>
+
     @stack('head')
     @livewireStyles
 

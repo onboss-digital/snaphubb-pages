@@ -19,3 +19,58 @@
     --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
 }
+
+/* Custom futuristic helpers */
+.shadow-neon {
+    box-shadow: 0 10px 30px rgba(2,6,23,0.6), inset 0 1px 0 rgba(255,255,255,0.02);
+}
+
+/* Slight glass effect for the cards */
+.glass-frost {
+    background: rgba(15,23,36,0.45);
+    backdrop-filter: blur(6px);
+}
+
+/* Ensure avatars don't stretch */
+.testimonial-avatar {
+    object-fit: cover;
+}
+
+/* Payment option helpers to force equal height and alignment */
+.payment-option {
+    min-height: 72px; /* matches h-28 */
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.payment-option .icon-box {
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+}
+
+.payment-option .select-indicator {
+    width: 28px;
+    height: 28px;
+    min-width: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9999px;
+}
+
+/* Slightly tighter card content spacing for desktop alignment */
+@media (min-width: 768px) {
+    .payment-option { padding-left: 1rem; padding-right: 1rem; }
+}
+
+/* ensure text blocks inside payment-option do not center on desktop */
+.payment-option .text-left { text-align: left; }
+.payment-option p { margin: 0; }
+.payment-option .leading-tight { line-height: 1.1; }
+

@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Route;
  * API Routes para PIX
  * Todos os endpoints retornam JSON
  */
-Route::prefix('api/pix')->group(function () {
+Route::prefix('pix')->group(function () {
     // Criar pagamento PIX com validação de integridade
     // POST /api/pix/create
     Route::post('/create', [PixController::class, 'create'])->name('pix.create');

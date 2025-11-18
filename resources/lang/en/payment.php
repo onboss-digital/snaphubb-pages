@@ -68,4 +68,17 @@ return [
     'support' => 'Support',
     'copyright' => '© :year Snaphubb. All rights reserved.',
     'instant_confirmation' => 'Instant confirmation',
+    // PIX translations (fallbacks)
+    'pix_title' => 'Pay with PIX',
+    'pix_description' => 'Pay with PIX (Brazil only)',
+    'pix_field_name_label' => 'Full Name',
+    'pix_field_name_hint' => 'Enter your full name.',
+    'pix_field_email_label' => 'Email',
+    'pix_field_email_hint' => 'Enter your best email address.',
+    'pix_field_cpf_label' => 'CPF',
+    'pix_field_cpf_hint' => 'Enter your CPF number.',
+    'pix_field_phone_label' => 'Phone',
+    'pix_field_phone_hint' => 'Enter your phone with country code.',
+    'pix_heading' => 'Pay with PIX',
+    'pix_subheading' => 'Complete your payment quickly, securely and 100% online.',
 ];

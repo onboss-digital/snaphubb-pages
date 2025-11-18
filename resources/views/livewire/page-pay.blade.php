@@ -197,7 +197,7 @@ $gateway = config('services.default_payment_gateway', 'stripe');
                             </div>
 
                             <!-- Payment Method Selector -->
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="grid grid-cols-1 md:grid-cols-1 gap-4 items-stretch">
                                 <!-- Credit Card Option -->
                                 <div class="relative">
                                     <input type="radio" id="method_credit_card" name="payment_method" value="credit_card"
@@ -206,17 +206,25 @@ $gateway = config('services.default_payment_gateway', 'stripe');
                                         class="hidden"
                                         @if ($selectedPaymentMethod === 'credit_card') checked @endif />
                                     <label for="method_credit_card" 
-                                        class="block relative cursor-pointer p-4 rounded-xl border-2 transition-all
-                                        @if ($selectedPaymentMethod === 'credit_card') border-[#E50914] bg-[#2D2D2D] @else border-gray-700 bg-[#1F1F1F] hover:border-gray-600 @endif">
-                                        <div class="flex items-center justify-between">
-                                            <div class="flex items-center gap-3">
-                                                <div class="text-2xl">💳</div>
-                                                <div>
-                                                    <p class="text-white font-semibold">{{ __('payment.credit_card') }}</p>
-                                                    <p class="text-gray-400 text-sm">{{ __('payment.instant_confirmation') ?? 'Instant confirmation' }}</p>
+                                        class="block relative cursor-pointer p-4 rounded-xl border-2 transition-all h-28 flex items-center payment-option
+                                        @if ($selectedPaymentMethod === 'credit_card') border-[#E50914] bg-gradient-to-r from-[#2b2b2b] to-[#161616] @else border-gray-700 bg-[#0f0f10] hover:border-gray-600 @endif">
+                                        <div class="flex items-center justify-between w-full">
+                                            <div class="flex items-center gap-4">
+                                                <div class="icon-box p-2 rounded-md bg-gradient-to-br from-[#111827] to-[#0b1220] ring-1 ring-[#7C3AED]/20 flex items-center justify-center">
+                                                    <svg class="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                                                        <rect x="2" y="5" width="20" height="14" rx="2" stroke="currentColor" stroke-width="1.5" />
+                                                        <rect x="3.5" y="8.5" width="6" height="2" rx="0.5" fill="currentColor" opacity="0.9" />
+                                                    </svg>
+                                                </div>
+                                                <div class="flex flex-col justify-center items-start text-left">
+                                                    <div class="flex items-center gap-3">
+                                                        <p class="text-white font-semibold text-left">{{ __('payment.credit_card') }}</p>
+                                                        <span class="inline-block px-2 py-0.5 text-xs font-medium rounded-full bg-white/6 text-green-300">{{ __('payment.instant_confirmation') }}</span>
+                                                    </div>
+                                                    <p class="text-gray-400 text-sm leading-tight">&nbsp;</p>
                                                 </div>
                                             </div>
-                                            <div class="flex items-center justify-center w-6 h-6 rounded-full border-2 
+                                            <div class="select-indicator flex items-center justify-center rounded-full border-2 
                                                 @if ($selectedPaymentMethod === 'credit_card') border-[#E50914] bg-[#E50914] @else border-gray-600 @endif">
                                                 @if ($selectedPaymentMethod === 'credit_card')
                                                     <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -237,18 +245,55 @@ $gateway = config('services.default_payment_gateway', 'stripe');
                                             class="hidden"
                                             @if ($selectedPaymentMethod === 'pix') checked @endif />
                                         <label for="method_pix" 
-                                            class="block relative cursor-pointer p-4 rounded-xl border-2 transition-all
-                                            @if ($selectedPaymentMethod === 'pix') border-green-500 bg-[#2D2D2D] @else border-gray-700 bg-[#1F1F1F] hover:border-gray-600 @endif">
-                                            <div class="flex items-center justify-between">
-                                                <div class="flex items-center gap-3">
-                                                    <div class="text-2xl">🎯</div>
-                                                    <div>
-                                                        <p class="text-white font-semibold">{{ __('payment.pix_title') }}</p>
-                                                        <p class="text-gray-400 text-sm">{{ __('payment.pix_description') ?? 'Instant transfer' }}</p>
+                                            class="block relative cursor-pointer p-4 rounded-xl border-2 transition-all h-28 flex items-center
+                                            @if ($selectedPaymentMethod === 'pix') border-green-400 bg-gradient-to-r from-[#0f1f12] to-[#07120a] @else border-gray-700 bg-[#0f0f10] hover:border-gray-600 @endif">
+                                            <div class="flex items-center justify-between w-full">
+                                                    <div class="flex items-center gap-4">
+                                                        <div class="icon-box text-2xl p-2 rounded-md bg-gradient-to-br from-[#061212] to-[#06231a] ring-1 ring-green-400/20 flex items-center justify-center">
+                                                        <!-- QR / PIX Icon -->
+                                                        <svg class="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                                                            <rect x="3" y="3" width="4" height="4" rx="0.5" stroke="currentColor" stroke-width="1.5" />
+                                                            <rect x="17" y="3" width="4" height="4" rx="0.5" stroke="currentColor" stroke-width="1.5" />
+                                                            <rect x="3" y="17" width="4" height="4" rx="0.5" stroke="currentColor" stroke-width="1.5" />
+                                                            <path d="M8 8h2v2H8zM14 8h2v2h-2zM8 14h2v2H8zM14 14h2v2h-2z" fill="currentColor" opacity="0.9" />
+                                                        </svg>
+                                                    </div>
+                                                    @php
+                                                        $orig = $totals['total_price'] ?? null;
+                                                        $final = $totals['final_price'] ?? null;
+                                                        $origFloat = null;
+                                                        $finalFloat = null;
+                                                        if ($orig) {
+                                                            $origFloat = floatval(str_replace(',', '.', str_replace('.', '', $orig)));
+                                                        }
+                                                        if ($final) {
+                                                            $finalFloat = floatval(str_replace(',', '.', str_replace('.', '', $final)));
+                                                        }
+                                                        $discountPercent = null;
+                                                        if ($origFloat && $finalFloat && $origFloat > $finalFloat) {
+                                                            $discountPercent = round((($origFloat - $finalFloat) / $origFloat) * 100);
+                                                        }
+                                                    @endphp
+                                                    <div class="flex flex-col justify-center items-start text-left">
+                                                        <div class="flex items-center gap-3">
+                                                            <p class="text-white font-semibold text-left">{{ __('payment.pix_title') }}</p>
+                                                            <span class="inline-block px-2 py-0.5 text-xs font-medium rounded-full bg-white/6 text-green-300">{{ __('payment.instant_confirmation') }}</span>
+                                                            @if($discountPercent)
+                                                                <span class="inline-block px-2 py-0.5 text-xs font-bold rounded-full bg-gradient-to-r from-green-500 to-emerald-400 text-white">{{ $discountPercent }}% OFF</span>
+                                                            @endif
+                                                        </div>
+                                                        <p class="text-gray-400 text-sm leading-tight">
+                                                            @if($discountPercent && $final)
+                                                                <span class="text-gray-400 line-through mr-2">{{ $orig }}</span>
+                                                                <span class="text-white font-semibold">{{ $final }}</span>
+                                                            @else
+                                                                {{ __('payment.pix_description') ?? 'Instant transfer' }}
+                                                            @endif
+                                                        </p>
                                                     </div>
                                                 </div>
-                                                <div class="flex items-center justify-center w-6 h-6 rounded-full border-2 
-                                                    @if ($selectedPaymentMethod === 'pix') border-green-500 bg-green-500 @else border-gray-600 @endif">
+                                                <div class="flex items-center justify-center w-7 h-7 rounded-full border-2 
+                                                    @if ($selectedPaymentMethod === 'pix') border-green-400 bg-green-400 @else border-gray-600 @endif">
                                                     @if ($selectedPaymentMethod === 'pix')
                                                         <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path>
@@ -327,7 +372,17 @@ $gateway = config('services.default_payment_gateway', 'stripe');
                                         <input name="email" type="email" placeholder="seu@email.com"
                                             wire:model.live.debounce.500ms="email"
                                             class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
-                                        <div id="email-suggestion" class="text-xs text-yellow-400 mt-1"></div>
+                                        <div id="email-suggestion" class="text-xs mt-1">
+                                            @if(isset($emailCheckStatus) && $emailCheckStatus === 'checking')
+                                                <span class="text-yellow-400">{{ $emailCheckMessage ?? 'Verificando...' }}</span>
+                                            @elseif(isset($emailCheckStatus) && $emailCheckStatus === 'exists')
+                                                <span class="text-red-500">{{ $emailCheckMessage ?? 'Usuário já existe' }}</span>
+                                            @elseif(isset($emailCheckStatus) && $emailCheckStatus === 'not_found')
+                                                <span class="text-green-400">{{ $emailCheckMessage ?? 'E-mail disponível' }}</span>
+                                            @elseif(isset($emailCheckStatus) && $emailCheckStatus === 'error')
+                                                <span class="text-gray-400">{{ $emailCheckMessage ?? 'Erro ao verificar e-mail' }}</span>
+                                            @endif
+                                        </div>
                                         @error('email')
                                             <span class="text-red-500 text-xs mt-1">{{ $message }}</span>
                                         @enderror
@@ -415,8 +470,8 @@ $gateway = config('services.default_payment_gateway', 'stripe');
                         </div>
                     </div>
 
-                    <!-- Order Bumps -->
-                    @if (!empty($bumps))
+                    <!-- Order Bumps - Hidden when PIX is selected -->
+                    @if (!empty($bumps) && $selectedPaymentMethod !== 'pix')
                         <div class=" bg-[#1F1F1F] rounded-xl p-5 border border-gray-700">
                             @foreach ($bumps as $index => $bump)
                                 <div class="flex items-start mb-4 last:mb-0">
@@ -447,13 +502,16 @@ $gateway = config('services.default_payment_gateway', 'stripe');
                         </div>
                     @endif
                 </div>
-
                 <!-- Coluna de Resumo do Pedido -->
                 <div class="md:col-span-1 order-2 md:order-2">
+                    <!-- Card de resumo de cartão - oculto quando PIX é selecionado -->
                     <div class="bg-[#1F1F1F] rounded-xl p-6 sticky top-6" wire:poll.1s="decrementTimer"
                         wire:poll.15000ms="decrementSpotsLeft" wire:poll.8000ms="updateLiveActivity">
                         <h2 class="text-xl font-semibold text-white mb-4 text-center">
                             {{ __('checkout.order_summary_title') }}</h2>
+
+                        <!-- Conteúdo de Cartão - Oculto quando PIX é selecionado -->
+                        @if($selectedPaymentMethod !== 'pix')
 
                         <!-- Timer -->
                         <div
@@ -521,6 +579,26 @@ $gateway = config('services.default_payment_gateway', 'stripe');
                 </div> --}}
                         </div>
 
+
+                        <!-- Banner Promocional PIX Mock -->
+                        @if($usingPixMock)
+                        <div class="mb-6 p-4 bg-gradient-to-r from-green-900 via-green-800 to-green-900 rounded-lg border border-green-600 text-white shadow-lg">
+                            <div class="flex items-start space-x-3">
+                                <svg class="w-6 h-6 text-green-300 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                                </svg>
+                                <div class="flex-1">
+                                    <p class="text-lg font-bold text-green-100">{{ __('payment.mock_offer_title') }}</p>
+                                    <p class="text-sm text-green-200 mt-1">{{ __('payment.mock_offer_subtitle') }}</p>
+                                    <div class="mt-3 flex items-center space-x-2">
+                                        <del class="text-green-300 opacity-75 text-sm">R$ 49,90</del>
+                                        <span class="text-2xl font-bold text-white">R$ 24,90</span>
+                                    </div>
+                                    <p class="text-xs text-green-200 mt-2">{{ __('payment.mock_savings_text') }}</p>
+                                </div>
+                            </div>
+                        </div>
+                        @endif
 
                         <!-- Resumo Final com Descontos -->
                         <div id="priceSummary" class="mb-6 p-4 bg-gray-800 rounded-lg text-white">
@@ -608,6 +686,118 @@ $gateway = config('services.default_payment_gateway', 'stripe');
                                     class="hover:text-gray-300 transition-colors">{{ __('payment.support') }}</a>
                             </div>
                         </div>
+                        @endif
+                        <!-- ========== FIM CONTEÚDO CARTÃO ========== -->
+
+                        <!-- ========== RESUMO PIX - Aparece quando PIX é selecionado ========== -->
+                        @if($selectedPaymentMethod === 'pix')
+                        <div class="mt-8 pt-8 border-t border-gray-700" wire:poll.15000ms="decrementSpotsLeft">
+                            <!-- Product Image - Topo -->
+                            <div class="mb-6 rounded-lg overflow-hidden bg-gray-800/50">
+                                @if(!empty($product['image']))
+                                    <img src="{{ $product['image'] }}" alt="Produto" class="w-full h-auto object-cover max-h-80 md:max-h-96">
+                                @else
+                                    <div class="w-full h-64 md:h-80 bg-gradient-to-br from-gray-700 to-gray-800 flex items-center justify-center">
+                                        <svg class="w-24 h-24 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                                    </div>
+                                @endif
+                            </div>
+
+                            <h2 class="text-xl font-semibold text-white mb-6 text-center">Confira as informações antes de concluir:</h2>
+
+                            <!-- Product Info -->
+                            <div class="bg-gray-800/50 rounded-lg p-4 mb-4">
+                                <p class="text-gray-300 text-xs font-semibold mb-2">PRODUTO</p>
+                                <p class="text-white font-bold text-lg">{{ str_replace(['1/month', '1 mês', '1/mes'], '1x/mês', $product['title'] ?? 'Streaming Snaphubb - 1x/mês') }}</p>
+                            </div>
+
+                            <!-- Price Breakdown -->
+                            <div class="bg-gray-800/50 rounded-lg p-4 mb-4 space-y-3">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-gray-300 text-sm">Preço Original:</span>
+                                    <span class="text-gray-400 line-through text-sm">R$ 49,90</span>
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-green-400 text-sm font-semibold">Desconto PIX:</span>
+                                    <span class="text-green-400 font-bold text-sm">– R$ 25,00</span>
+                                </div>
+                                <div class="border-t border-gray-700 pt-3 flex justify-between items-center">
+                                    <span class="text-white font-bold text-base">Total a Pagar:</span>
+                                    <span class="text-green-400 font-bold text-2xl">{{ $currencies[$selectedCurrency]['symbol'] }} {{ $totals['final_price'] ?? '24,90' }}</span>
+                                </div>
+                                <div class="bg-green-500/10 border border-green-500/40 rounded p-2 flex items-center gap-2">
+                                    <svg class="w-4 h-4 text-green-400 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></path></svg>
+                                    <span class="text-green-300 text-xs font-semibold">Você economiza: R$ 25,00 hoje!</span>
+                                </div>
+                            </div>
+
+                            <!-- Timing Info -->
+                            <div class="space-y-2 mb-4 text-sm text-gray-300">
+                                <div class="flex items-center gap-2">
+                                    <span class="text-lg">⏳</span>
+                                    <span>A oferta via PIX expira em: <strong>5 minutos</strong></span>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <span class="text-lg">🕒</span>
+                                    <span>O código PIX expira em <strong>10 minutos</strong></span>
+                                </div>
+                            </div>
+
+                            <!-- Benefits -->
+                            <div class="space-y-2 mb-4 text-sm text-gray-300">
+                                <div class="flex items-center gap-2">
+                                    <span class="text-lg">🔓</span>
+                                    <span>Acesso liberado imediatamente após o pagamento</span>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <span class="text-lg">🔁</span>
+                                    <span>Plano mensal, cancele quando quiser</span>
+                                </div>
+                            </div>
+
+                            <!-- Social Proof -->
+                            <div class="bg-gray-800/50 rounded-lg p-4 mb-4 space-y-2 text-sm text-gray-300">
+                                <div class="flex items-center gap-2">
+                                    <span class="text-lg">👥</span>
+                                    <span id="buying-count"><strong>{{ rand(12, 47) }}</strong> pessoas estão comprando agora</span>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <span class="text-lg">📉</span>
+                                    <span id="slots-count">Vagas restantes: <strong>{{ $spotsLeft }}</strong></span>
+                                </div>
+                            </div>
+
+                            <!-- Trust Badges PIX -->
+                            <div class="grid grid-cols-2 gap-2 mb-6 text-xs text-center">
+                                <div class="bg-gray-800/50 rounded-lg p-3">
+                                    <div class="text-lg mb-1">✔️</div>
+                                    <p class="text-gray-300">Garantia de 7 dias</p>
+                                </div>
+                                <div class="bg-gray-800/50 rounded-lg p-3">
+                                    <div class="text-lg mb-1">🔒</div>
+                                    <p class="text-gray-300">Pagamento seguro SSL</p>
+                                </div>
+                                <div class="bg-gray-800/50 rounded-lg p-3">
+                                    <div class="text-lg mb-1">❌</div>
+                                    <p class="text-gray-300">Cancelamento fácil</p>
+                                </div>
+                                <div class="bg-gray-800/50 rounded-lg p-3">
+                                    <div class="text-lg mb-1">👤</div>
+                                    <p class="text-gray-300">Compra anônima e segura</p>
+                                </div>
+                            </div>
+
+                            <!-- CTA Button PIX -->
+                            <button type="button" wire:click.prevent="generatePixPayment"
+                                class="w-full bg-green-600 hover:bg-green-700 text-white py-4 text-lg font-bold rounded-xl transition-all block cursor-pointer transform hover:scale-105 flex items-center justify-center gap-2">
+                                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                                Gerar Código PIX Agora
+                            </button>
+
+                            <p class="text-gray-400 text-xs text-center mt-3">Clique acima para gerar seu código PIX e escaneie com seu banco</p>
+                        </div>
+                        @endif
+                        <!-- ========== FIM RESUMO PIX ========== -->
                     </div>
                 </div>
 
@@ -616,31 +806,35 @@ $gateway = config('services.default_payment_gateway', 'stripe');
                     <div class="bg-transparent rounded-xl">
                         <h2 class="text-2xl font-bold text-white mb-6 text-center">
                             {{ __('checkout.testimonials_title') }}</h2>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                             @if (is_array($testimonials) && !empty($testimonials))
                                 @foreach ($testimonials as $testimonial)
-                                    <div
-                                        class="bg-gray-800 bg-opacity-50 p-6 rounded-xl border border-gray-700 shadow-lg flex flex-col h-full transform transition-transform hover:scale-105">
-                                        <div class="flex-shrink-0">
-                                            <div class="flex items-center mb-4">
-                                                <img src="https://ui-avatars.com/api/?name={{ substr($testimonial['name'], 0, 1) }}&color=FFFFFF&background=E50914&bold=true&size=48"
-                                                    alt="Avatar"
-                                                    class="w-12 h-12 rounded-full mr-4 border-2 border-red-500">
-                                                <div>
-                                                    <p class="font-bold text-white text-lg">{{ $testimonial['name'] }}
-                                                    </p>
+                                    @php
+                                        $displayTime = $testimonial['time'] ?? 'há ' . rand(1, 6) . ' dias';
+                                    @endphp
+                                    <div class="rounded-2xl bg-[#0f172a]/90 border border-gray-700/60 shadow-[0_15px_45px_rgba(0,0,0,0.55)] p-6 flex flex-col gap-5 transition duration-300 hover:-translate-y-1 hover:border-[#7C3AED]">
+                                        <div class="flex items-start gap-4">
+                                            <img src="https://ui-avatars.com/api/?name={{ urlencode($testimonial['name']) }}&color=FFFFFF&background=0F1724&bold=true&size=64"
+                                                alt="Avatar"
+                                                class="w-14 h-14 rounded-full ring-2 ring-[#7C3AED] object-cover flex-shrink-0">
+                                            <div class="flex-1">
+                            
+                                                <h3 class="text-white font-semibold text-lg leading-tight">{{ $testimonial['name'] }}</h3>
+                                                @if(!empty($testimonial['location']))
+                                                    <p class="text-sm text-gray-400">{{ $testimonial['location'] }}</p>
+                                                @endif
+                                                <div class="mt-2 flex items-center space-x-1 text-yellow-400">
+                                                    <svg class="w-5 h-5" viewBox="0 0 20 20" fill="currentColor"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.286 3.957a1 1 0 00.95.69h4.162c.969 0 1.371 1.24.588 1.81l-3.37 2.448a1 1 0 00-.364 1.118l1.287 3.957c.3.921-.755 1.688-1.54 1.118l-3.37-2.448a1 1 0 00-1.176 0l-3.37 2.448c-.784.57-1.838-.197-1.539-1.118l1.287-3.957a1 1 0 00-.364-1.118L2.063 9.384c-.783-.57-.38-1.81.588-1.81h4.162a1 1 0 00.95-.69L9.05 2.927z"/></svg>
+                                                    <span class="text-sm text-white/80">4.8</span>
                                                 </div>
                                             </div>
                                         </div>
-                                        <div class="relative flex-grow">
-                                            <svg class="absolute top-0 left-0 w-8 h-8 text-gray-600 transform -translate-x-2 -translate-y-2"
-                                                fill="currentColor" viewBox="0 0 24 24">
-                                                <path
-                                                    d="M6.5 10c-1.38 0-2.5 1.12-2.5 2.5s1.12 2.5 2.5 2.5 2.5-1.12 2.5-2.5-1.12-2.5-2.5-2.5zm11 0c-1.38 0-2.5 1.12-2.5 2.5s1.12 2.5 2.5 2.5 2.5-1.12 2.5-2.5-1.12-2.5-2.5-2.5zM20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm-8 14c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z"
-                                                    opacity=".2" />
-                                            </svg>
-                                            <p class="text-gray-300 text-base italic pl-4 border-l-4 border-red-500">
-                                                "{{ $testimonial['text'] }}"</p>
+
+                                        <p class="text-gray-100 text-base leading-relaxed">"{{ $testimonial['text'] }}"</p>
+
+                                        <div class="flex items-center justify-between text-xs text-gray-400">
+                                            <span class="uppercase tracking-widest text-[11px] text-gray-500">Avaliação verificada</span>
+                                            <span class="text-gray-300">{{ $displayTime }}</span>
                                         </div>
                                     </div>
                                 @endforeach
@@ -763,6 +957,135 @@ $gateway = config('services.default_payment_gateway', 'stripe');
         <p class="text-gray-300">{{ __('payment.please_wait') }}</p>
     </div>
 </div>
+
+<!-- PIX Modal - Fully Responsive, No Scroll -->
+@if($showPixModal)
+<div id="pix-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-2 sm:p-4" wire:poll.5s="checkPixPaymentStatus">
+    <div class="w-full max-w-md md:max-w-lg flex flex-col max-h-[90vh] md:max-h-auto">
+        <div class="bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 rounded-2xl md:rounded-3xl overflow-hidden flex flex-col border border-slate-700 shadow-2xl">
+            
+            <!-- Header - Compact -->
+            <div class="bg-gradient-to-r from-green-600 to-green-700 px-3 py-2.5 sm:px-6 sm:py-4 flex items-center justify-between flex-shrink-0">
+                <h1 class="text-base sm:text-xl font-bold text-white flex items-center gap-2">
+                    <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                    Pagamento PIX
+                </h1>
+                <button onclick="Livewire.dispatch('call', { method: 'closeModal' })" class="text-white/70 hover:text-white transition text-xl">✕</button>
+            </div>
+
+            <!-- Content - Scrollable on mobile only -->
+            <div class="overflow-y-auto md:overflow-visible px-3 py-3 sm:px-6 sm:py-4 space-y-2.5 sm:space-y-3">
+                
+                <!-- Price Section - Ultra Compact -->
+                <div class="bg-gradient-to-br from-green-500/10 to-green-600/5 border border-green-500/40 rounded-lg p-2.5 sm:p-4">
+                    <div class="flex justify-between items-center mb-1.5">
+                        <span class="text-slate-400 text-xs sm:text-sm font-medium truncate pr-2">{{ str_replace(['1/month', '1 mês', '1/mes'], '1x/mês', $product['title'] ?? 'Streaming Snaphubb - 1x/mês') }}</span>
+                        <span class="text-slate-500 line-through text-xs sm:text-sm flex-shrink-0">R$ 49,90</span>
+                    </div>
+                    <div class="flex justify-between items-end gap-2">
+                        <div class="min-w-0">
+                            <p class="text-green-300 text-xs font-semibold leading-tight">🎉 Desconto PIX</p>
+                            <p class="text-green-200 text-xs mt-0.5 leading-tight">Economize R$ 25</p>
+                        </div>
+                        <p class="text-2xl sm:text-4xl font-bold text-green-400 flex-shrink-0">{{ $currencies[$selectedCurrency]['symbol'] ?? 'R$' }} {{ $totals['final_price'] ?? '24,90' }}</p>
+                    </div>
+                </div>
+
+                <!-- QR Code Section - Optimized Size -->
+                <div class="flex flex-col items-center gap-1.5 bg-slate-800/50 rounded-lg p-2.5 sm:p-4 border border-slate-700">
+                    <p class="text-white font-semibold text-xs sm:text-sm">Escaneie o QR Code</p>
+                    <div class="bg-white p-2 sm:p-3 rounded-lg shadow-lg">
+                        @if(!empty($pixQrImage))
+                            <img src="data:image/png;base64,{{ $pixQrImage }}" alt="PIX QR Code" class="w-20 h-20 sm:w-32 sm:h-32 md:w-40 md:h-40" />
+                        @else
+                            <svg class="w-20 h-20 sm:w-32 sm:h-32 md:w-40 md:h-40" viewBox="0 0 200 200"><rect width="200" height="200" fill="white"/><g fill="black"><rect x="10" y="10" width="40" height="40"/><rect x="150" y="10" width="40" height="40"/><rect x="10" y="150" width="40" height="40"/><rect x="60" y="30" width="8" height="8"/><rect x="70" y="30" width="8" height="8"/><rect x="60" y="45" width="8" height="8"/><rect x="75" y="45" width="8" height="8"/></g></svg>
+                        @endif
+                    </div>
+                    <p class="text-slate-300 text-xs text-center leading-tight">Aponte a câmera<br/>do seu banco</p>
+                </div>
+
+                <!-- Copy Code Section -->
+                <div class="bg-slate-800/50 rounded-lg p-2.5 sm:p-4 border border-slate-700" id="pix-copy-section">
+                    <p class="text-slate-300 text-xs font-semibold mb-1.5 block">Ou copie o código:</p>
+                    <div class="bg-slate-950 border-2 border-slate-600 rounded p-1.5 sm:p-2 font-mono text-slate-200 text-xs break-all overflow-x-auto max-h-14 overflow-y-auto mb-2 leading-relaxed">{{ $pixQrCodeText ?? 'Código PIX' }}</div>
+                    <button id="copy-pix-btn" class="w-full py-2 sm:py-3 px-3 sm:px-6 rounded-lg font-bold text-xs sm:text-base transition-all duration-300 flex items-center justify-center gap-2 bg-green-500 hover:bg-green-600 text-white shadow-lg active:scale-95" onclick="copyPixCode()">
+                        <svg class="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                        <span id="copy-text">Copiar código</span>
+                    </button>
+                </div>
+
+                <!-- Reassurance Section -->
+                <div class="bg-blue-500/10 border border-blue-500/40 rounded-lg p-2 sm:p-3 flex items-start gap-2">
+                    <svg class="w-4 h-4 text-blue-400 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.338 5.59a6.79 6.79 0 010 9.647A6.811 6.811 0 015 12.5c0-1.995.822-3.815 2.149-5.09.937-.957 2.116-1.687 3.352-2.053A6.902 6.902 0 0112 3a6.94 6.94 0 015.024 2.078l.896.895.708-.707A6.5 6.5 0 008.854 2.5a8.5 8.5 0 00-3.516 8z" clip-rule="evenodd"/></svg>
+                    <div class="min-w-0">
+                        <p class="text-blue-200 text-xs sm:text-sm font-semibold leading-tight">Protegido com SSL</p>
+                        <p class="text-blue-300/70 text-xs mt-0.5 leading-tight">Seus dados são 100% seguros</p>
+                    </div>
+                </div>
+
+                <!-- Status Info -->
+                <div class="bg-amber-500/10 border border-amber-500/40 rounded-lg p-2 sm:p-3">
+                    <div class="flex items-start gap-2">
+                        <div class="w-2 h-2 bg-amber-400 rounded-full animate-pulse mt-1 flex-shrink-0"></div>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-amber-200 font-semibold text-xs sm:text-sm leading-tight">Aguardando confirmação</p>
+                            <p class="text-amber-100/80 text-xs leading-snug mt-0.5">✓ Confirmação em segundos<br/>✓ Acesso imediato<br/>✓ Suporte 24/7</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+@endif
+
+<script>
+function copyPixCode() {
+    const pixCodeElement = document.querySelector('#pix-copy-section > div');
+    const pixCode = pixCodeElement ? pixCodeElement.textContent.trim() : '';
+    
+    if (!pixCode || pixCode === 'Código PIX') {
+        alert('Código PIX não disponível');
+        return;
+    }
+
+    const btn = document.getElementById('copy-pix-btn');
+    const icon = document.getElementById('copy-icon');
+    const text = document.getElementById('copy-text');
+    const originalText = text.textContent;
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(pixCode)
+            .then(() => {
+                text.textContent = '✓ Código copiado!';
+                btn.classList.add('bg-green-600');
+                btn.classList.remove('hover:bg-green-600');
+                
+                setTimeout(() => {
+                    text.textContent = originalText;
+                    btn.classList.remove('bg-green-600');
+                    btn.classList.add('hover:bg-green-600');
+                }, 2000);
+            })
+            .catch(() => {
+                // Fallback
+                const textarea = document.createElement('textarea');
+                textarea.value = pixCode;
+                document.body.appendChild(textarea);
+                textarea.select();
+                try {
+                    document.execCommand('copy');
+                    text.textContent = '✓ Código copiado!';
+                    setTimeout(() => {
+                        text.textContent = originalText;
+                    }, 2000);
+                } catch (err) {
+                    alert('Erro ao copiar. Copie manualmente o código acima.');
+                }
+                document.body.removeChild(textarea);
+            });
+    }
+}
+</script>
 
 <!-- Error Modal -->
 <div id="error-modal"
@@ -1001,10 +1324,46 @@ $gateway = config('services.default_payment_gateway', 'stripe');
                 paymentSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
             }
         });
+
+        // Clipboard copy listener triggered by Livewire server event
+        window.addEventListener('copy-to-clipboard', (e) => {
+            const text = e.detail && e.detail.text ? e.detail.text : '';
+            if (!text) {
+                alert('Nada para copiar');
+                return;
+            }
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text).then(() => {
+                    alert('Código copiado para área de transferência');
+                }).catch(() => {
+                    alert('Falha ao copiar o código');
+                });
+            } else {
+                // Fallback
+                const textarea = document.createElement('textarea');
+                textarea.value = text;
+                document.body.appendChild(textarea);
+                textarea.select();
+                try {
+                    document.execCommand('copy');
+                    alert('Código copiado para área de transferência');
+                } catch (err) {
+                    alert('Falha ao copiar o código');
+                }
+                document.body.removeChild(textarea);
+            }
+        });
     });
 
     window.addEventListener('redirectToExternal', event => {
         window.location.href = event.detail.url;
+    });
+
+    // Listener para redirecionar ao upsell após PIX aprovado
+    Livewire.on('redirect-success', (event) => {
+        console.log('Redirecionando para upsell:', event.url);
+        // Redireciona IMEDIATAMENTE
+        window.location.href = event.url;
     });
 </script>
 @endif

@@ -1,0 +1,32 @@
+{
+  "monthly": {
+    "hash": "mock_monthly_hash",
+    "label": "Acesso Mensal",
+    "nunber_months": 1,
+    "prices": {
+      "BRL": {
+        "id": "price_mock_monthly_brl",
+        "origin_price": 49.90,
+        "descont_price": 24.90,
+        "recurring": true
+      }
+    },
+    "upsell_url": "/upsell/painel-das-garotas"
+  }
+  ,
+  "painel_das_garotas": {
+    "hash": "painel_das_garotas",
+    "label": "Painel das garotas",
+    "nunber_months": 0,
+    "prices": {
+      "BRL": {
+        "id": "price_mock_painel_garotas_brl",
+        "origin_price": 97.00,
+        "descont_price": 37.00,
+        "recurring": false
+      }
+    },
+    "upsell_url": "/upsell/painel-das-garotas",
+    "is_upsell": true
+  }
+}

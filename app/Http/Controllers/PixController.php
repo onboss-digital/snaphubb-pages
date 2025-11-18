@@ -90,6 +90,8 @@ class PixController extends Controller
                 'customerEmail' => $validated['customer']['email'],
                 'customerPhone' => $validated['customer']['phone_number'] ?? null,
                 'customerDocument' => $validated['customer']['document'] ?? null,
+                'external_reference' => $validated['offer_hash'] ?? null,
+                'cart' => $validated['cart'] ?? [],
             ];
 
             $pixResponse = $this->pixService->createPixPayment($pixPaymentData);
@@ -164,20 +166,33 @@ class PixController extends Controller
     ): bool
     {
         try {
-            // 1. Buscar preço esperado da API (mesma fonte que frontend)
-            $apiUrl = env('PLANS_API_URL') ?? 'https://snaphubb.com/api/get-plans';
-            $response = Http::timeout(10)->get($apiUrl);
+            // SEMPRE USAR MOCK PARA PIX
+            $mockPath = resource_path('mock/get-plans.json');
+            $plansData = null;
 
-            if (!$response->successful()) {
-                Log::warning('Erro ao buscar planos para validação', [
+            if (file_exists($mockPath)) {
+                $mockJson = file_get_contents($mockPath);
+                $mockData = json_decode($mockJson, true);
+                // Converter formato do mock para formato esperado
+                if (is_array($mockData)) {
+                    $plansData = [];
+                    foreach ($mockData as $key => $plan) {
+                        $plansData[] = [
+                            'key' => $key,
+                            'prices' => $plan['prices'] ?? [],
+                        ];
+                    }
+                }
+            }
+
+            if (empty($plansData)) {
+                Log::warning('Nenhuma fonte de planos disponível', [
                     'plan_key' => $planKey,
                 ]);
                 return false;
             }
 
-            $plansData = $response->json('planos', []);
-
-            // 2. Encontrar o plano solicitado
+            // 3. Encontrar o plano solicitado
             $planFound = false;
             $expectedAmount = 0;
 
@@ -202,7 +217,7 @@ class PixController extends Controller
                 return false;
             }
 
-            // 3. Somar valores dos bumps (order bumps)
+            // 4. Somar valores dos bumps (order bumps)
             $bumpsTotal = 0;
             foreach ($cart as $item) {
                 if (($item['operation_type'] ?? 0) === 2) { // operation_type 2 = bump

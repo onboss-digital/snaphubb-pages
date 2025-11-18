@@ -19,14 +19,14 @@ class MercadoPagoPixService
 
     public function __construct()
     {
-        // Determina o ambiente baseado na variável ENVIRONMENT
-        $this->environment = env('ENVIRONMENT', 'sandbox');
+        // Determina o ambiente baseado na variável MERCADOPAGO_ENV
+        $this->environment = env('MERCADOPAGO_ENV', 'sandbox');
         
         // Seleciona o token baseado no ambiente
         if ($this->environment === 'production') {
-            $this->accessToken = env('MP_ACCESS_TOKEN_PROD', '');
+            $this->accessToken = env('MERCADOPAGO_PRODUCTION_TOKEN', '');
         } else {
-            $this->accessToken = env('MP_ACCESS_TOKEN_SANDBOX', '');
+            $this->accessToken = env('MERCADOPAGO_SANDBOX_TOKEN', '');
         }
         
         // Inicializa o cliente HTTP com verificação SSL desabilitada em debug
@@ -73,20 +73,77 @@ class MercadoPagoPixService
             // Converte centavos para reais (Mercado Pago espera valor em reais)
             $amount = (float) ($paymentData['amount'] / 100);
             
-            // Prepara o corpo da requisição
+            // Prepara o corpo da requisição (construir conforme doc Mercado Pago PIX)
+            // Separar first/last name
+            $fullName = trim($paymentData['customerName'] ?? 'Cliente');
+            $firstName = $fullName;
+            $lastName = '';
+            if (!empty($fullName)) {
+                $parts = preg_split('/\s+/', $fullName);
+                if (count($parts) > 1) {
+                    $firstName = array_shift($parts);
+                    $lastName = implode(' ', $parts);
+                }
+            }
+
             $requestBody = [
                 'transaction_amount' => $amount,
                 'description' => $paymentData['description'] ?? 'Pagamento PIX',
                 'payment_method_id' => 'pix',
+                'external_reference' => $paymentData['external_reference'] ?? null,
+                'notification_url' => env('MERCADOPAGO_NOTIFICATION_URL') ?: null,
                 'payer' => [
                     'email' => $paymentData['customerEmail'] ?? 'customer@email.com',
-                    'first_name' => $paymentData['customerName'] ?? 'Cliente',
+                    'first_name' => $firstName,
+                    'last_name' => $lastName,
                 ],
             ];
+
+            // Incluir identification se CPF informado
+            if (!empty($paymentData['customerDocument'])) {
+                $requestBody['payer']['identification'] = [
+                    'type' => 'CPF',
+                    'number' => preg_replace('/[^0-9]/', '', $paymentData['customerDocument']),
+                ];
+            }
+
+            // Mapear cart para additional_info.items (se disponível)
+            if (!empty($paymentData['cart']) && is_array($paymentData['cart'])) {
+                $items = [];
+                foreach ($paymentData['cart'] as $item) {
+                    $id = $item['id'] ?? null;
+                    $title = $item['title'] ?? ($item['name'] ?? 'Item');
+                    $quantity = isset($item['quantity']) ? (int)$item['quantity'] : 1;
+                    $unitPrice = 0.0;
+                    // Se o preço vier em centavos, converter para reais
+                    if (isset($item['unit_price'])) {
+                        $unitPrice = (float)$item['unit_price'];
+                    } elseif (isset($item['price'])) {
+                        $unitPrice = ((float)$item['price']) / 100.0;
+                    }
+
+                    $items[] = [
+                        'id' => $id,
+                        'title' => $title,
+                        'quantity' => $quantity,
+                        'unit_price' => $unitPrice,
+                    ];
+                }
+
+                if (!empty($items)) {
+                    $requestBody['additional_info'] = [
+                        'items' => $items,
+                    ];
+                }
+            }
+
+            // Remover campos nulos para não enviar `null` desnecessários à API
+            $requestBody = $this->pruneNulls($requestBody);
 
             Log::channel('payment_checkout')->info('MercadoPagoPixService: Criando pagamento PIX', [
                 'environment' => $this->environment,
                 'amount' => $amount,
+                'request_body' => $requestBody,
             ]);
 
             // Realiza a requisição para o Mercado Pago
@@ -129,6 +186,54 @@ class MercadoPagoPixService
             return [
                 'status' => 'error',
                 'message' => 'Erro de conexão com o Mercado Pago. Tente novamente mais tarde.',
+            ];
+        } catch (\GuzzleHttp\Exception\RequestException $e) {
+            // Captura erros de servidor (5xx) e outros RequestExceptions para log completo
+            $request = $e->getRequest();
+            $response = $e->getResponse();
+
+            $requestBody = null;
+            try {
+                $requestBody = (string) $request->getBody();
+            } catch (\Throwable $_) {
+                $requestBody = null;
+            }
+
+            $responseBody = null;
+            $responseStatus = null;
+            try {
+                if ($response) {
+                    $responseStatus = $response->getStatusCode();
+                    $responseBody = (string) $response->getBody();
+                }
+            } catch (\Throwable $_) {
+                $responseBody = null;
+            }
+
+            Log::error('MercadoPagoPixService: RequestException ao criar pagamento PIX', [
+                'message' => $e->getMessage(),
+                'request' => [
+                    'method' => $request ? $request->getMethod() : null,
+                    'uri' => $request ? (string) $request->getUri() : null,
+                    'body' => $requestBody,
+                ],
+                'response' => [
+                    'status' => $responseStatus,
+                    'body' => $responseBody,
+                ],
+            ]);
+
+            $decoded = null;
+            try {
+                $decoded = $responseBody ? json_decode($responseBody, true) : null;
+            } catch (\Throwable $_) {
+                $decoded = null;
+            }
+
+            return [
+                'status' => 'error',
+                'message' => $decoded['message'] ?? 'Erro ao processar o pagamento. Tente novamente mais tarde.',
+                'raw_response' => $decoded,
             ];
         } catch (\Exception $e) {
             Log::error('MercadoPagoPixService: Erro geral ao criar pagamento PIX', [
@@ -267,5 +372,26 @@ class MercadoPagoPixService
     public function isSandbox(): bool
     {
         return $this->environment === 'sandbox';
+    }
+
+    /**
+     * Remove keys with null values recursively from an array.
+     */
+    private function pruneNulls(array $data): array
+    {
+        $result = [];
+        foreach ($data as $k => $v) {
+            if (is_array($v)) {
+                $pruned = $this->pruneNulls($v);
+                if (!empty($pruned)) {
+                    $result[$k] = $pruned;
+                }
+            } else {
+                if ($v !== null) {
+                    $result[$k] = $v;
+                }
+            }
+        }
+        return $result;
     }
 }

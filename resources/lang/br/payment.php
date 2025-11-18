@@ -90,7 +90,18 @@ return [
     'required_field' => 'Campo obrigatório',
     'pix_generation_failed' => 'Falha ao gerar PIX. Tente novamente.',
     'pix_generation_error' => 'Erro ao gerar PIX',
+    'plan_not_loaded' => 'Plano não disponível no momento. Tente novamente mais tarde.',
+    'mock_offer_title' => 'Oferta Especial: 50% OFF por tempo limitado!',
+    'mock_offer_subtitle' => 'De R$49,90 por apenas R$24,90 — escolha já e garanta seu desconto!',
+    'mock_original_price_label' => 'Preço antigo',
+    'mock_discount_price_label' => 'Preço com desconto',
+    'mock_cta' => 'Quero este desconto',
+    'mock_savings_text' => 'Você economiza R$25,00 agora',
     'instant_confirmation' => 'Confirmação instantânea',
     'invalid_amount' => 'Valor inválido para pagamento',
+    'checking_email' => 'Verificando...',
+    'user_exists_message_short' => 'Usuário já existe',
+    'email_available' => 'E-mail disponível',
+    'email_check_failed' => 'Erro ao verificar e-mail',
 ];
 
