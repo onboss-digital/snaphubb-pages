@@ -106,11 +106,19 @@ document.addEventListener('DOMContentLoaded', function(){
         }
 
         // InitiateCheckout (FB) and begin_checkout (GA4)
-        safeFbqTrack('InitiateCheckout', {
-            content_category: 'checkout',
-            value: window.checkoutData.value || 0,
-            currency: window.checkoutData.currency || 'BRL'
-        });
+        @php
+            $fb_ids = config('analytics.fb_pixel_ids', []);
+        @endphp
+
+        @if(count($fb_ids))
+            @foreach($fb_ids as $id)
+                safeFbqTrack('InitiateCheckout', {
+                    content_category: 'checkout',
+                    value: window.checkoutData.value || 0,
+                    currency: window.checkoutData.currency || 'BRL'
+                }, { pixelId: '{{ $id }}' });
+            @endforeach
+        @endif
 
         if (typeof gtag === 'function') {
             gtag('event', 'begin_checkout', {
