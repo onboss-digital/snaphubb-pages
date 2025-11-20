@@ -171,7 +171,7 @@ document.addEventListener('DOMContentLoaded', function(){
     }catch(e){ console.error('analytics error', e); }
 });
 </script>
-@endsection
+@endpush
 
 
 <div>
