@@ -30,6 +30,9 @@
     fbq('init', '{{ $id }}');
   @endforeach
 
+  // Grant consent
+  fbq('consent', 'grant');
+
   // Send PageView to each pixel explicitly
   @foreach($fb_ids as $id)
     fbq('track', 'PageView', {}, {pixelId: '{{ $id }}'});
