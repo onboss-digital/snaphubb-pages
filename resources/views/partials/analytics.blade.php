@@ -1,21 +1,16 @@
-@if(env('GA_MEASUREMENT_ID'))
+@if(config('analytics.ga_measurement_id'))
 <!-- Google Analytics 4 -->
-<script async src="https://www.googletagmanager.com/gtag/js?id={{ env('GA_MEASUREMENT_ID') }}"></script>
+<script async src="https://www.googletagmanager.com/gtag/js?id={{ config('analytics.ga_measurement_id') }}"></script>
 <script>
   window.dataLayer = window.dataLayer || [];
   function gtag(){dataLayer.push(arguments);}
   gtag('js', new Date());
-  gtag('config', '{{ env('GA_MEASUREMENT_ID') }}');
+  gtag('config', '{{ config('analytics.ga_measurement_id') }}');
 </script>
 @endif
 
 @php
-    $fb_ids = [];
-    if(env('FB_PIXEL_IDS')){
-        $fb_ids = array_filter(array_map('trim', explode(',', env('FB_PIXEL_IDS'))));
-    } elseif(env('FB_PIXEL_ID')){
-        $fb_ids = [env('FB_PIXEL_ID')];
-    }
+    $fb_ids = config('analytics.fb_pixel_ids', []);
 @endphp
 
 @if(count($fb_ids))
