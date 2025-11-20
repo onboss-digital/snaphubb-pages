@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Http;
 use Livewire\Component;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Log;
+use App\Services\FacebookConversionsService;
 
 class PagePay extends Component
 {
@@ -481,6 +482,36 @@ class PagePay extends Component
                 }, $checkoutData['cart']),
                 'content_type' => 'product',
             ];
+
+            // Server-side: send Purchase event to Facebook Conversions API for each configured pixel
+            try {
+                $fbIds = [];
+                if (env('FB_PIXEL_IDS')) {
+                    $fbIds = array_filter(array_map('trim', explode(',', env('FB_PIXEL_IDS'))));
+                } elseif (env('FB_PIXEL_ID')) {
+                    $fbIds = [env('FB_PIXEL_ID')];
+                }
+
+                if (!empty($fbIds)) {
+                    $fbService = app(FacebookConversionsService::class);
+                    foreach ($fbIds as $pixelId) {
+                        $fbService->sendPurchaseEvent($pixelId, [
+                            'value' => $purchaseData['value'],
+                            'currency' => $purchaseData['currency'],
+                            'event_id' => $purchaseData['transaction_id'],
+                            'email' => $checkoutData['customer']['email'] ?? null,
+                            'phone' => $checkoutData['customer']['phone_number'] ?? null,
+                            'client_ip' => request()->ip(),
+                            'user_agent' => request()->userAgent(),
+                            'content_ids' => $purchaseData['content_ids'],
+                            'content_type' => $purchaseData['content_type'],
+                            'event_source_url' => url()->current(),
+                        ]);
+                    }
+                }
+            } catch (\Throwable $e) {
+                Log::error('FB Purchase CAPI call failed in sendCheckout', ['error' => $e->getMessage()]);
+            }
 
             // Dispatch the event to the browser (Livewire emit and browser event)
             $this->dispatch('checkout-success', purchaseData: $purchaseData);

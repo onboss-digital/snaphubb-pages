@@ -16,3 +16,9 @@ Route::prefix('pix')->group(function () {
     // GET /api/pix/status/:payment_id
     Route::get('/status/{paymentId}', [PixController::class, 'getPaymentStatus'])->name('pix.status');
 });
+
+// Mercado Pago webhook (PIX notifications)
+Route::post('/webhook/mercadopago', [\App\Http\Controllers\MercadoPagoWebhookController::class, 'handle'])->name('webhook.mercadopago');
+
+// Stripe webhook (payment_intent.succeeded)
+Route::post('/webhook/stripe', [\App\Http\Controllers\StripeWebhookController::class, 'handle'])->name('webhook.stripe');

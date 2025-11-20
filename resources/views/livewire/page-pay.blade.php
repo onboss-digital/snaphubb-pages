@@ -76,13 +76,29 @@ document.addEventListener('DOMContentLoaded', function(){
         };
 
         // Helper to safely call fbq when it's available (prevents lost events)
-        function safeFbqTrack(eventName, params){
-            if (typeof fbq === 'function') { try { fbq('track', eventName, params); } catch(e){ console.warn('fbq track failed', e); } return; }
+        // Accepts optional `options` (e.g., {eventID: '...'} ) which will be passed as 4th arg to fbq
+        function safeFbqTrack(eventName, params, options){
+            if (typeof fbq === 'function') {
+                try {
+                    if (options && typeof options === 'object') {
+                        fbq('track', eventName, params || {}, options);
+                    } else {
+                        fbq('track', eventName, params || {});
+                    }
+                } catch(e){ console.warn('fbq track failed', e); }
+                return;
+            }
             var tries = 0;
             var iv = setInterval(function(){
                 if (typeof fbq === 'function'){
                     clearInterval(iv);
-                    try{ fbq('track', eventName, params); }catch(e){ console.warn('fbq track failed after wait', e); }
+                    try{
+                        if (options && typeof options === 'object') {
+                            fbq('track', eventName, params || {}, options);
+                        } else {
+                            fbq('track', eventName, params || {});
+                        }
+                    }catch(e){ console.warn('fbq track failed after wait', e); }
                 }
                 tries++;
                 if (tries > 20) { clearInterval(iv); console.warn('fbq not available to track', eventName); }
@@ -124,12 +140,16 @@ document.addEventListener('DOMContentLoaded', function(){
                 var content_ids = purchase.content_ids || window.checkoutData.content_ids || [];
 
                 // Facebook Purchase (use safe wrapper in case fbq not yet ready)
-                safeFbqTrack('Purchase', {
+                // Include eventID for deduplication with server-side CAPI (if available in payload)
+                var eventId = (purchase && purchase.transaction_id) ? purchase.transaction_id : null;
+                var fbParams = {
                     value: value,
                     currency: currency,
                     content_ids: content_ids,
                     content_type: 'product'
-                });
+                };
+                var fbOptions = eventId ? { eventID: eventId } : undefined;
+                safeFbqTrack('Purchase', fbParams, fbOptions);
 
                 // GA4 purchase
                 if (typeof gtag === 'function') {

@@ -6,6 +6,7 @@
     <title>Oferta Exclusiva - Snaphubb</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @livewireStyles
+    @include('partials.analytics')
 </head>
 <body class="bg-black text-white min-h-screen">
     <livewire:upsell-offer />

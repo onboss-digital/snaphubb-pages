@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Parabéns — Snaphubb</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    @include('partials.analytics')
 </head>
 <body class="min-h-screen bg-black text-white">
   <!-- Animated Background -->
