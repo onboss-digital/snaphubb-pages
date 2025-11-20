@@ -1,4 +1,4 @@
-@section('head')
+@push('head')
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -62,9 +62,9 @@ $gateway = config('services.default_payment_gateway', 'stripe');
     gtag('config', 'G-G6FBHCNW8X');
 </script>
 <!-- End Google Analytics -->
-@endsection
+@endpush
 
-@section('scripts')
+@push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function(){
     try{
@@ -111,13 +111,11 @@ document.addEventListener('DOMContentLoaded', function(){
         @endphp
 
         @if(count($fb_ids))
-            @foreach($fb_ids as $id)
-                safeFbqTrack('InitiateCheckout', {
-                    content_category: 'checkout',
-                    value: window.checkoutData.value || 0,
-                    currency: window.checkoutData.currency || 'BRL'
-                }, { pixelId: '{{ $id }}' });
-            @endforeach
+            safeFbqTrack('InitiateCheckout', {
+                content_category: 'checkout',
+                value: window.checkoutData.value || 0,
+                currency: window.checkoutData.currency || 'BRL'
+            });
         @endif
 
         if (typeof gtag === 'function') {
