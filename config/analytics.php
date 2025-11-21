@@ -14,5 +14,20 @@ return [
 
     'ga_measurement_id' => env('GA_MEASUREMENT_ID'),
 
-    'fb_pixel_ids' => array_filter(array_map('trim', explode(',', env('FB_PIXEL_IDS', '')))),
+    // Support both a single FB_PIXEL_ID or multiple IDs in FB_PIXEL_IDS (comma-separated).
+    // Priority: FB_PIXEL_IDS (if non-empty) -> FB_PIXEL_ID (single) -> empty array
+    'fb_pixel_ids' => (function () {
+        $multi = env('FB_PIXEL_IDS');
+        $single = env('FB_PIXEL_ID');
+
+        if (!is_null($multi) && trim($multi) !== '') {
+            return array_filter(array_map('trim', explode(',', $multi)));
+        }
+
+        if (!is_null($single) && trim($single) !== '') {
+            return [$single];
+        }
+
+        return [];
+    })(),
 ];
