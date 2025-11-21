@@ -164,6 +164,20 @@
 
   <script>
     (function(){
+      try {
+        var lastOrderTx = "{{ session('last_order_transaction') ?? '' }}";
+        var lastOrderAmount = "{{ session('last_order_amount') ?? '' }}";
+        if (lastOrderTx) {
+          function safeFbqTrackLocal(eventName, params, options){
+            if (typeof fbq === 'function') { try { if(options) fbq('track', eventName, params || {}, options); else fbq('track', eventName, params || {}); } catch(e){ console.warn('fbq track failed', e);} return; }
+            var tries = 0; var iv = setInterval(function(){ if (typeof fbq === 'function'){ clearInterval(iv); try{ if(options) fbq('track', eventName, params || {}, options); else fbq('track', eventName, params || {});}catch(e){console.warn('fbq track failed after wait', e);} } tries++; if(tries>20){ clearInterval(iv); console.warn('fbq not available to track', eventName);} }, 250);
+          }
+          safeFbqTrackLocal('Purchase', { value: parseFloat(lastOrderAmount) || 0, currency: 'BRL' }, { eventID: lastOrderTx });
+          fetch('/api/analytics/clear-last-order', { method: 'POST', headers: { 'Content-Type': 'application/json' } }).catch(function(e){ console.warn('clear-last-order failed', e); });
+        }
+      } catch(e) { console.error('thank-you-recused analytics error', e); }
+    })();
+    (function(){
       // Countdown + redirect
       var secondsEl = document.getElementById('redirect-seconds');
       var seconds = 5;

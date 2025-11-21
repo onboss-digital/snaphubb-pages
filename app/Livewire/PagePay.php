@@ -513,6 +513,14 @@ class PagePay extends Component
                 Log::error('FB Purchase CAPI call failed in sendCheckout', ['error' => $e->getMessage()]);
             }
 
+            // Persist purchase identifiers in session so "Obrigado" pages can emit client events once
+            try {
+                session()->put('last_order_transaction', $purchaseData['transaction_id']);
+                session()->put('last_order_amount', $purchaseData['value']);
+            } catch (\Throwable $_) {
+                // ignore session failures
+            }
+
             // Dispatch the event to the browser (Livewire emit and browser event)
             $this->dispatch('checkout-success', purchaseData: $purchaseData);
             try {
@@ -906,6 +914,12 @@ class PagePay extends Component
             'content_type' => 'product',
         ];
 
+        try {
+            session()->put('last_order_transaction', $purchaseData['transaction_id']);
+            session()->put('last_order_amount', $purchaseData['value']);
+        } catch (\Throwable $_) {
+            // ignore
+        }
         $this->dispatch('checkout-success', purchaseData: $purchaseData);
         try {
             $this->dispatchBrowserEvent('checkout-success', $purchaseData);

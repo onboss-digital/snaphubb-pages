@@ -22,3 +22,6 @@ Route::post('/webhook/mercadopago', [\App\Http\Controllers\MercadoPagoWebhookCon
 
 // Stripe webhook (payment_intent.succeeded)
 Route::post('/webhook/stripe', [\App\Http\Controllers\StripeWebhookController::class, 'handle'])->name('webhook.stripe');
+
+// Analytics helper: clear last-order session after client fires Purchase
+Route::post('/analytics/clear-last-order', [\App\Http\Controllers\AnalyticsController::class, 'clearLastOrder'])->name('analytics.clear_last_order');
