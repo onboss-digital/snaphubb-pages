@@ -49,8 +49,10 @@
     fbq('init', '{{ $id }}');
   @endforeach
 
-  // Grant consent
-  fbq('consent', 'grant');
+  // Grant consent (only if enabled in config)
+  @if(config('analytics.fb_force_consent'))
+    fbq('consent', 'grant');
+  @endif
 
   // Send PageView to each pixel explicitly
   @foreach($fb_ids as $id)
