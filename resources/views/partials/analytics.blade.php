@@ -56,7 +56,35 @@
 
   // Send PageView to each pixel explicitly
   @foreach($fb_ids as $id)
-    fbq('track', 'PageView', {}, {pixelId: '{{ $id }}'});
+    (function(pixelId){
+      function sendPageView(){
+        try {
+          if (typeof fbq === 'function' && typeof fbq.track === 'function'){
+            fbq('track', 'PageView', {}, {pixelId: pixelId});
+            console.info('FB Pixel: PageView tracked for', pixelId);
+            return true;
+          }
+        } catch(e) { console.warn('FB Pixel: sendPageView error', e); }
+        return false;
+      }
+
+      // Try immediate send (will queue if fbq stub supports it)
+      if (!sendPageView()){
+        // Wait for load flag set by script load handler (we set window._fbq_loaded)
+        var tries = 0;
+        var iv = setInterval(function(){
+          tries++;
+          if (window._fbq_loaded === true || (typeof fbq === 'function' && typeof fbq.track === 'function')){
+            sendPageView();
+            clearInterval(iv);
+          } else if (tries > 20) {
+            // Last resort: attempt to call fbq anyway (stub will queue)
+            try { fbq('track', 'PageView', {}, {pixelId: pixelId}); console.warn('FB Pixel: forced PageView queued for', pixelId); } catch(e){ console.error('FB Pixel: forced PageView failed', e); }
+            clearInterval(iv);
+          }
+        }, 250);
+      }
+    })('{{ $id }}');
   @endforeach
 </script>
 

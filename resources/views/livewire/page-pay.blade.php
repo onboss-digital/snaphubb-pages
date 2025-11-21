@@ -78,30 +78,37 @@ document.addEventListener('DOMContentLoaded', function(){
         // Helper to safely call fbq when it's available (prevents lost events)
         // Accepts optional `options` (e.g., {eventID: '...'} ) which will be passed as 4th arg to fbq
         function safeFbqTrack(eventName, params, options){
-            if (typeof fbq === 'function') {
-                try {
+            function doTrack(){
+                try{
                     if (options && typeof options === 'object') {
                         fbq('track', eventName, params || {}, options);
                     } else {
                         fbq('track', eventName, params || {});
                     }
-                } catch(e){ console.warn('fbq track failed', e); }
+                    return true;
+                } catch(e){ console.warn('fbq track attempt failed', e); return false; }
+            }
+
+            // If fbq.track exists, use it immediately
+            if (typeof fbq === 'function' && typeof fbq.track === 'function'){
+                doTrack();
                 return;
             }
+
+            // If fbq exists but track not ready, wait for load flag or track function
             var tries = 0;
             var iv = setInterval(function(){
-                if (typeof fbq === 'function'){
-                    clearInterval(iv);
-                    try{
-                        if (options && typeof options === 'object') {
-                            fbq('track', eventName, params || {}, options);
-                        } else {
-                            fbq('track', eventName, params || {});
-                        }
-                    }catch(e){ console.warn('fbq track failed after wait', e); }
-                }
                 tries++;
-                if (tries > 20) { clearInterval(iv); console.warn('fbq not available to track', eventName); }
+                if (window._fbq_loaded === true || (typeof fbq === 'function' && typeof fbq.track === 'function')){
+                    doTrack();
+                    clearInterval(iv);
+                    return;
+                }
+                if (tries > 20){
+                    // Last resort: attempt to call fbq (stub will queue) and bail
+                    try { doTrack(); console.warn('fbq not ready but attempted to queue', eventName); } catch(e){ console.error('fbq final attempt failed', e); }
+                    clearInterval(iv);
+                }
             }, 250);
         }
 
