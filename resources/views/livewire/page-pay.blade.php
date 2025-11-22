@@ -420,7 +420,7 @@ document.addEventListener('DOMContentLoaded', function(){
                                             <label
                                                 class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.card_number') }}</label>
                                             <input name="card_number" type="text" id="card-number"
-                                                x-mask="9999 9999 9999 9999" placeholder="0000 0000 0000 0000"
+                                                placeholder="0000 0000 0000 0000"
                                                 wire:model.defer="cardNumber"
                                                 inputmode="numeric" autocomplete="cc-number" pattern="[0-9\s]{13,19}"
                                                 class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
@@ -432,7 +432,7 @@ document.addEventListener('DOMContentLoaded', function(){
                                             <div>
                                                 <label
                                                     class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.expiry_date') }}</label>
-                                                <input name="card_expiry" type="text" id="card-expiry" x-mask="99/99"
+                                                <input name="card_expiry" type="text" id="card-expiry"
                                                     placeholder="MM/YY" wire:model.defer="cardExpiry"
                                                     inputmode="numeric" autocomplete="cc-exp" pattern="(0[1-9]|1[0-2])\/([0-9]{2})"
                                                     class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
@@ -444,7 +444,7 @@ document.addEventListener('DOMContentLoaded', function(){
                                                 <label
                                                     class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.security_code') }}</label>
                                                 <input name="card_cvv" type="text" id="card-cvv" placeholder="CVV"
-                                                    x-mask="9999" wire:model.defer="cardCvv" inputmode="numeric" autocomplete="cc-csc" pattern="[0-9]{3,4}"
+                                                    wire:model.defer="cardCvv" inputmode="numeric" autocomplete="cc-csc" pattern="[0-9]{3,4}"
                                                     class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
                                                 @error('cardCvv')
                                                     <span class="text-red-500 text-xs mt-1">{{ $message }}</span>
@@ -513,7 +513,7 @@ document.addEventListener('DOMContentLoaded', function(){
                                         <div>
                                             <label
                                                 class="block text-sm font-medium text-gray-300 mb-1">CPF</label>
-                                            <input name="cpf" type="text" x-mask="999.999.999-99"
+                                            <input name="cpf" type="text"
                                                 placeholder="000.000.000-00" wire:model.defer="cpf" inputmode="numeric" autocomplete="off"
                                                 class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
                                             @error('cpf')
@@ -555,7 +555,7 @@ document.addEventListener('DOMContentLoaded', function(){
 
                                     <div>
                                         <label class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.pix_field_cpf_label') }}</label>
-                                        <input name="pix_cpf" type="text" x-mask="999.999.999-99" placeholder="000.000.000-00"
+                                        <input name="pix_cpf" type="text" placeholder="000.000.000-00"
                                             wire:model.defer="pixCpf" inputmode="numeric" autocomplete="off"
                                             class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-green-500 transition-all" />
                                         @error('pixCpf')

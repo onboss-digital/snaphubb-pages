@@ -61,10 +61,11 @@
     // Send PageView to each pixel explicitly, but avoid noisy logs
     @foreach($fb_ids as $id)
       (function(pixelId){
-        function sendPageView(){
+            function sendPageView(){
           try {
-            if (typeof fbq === 'function' && typeof fbq.track === 'function'){
-              fbq('track', 'PageView', {}, {pixelId: pixelId});
+            if (typeof fbq === 'function'){
+              // use trackSingle to target this pixel explicitly
+              fbq('trackSingle', pixelId, 'PageView', {});
               return true;
             }
           } catch(e) { /* silent */ }
@@ -77,12 +78,12 @@
           var tries = 0;
           var iv = setInterval(function(){
             tries++;
-            if (window._fbq_loaded === true || (typeof fbq === 'function' && typeof fbq.track === 'function')){
+            if (window._fbq_loaded === true || (typeof fbq === 'function')){
               sendPageView();
               clearInterval(iv);
             } else if (tries > 6) {
-              // Last resort: attempt to call fbq anyway (stub will queue). No noisy logs.
-              try { fbq('track', 'PageView', {}, {pixelId: pixelId}); } catch(e){ /* silent fail */ }
+              // Last resort: attempt to call trackSingle anyway (stub will queue). No noisy logs.
+              try { fbq('trackSingle', pixelId, 'PageView', {}); } catch(e){ /* silent fail */ }
               clearInterval(iv);
             }
           }, 400);
