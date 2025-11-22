@@ -75,55 +75,7 @@ document.addEventListener('DOMContentLoaded', function(){
             content_ids: {!! json_encode(isset($product['hash']) ? [$product['hash']] : []) !!}
         };
 
-        // Helper to safely call fbq when it's available (prevents lost events)
-        // Accepts optional `options` (e.g., {eventID: '...'} ) which will be passed as 4th arg to fbq
-        function safeFbqTrack(eventName, params, options){
-            function doTrack(){
-                try{
-                    if (options && typeof options === 'object') {
-                        fbq('track', eventName, params || {}, options);
-                    } else {
-                        fbq('track', eventName, params || {});
-                    }
-                    return true;
-                } catch(e){ console.warn('fbq track attempt failed', e); return false; }
-            }
-
-            // If fbq.track exists, use it immediately
-            if (typeof fbq === 'function' && typeof fbq.track === 'function'){
-                doTrack();
-                return;
-            }
-
-            // If fbq exists but track not ready, wait for load flag or track function
-            var tries = 0;
-            var iv = setInterval(function(){
-                tries++;
-                if (window._fbq_loaded === true || (typeof fbq === 'function' && typeof fbq.track === 'function')){
-                    doTrack();
-                    clearInterval(iv);
-                    return;
-                }
-                if (tries > 20){
-                    // Last resort: attempt to call fbq (stub will queue) and bail
-                    try { doTrack(); console.warn('fbq not ready but attempted to queue', eventName); } catch(e){ console.error('fbq final attempt failed', e); }
-                    clearInterval(iv);
-                }
-            }, 250);
-        }
-
-        // InitiateCheckout (FB) and begin_checkout (GA4)
-        @php
-            $fb_ids = config('analytics.fb_pixel_ids', []);
-        @endphp
-
-        @if(count($fb_ids))
-            safeFbqTrack('InitiateCheckout', {
-                content_category: 'checkout',
-                value: window.checkoutData.value || 0,
-                currency: window.checkoutData.currency || 'BRL'
-            });
-        @endif
+        // InitiateCheckout (GA4) — Facebook Pixel is initialized only on homepage below
 
         if (typeof gtag === 'function') {
             gtag('event', 'begin_checkout', {
@@ -132,6 +84,17 @@ document.addEventListener('DOMContentLoaded', function(){
                 items: (window.checkoutData.content_ids || []).map(function(id){ return {id: id, item_brand: 'Snaphubb', item_category: 'checkout'}; })
             });
         }
+
+        // Minimal Facebook Pixel on homepage: init + InitiateCheckout only
+        (function(){
+            var fbPixelId = '{{ env("FB_PIXEL_ID") }}';
+            try {
+                if (fbPixelId && fbPixelId !== 'YOUR_FACEBOOK_PIXEL_ID') {
+                    !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod? n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window, document,'script','https://connect.facebook.net/en_US/fbevents.js');
+                    try { fbq('init', fbPixelId); fbq('track', 'InitiateCheckout', { value: window.checkoutData.value || 0, currency: window.checkoutData.currency || 'BRL' }); } catch(e){}
+                }
+            } catch(e){}
+        })();
 
         // Listen for payment method changes to fire add_payment_info (GA4)
         var paymentInputs = document.querySelectorAll('input[name="payment_method"]');
@@ -161,8 +124,7 @@ document.addEventListener('DOMContentLoaded', function(){
                     content_ids: content_ids,
                     content_type: 'product'
                 };
-                var fbOptions = eventId ? { eventID: eventId } : undefined;
-                safeFbqTrack('Purchase', fbParams, fbOptions);
+                // Facebook Purchase removed — only InitiateCheckout will be emitted from homepage
 
                 // GA4 purchase
                 if (typeof gtag === 'function') {
@@ -1542,15 +1504,18 @@ function copyPixCode() {
 
         Livewire.on('checkout-success', (event) => {
             const purchaseData = event.purchaseData;
-            if (typeof fbq === 'function') {
-                fbq('track', 'Purchase', {
-                    value: purchaseData.value,
-                    currency: purchaseData.currency,
-                    content_ids: purchaseData.content_ids,
-                    content_type: purchaseData.content_type,
-                    transaction_id: purchaseData.transaction_id
-                });
-            }
+            // Keep Facebook Purchase client event (do not remove)
+            try {
+                if (typeof fbq === 'function') {
+                    fbq('track', 'Purchase', {
+                        value: purchaseData.value,
+                        currency: purchaseData.currency,
+                        content_ids: purchaseData.content_ids,
+                        content_type: purchaseData.content_type,
+                        transaction_id: purchaseData.transaction_id
+                    }, { eventID: purchaseData.transaction_id });
+                }
+            } catch(e) {}
         });
 
         Livewire.on('validation:failed', () => {

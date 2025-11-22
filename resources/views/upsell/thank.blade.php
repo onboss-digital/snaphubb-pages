@@ -213,16 +213,15 @@
                 var lastOrderAmount = "{{ session('last_order_amount') ?? '' }}";
                 var lastOrderEmail = "{{ session('last_order_customer.email') ?? '' }}";
                 if (lastOrderTx) {
-                    // safe wrapper for fbq
+                    var params = { value: parseFloat(lastOrderAmount) || 0, currency: 'BRL' };
+                    var options = { eventID: lastOrderTx };
+                    // Safe local wrapper to send Purchase when fbq is available
                     function safeFbqTrackLocal(eventName, params, options){
                         if (typeof fbq === 'function') { try { if(options) fbq('track', eventName, params || {}, options); else fbq('track', eventName, params || {}); } catch(e){ console.warn('fbq track failed', e);} return; }
                         var tries = 0; var iv = setInterval(function(){
-                            if (typeof fbq === 'function'){ clearInterval(iv); try{ if(options) fbq('track', eventName, params || {}, options); else fbq('track', eventName, params || {}); }catch(e){console.warn('fbq track failed after wait', e);} }
+                            if (typeof fbq === 'function'){ clearInterval(iv); try{ if(options) fbq('track', eventName, params || {}, options); else fbq('track', eventName, params || {});}catch(e){console.warn('fbq track failed after wait', e);} }
                             tries++; if(tries>20){ clearInterval(iv); console.warn('fbq not available to track', eventName);} }, 250);
                     }
-
-                    var params = { value: parseFloat(lastOrderAmount) || 0, currency: 'BRL' };
-                    var options = { eventID: lastOrderTx };
                     safeFbqTrackLocal('Purchase', params, options);
 
                     // Notify server to clear session so refresh won't retrigger
