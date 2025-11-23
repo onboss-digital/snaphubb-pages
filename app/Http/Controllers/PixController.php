@@ -35,12 +35,21 @@ class PixController extends Controller
                 'currency_code' => 'required|in:BRL,USD,EUR',
                 'plan_key' => 'required|string',
                 'offer_hash' => 'required|string',
+                'device_id' => 'nullable|string', // Device ID do SDK MercadoPago.JS V2
                 'customer' => 'required|array',
                 'customer.name' => 'required|string|min:3',
                 'customer.email' => 'required|email',
                 'customer.phone_number' => 'nullable|string',
                 'customer.document' => 'nullable|string',
+                'customer.address' => 'nullable|array', // Endereço do cliente
+                'customer.address.street' => 'nullable|string',
+                'customer.address.number' => 'nullable|string',
+                'customer.address.zip' => 'nullable|string',
+                'customer.address.city' => 'nullable|string',
+                'customer.address.state' => 'nullable|string',
                 'cart' => 'required|array|min:1',
+                'cart.*.category_id' => 'nullable|string', // Categoria do item
+                'cart.*.description' => 'nullable|string', // Descrição do item
                 'metadata' => 'nullable|array',
             ]);
 
@@ -90,6 +99,8 @@ class PixController extends Controller
                 'customerEmail' => $validated['customer']['email'],
                 'customerPhone' => $validated['customer']['phone_number'] ?? null,
                 'customerDocument' => $validated['customer']['document'] ?? null,
+                'customerAddress' => $validated['customer']['address'] ?? null,
+                'device_id' => $validated['device_id'] ?? null,
                 'external_reference' => $validated['offer_hash'] ?? null,
                 'cart' => $validated['cart'] ?? [],
             ];

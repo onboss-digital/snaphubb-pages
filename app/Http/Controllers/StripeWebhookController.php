@@ -116,10 +116,11 @@ class StripeWebhookController extends Controller
                             'user_agent' => $request->userAgent(),
                             'content_ids' => $contentIds,
                             'content_type' => 'product',
-                            'event_source_url' => $request->headers->get('referer') ?? url('/'),
+                            'event_source_url' => config('app.url') . '/checkout',
                         ]);
+                        Log::info('StripeWebhook: FB CAPI event sent', ['payment_id' => $paymentId, 'pixel' => $pixelId]);
                     } catch (\Throwable $e) {
-                        Log::error('StripeWebhook: FB CAPI send failed', ['error' => $e->getMessage(), 'payment_id' => $paymentId]);
+                        Log::error('StripeWebhook: FB CAPI send failed', ['error' => $e->getMessage(), 'payment_id' => $paymentId, 'pixel' => $pixelId]);
                     }
                 }
 

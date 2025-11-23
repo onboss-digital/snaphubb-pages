@@ -92,12 +92,29 @@ class MercadoPagoPixService
                 'payment_method_id' => 'pix',
                 'external_reference' => $paymentData['external_reference'] ?? null,
                 'notification_url' => env('MERCADOPAGO_NOTIFICATION_URL') ?: null,
+                'statement_descriptor' => 'SNAPHUBB PIX',
                 'payer' => [
                     'email' => $paymentData['customerEmail'] ?? 'customer@email.com',
                     'first_name' => $firstName,
                     'last_name' => $lastName,
+                    'phone' => [
+                        'area_code' => null,
+                        'number' => null,
+                    ],
                 ],
             ];
+
+            // Adicionar telefone se fornecido
+            if (!empty($paymentData['customerPhone'])) {
+                $phone = preg_replace('/[^0-9]/', '', $paymentData['customerPhone']);
+                // BR: (11) 99999-9999 = area_code: 11, number: 999999999
+                if (strlen($phone) >= 11) {
+                    $requestBody['payer']['phone'] = [
+                        'area_code' => substr($phone, 0, 2),
+                        'number' => substr($phone, 2),
+                    ];
+                }
+            }
 
             // Incluir identification se CPF informado
             if (!empty($paymentData['customerDocument'])) {
@@ -107,14 +124,28 @@ class MercadoPagoPixService
                 ];
             }
 
+            // Adicionar endereço se fornecido
+            if (!empty($paymentData['customerAddress'])) {
+                $requestBody['payer']['address'] = [
+                    'street_name' => $paymentData['customerAddress']['street'] ?? null,
+                    'street_number' => $paymentData['customerAddress']['number'] ?? null,
+                    'zip_code' => preg_replace('/[^0-9]/', '', $paymentData['customerAddress']['zip'] ?? ''),
+                    'city_name' => $paymentData['customerAddress']['city'] ?? null,
+                    'state_name' => $paymentData['customerAddress']['state'] ?? null,
+                ];
+            }
+
             // Mapear cart para additional_info.items (se disponível)
             if (!empty($paymentData['cart']) && is_array($paymentData['cart'])) {
                 $items = [];
                 foreach ($paymentData['cart'] as $item) {
-                    $id = $item['id'] ?? null;
+                    $id = $item['id'] ?? $item['product_hash'] ?? null;
                     $title = $item['title'] ?? ($item['name'] ?? 'Item');
+                    $description = $item['description'] ?? null;
+                    $category = $item['category_id'] ?? null;
                     $quantity = isset($item['quantity']) ? (int)$item['quantity'] : 1;
                     $unitPrice = 0.0;
+                    
                     // Se o preço vier em centavos, converter para reais
                     if (isset($item['unit_price'])) {
                         $unitPrice = (float)$item['unit_price'];
@@ -122,12 +153,20 @@ class MercadoPagoPixService
                         $unitPrice = ((float)$item['price']) / 100.0;
                     }
 
-                    $items[] = [
+                    $itemData = [
                         'id' => $id,
                         'title' => $title,
+                        'description' => $description,
                         'quantity' => $quantity,
                         'unit_price' => $unitPrice,
                     ];
+                    
+                    // Adicionar category se disponível
+                    if ($category) {
+                        $itemData['category_id'] = $category;
+                    }
+
+                    $items[] = $itemData;
                 }
 
                 if (!empty($items)) {
@@ -135,6 +174,11 @@ class MercadoPagoPixService
                         'items' => $items,
                     ];
                 }
+            }
+
+            // Adicionar device_id se fornecido (SDK MercadoPago.JS V2)
+            if (!empty($paymentData['device_id'])) {
+                $requestBody['device_id'] = $paymentData['device_id'];
             }
 
             // Remover campos nulos para não enviar `null` desnecessários à API
@@ -284,10 +328,20 @@ class MercadoPagoPixService
             return [
                 'status' => 'success',
                 'data' => [
+                    'id' => $body['id'] ?? $paymentId,
                     'payment_id' => $body['id'] ?? $paymentId,
+                    'status' => $body['status'] ?? 'pending',
                     'payment_status' => $body['status'] ?? 'pending',
                     'status_detail' => $body['status_detail'] ?? null,
                     'amount' => $body['transaction_amount'] ?? null,
+                    'currency' => $body['currency_id'] ?? 'BRL',
+                    'payer' => [
+                        'email' => $body['payer']['email'] ?? null,
+                        'phone' => $body['payer']['phone']['number'] ?? null,
+                        'name' => $body['payer']['first_name'] . ' ' . $body['payer']['last_name'] ?? null,
+                    ],
+                    'cart' => isset($body['additional_info']['items']) ? $body['additional_info']['items'] : [],
+                    'description' => $body['description'] ?? null,
                 ],
             ];
         } catch (\GuzzleHttp\Exception\ClientException $e) {

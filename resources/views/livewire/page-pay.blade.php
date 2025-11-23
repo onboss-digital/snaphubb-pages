@@ -1561,9 +1561,19 @@ function copyPixCode() {
 
     // Listener para redirecionar ao upsell após PIX aprovado
     Livewire.on('redirect-success', (event) => {
-        console.log('Redirecionando para upsell:', event.url);
-        // Redireciona IMEDIATAMENTE
-        window.location.href = event.url;
+        console.log('🔴 [PagePay] redirect-success event received:', event);
+        console.log('🔴 [PagePay] redirect URL:', event.url);
+        
+        if (!event.url) {
+            console.error('🔴 [PagePay] ERROR: No URL provided in redirect-success event');
+            return;
+        }
+        
+        // Pequeno delay para garantir que Livewire processou tudo
+        setTimeout(() => {
+            console.log('🔴 [PagePay] REDIRECTING NOW to:', event.url);
+            window.location.href = event.url;
+        }, 100);
     });
 </script>
 @endif

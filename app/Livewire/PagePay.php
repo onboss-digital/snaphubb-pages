@@ -893,8 +893,9 @@ class PagePay extends Component
      */
     private function handlePixApproved()
     {
-        Log::info('PagePay: PIX aprovado', [
+        Log::info('PagePay: PIX aprovado - INICIANDO REDIRECIONAMENTO', [
             'payment_id' => $this->pixTransactionId,
+            'timestamp' => now(),
         ]);
 
         // Para o polling
@@ -902,7 +903,7 @@ class PagePay extends Component
 
         // Fecha o modal PIX (não mostra modal de sucesso, apenas redireciona)
         $this->showPixModal = false;
-        $this->showSuccessModal = false; // Não mostrar modal de sucesso
+        $this->showSuccessModal = false;
         $this->showProcessingModal = false;
 
         // Dispatch evento de sucesso para tracking (Facebook Pixel, etc)
@@ -917,21 +918,30 @@ class PagePay extends Component
         try {
             session()->put('last_order_transaction', $purchaseData['transaction_id']);
             session()->put('last_order_amount', $purchaseData['value']);
-        } catch (\Throwable $_) {
-            // ignore
-        }
-        $this->dispatch('checkout-success', purchaseData: $purchaseData);
-        try {
-            $this->dispatchBrowserEvent('checkout-success', $purchaseData);
-        } catch (\Exception $e) {
-            Log::warning('Could not dispatch browser event checkout-success (pix): ' . $e->getMessage());
+            Log::info('PagePay: Session data saved', ['transaction_id' => $purchaseData['transaction_id']]);
+        } catch (\Throwable $e) {
+            Log::warning('PagePay: Failed to save session', ['error' => $e->getMessage()]);
         }
 
-        // Marcar sessão para indicar que devemos exibir o upsell
+        // Dispatch Livewire event
+        try {
+            $this->dispatch('checkout-success', purchaseData: $purchaseData);
+            Log::info('PagePay: checkout-success event dispatched');
+        } catch (\Throwable $e) {
+            Log::error('PagePay: Failed to dispatch checkout-success', ['error' => $e->getMessage()]);
+        }
+
+        // Dispatch browser event
+        try {
+            $this->dispatchBrowserEvent('checkout-success', $purchaseData);
+            Log::info('PagePay: checkout-success browser event dispatched');
+        } catch (\Exception $e) {
+            Log::warning('PagePay: Could not dispatch browser event checkout-success (pix): ' . $e->getMessage());
+        }
+
+        // Salvar dados do cliente na sessão
         try {
             session()->put('show_upsell_after_purchase', true);
-            
-            // Salvar dados do cliente na sessão para o upsell usar
             session()->put('last_order_customer', [
                 'name' => $this->pixName ?? $this->name ?? 'Cliente',
                 'email' => $this->pixEmail ?? $this->email ?? null,
@@ -943,12 +953,31 @@ class PagePay extends Component
                 'has_name' => !empty($this->pixName ?? $this->name),
                 'has_email' => !empty($this->pixEmail ?? $this->email),
             ]);
-        } catch (\Exception $_) {
-            // ignore session errors
+        } catch (\Exception $e) {
+            Log::error('PagePay: Failed to save customer session data', ['error' => $e->getMessage()]);
         }
 
-        // Redireciona para a página de upsell IMEDIATAMENTE (sem delay)
-        $this->dispatch('redirect-success', url: url('/upsell/painel-das-garotas'));
+        // **REDIRECIONAMENTO - CRITICAL SECTION**
+        try {
+            $redirectUrl = url('/upsell/painel-das-garotas');
+            Log::info('PagePay: DISPATCHING REDIRECT', [
+                'url' => $redirectUrl,
+                'payment_id' => $this->pixTransactionId,
+            ]);
+            
+            $this->dispatch('redirect-success', url: $redirectUrl);
+            
+            Log::info('PagePay: REDIRECT DISPATCH SUCCESSFUL', [
+                'url' => $redirectUrl,
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('PagePay: REDIRECT DISPATCH FAILED', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            // Fallback: Try redirect via HTTP instead of Livewire
+            throw $e;
+        }
     }
 
     /**
