@@ -1324,7 +1324,8 @@ class PagePay extends Component
     {
         try {
             // Ao invés de fazer HTTP request para si mesmo, chama o PixController diretamente
-            $controller = new \App\Http\Controllers\PixController($this->pixService);
+            // PixController resolve o provider via Factory
+            $controller = new \App\Http\Controllers\PixController();
             
             // Simular um request para o controller
             $request = \Illuminate\Http\Request::create(

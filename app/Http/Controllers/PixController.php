@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Factories\PixServiceFactory;
 use App\Services\MercadoPagoPixService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -15,11 +16,11 @@ use Illuminate\Support\Facades\Http;
  */
 class PixController extends Controller
 {
-    private MercadoPagoPixService $pixService;
+    private $pixService;
 
-    public function __construct(MercadoPagoPixService $pixService)
+    public function __construct()
     {
-        $this->pixService = $pixService;
+        $this->pixService = PixServiceFactory::make();
     }
 
     /**
