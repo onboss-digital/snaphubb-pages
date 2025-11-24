@@ -3,6 +3,7 @@
 namespace App\Livewire;
 
 use App\Factories\PaymentGatewayFactory; // Added
+use App\Factories\PixServiceFactory;
 use App\Interfaces\PaymentGatewayInterface; // Added
 use App\Rules\ValidPhoneNumber;
 use App\Services\MercadoPagoPixService; // Added for PIX payments
@@ -95,7 +96,7 @@ class PagePay extends Component
     public $isProcessingCard = false;
     protected $apiUrl;
     private $httpClient;
-    private MercadoPagoPixService $pixService;
+    private $pixService;
     public $cardValidationError = null;
     public function __construct()
     {
@@ -104,7 +105,8 @@ class PagePay extends Component
         ]);
         $this->apiUrl = config('services.streamit.api_url'); // Assuming you'll store the API URL in config
         $this->gateway = config('services.default_payment_gateway');
-        $this->pixService = app(MercadoPagoPixService::class); // Injetar serviço PIX
+        // Usar factory para resolver o serviço PIX dinamicamente
+        $this->pixService = PixServiceFactory::make();
     }
 
     protected function rules()
