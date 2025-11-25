@@ -2,18 +2,15 @@
 
 namespace App\Factories;
 
-use App\Services\MercadoPagoPixService;
 use App\Services\PushingPayPixService;
 
 /**
  * Factory para resolver qual serviço PIX usar baseado em configuração
  * 
  * Suporta:
- * - "mercadopago" → MercadoPagoPixService
- * - "pushinpay" → PushingPayPixService
+ * - "pushinpay" → PushingPayPixService (único provider)
  * 
  * Use em .env:
- *   PIX_PROVIDER=mercadopago  (padrão)
  *   PIX_PROVIDER=pushinpay
  */
 class PixServiceFactory
@@ -21,17 +18,12 @@ class PixServiceFactory
     /**
      * Resolve e retorna a instância do serviço PIX configurado
      * 
-     * @return MercadoPagoPixService|PushingPayPixService
+     * @return PushingPayPixService
      */
     public static function make()
     {
-        $provider = strtolower(env('PIX_PROVIDER', 'mercadopago'));
-
-        return match ($provider) {
-            'pushinpay', 'pushingpay' => app(PushingPayPixService::class),
-            'mercadopago', 'default' => app(MercadoPagoPixService::class),
-            default => app(MercadoPagoPixService::class),
-        };
+        // Only Pushing Pay PIX provider is supported
+        return app(PushingPayPixService::class);
     }
 
     /**
@@ -48,7 +40,6 @@ class PixServiceFactory
     public static function available(): array
     {
         return [
-            'mercadopago' => MercadoPagoPixService::class,
             'pushinpay' => PushingPayPixService::class,
         ];
     }
@@ -58,6 +49,6 @@ class PixServiceFactory
      */
     public static function isValid(string $provider): bool
     {
-        return in_array(strtolower($provider), ['mercadopago', 'pushinpay']);
+        return in_array(strtolower($provider), ['pushinpay']);
     }
 }

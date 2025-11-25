@@ -9,24 +9,10 @@ return [
     | Define qual provider de pagamento PIX será usado na aplicação.
     |
     | Valores suportados:
-    |   - 'mercadopago' → MercadoPago (padrão, mais confiável)
-    |   - 'pushinpay'   → PushinPay (alternativa)
+    |   - 'pushinpay' → PushinPay (único provider)
     |
     */
-    'pix_provider' => env('PIX_PROVIDER', 'mercadopago'),
-
-    /*
-    |--------------------------------------------------------------------------
-    | Configurações MercadoPago
-    |--------------------------------------------------------------------------
-    */
-    'mercadopago' => [
-        'env' => env('MERCADOPAGO_ENV', 'sandbox'),
-        'sandbox_token' => env('MERCADOPAGO_SANDBOX_TOKEN'),
-        'production_token' => env('MERCADOPAGO_PRODUCTION_TOKEN'),
-        'access_token' => env('MERCADOPAGO_ACCESS_TOKEN'),
-        'notification_url' => env('MERCADOPAGO_NOTIFICATION_URL'),
-    ],
+    'pix_provider' => env('PIX_PROVIDER', 'pushinpay'),
 
     /*
     |--------------------------------------------------------------------------

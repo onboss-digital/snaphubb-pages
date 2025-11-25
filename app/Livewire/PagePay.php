@@ -809,15 +809,38 @@ class PagePay extends Component
             // Extrai dados do PIX da resposta bem-sucedida
             $pixData = $response['data'];
             
+            // Log completo da resposta para debug
+            Log::error('🔍 [PRODUCTION DEBUG] PIX SERVICE RESPONSE', [
+                'full_response' => $response,
+                'pixData_keys' => array_keys($pixData),
+                'pixData' => $pixData,
+            ]);
+            
+            // Tenta diferentes campos para o código PIX
+            $qrCode = $pixData['qr_code'] 
+                ?? $pixData['copyAndPaste'] 
+                ?? $pixData['pix_code'] 
+                ?? $pixData['code']
+                ?? $pixData['copia_cola']
+                ?? $pixData['copy_paste']
+                ?? null;
+            
+            $qrCodeBase64 = $pixData['qr_code_base64'] 
+                ?? $pixData['qrCodeBase64']
+                ?? $pixData['qr_code']
+                ?? null;
+            
             $this->pixTransactionId = $pixData['payment_id'] ?? null;
-            $this->pixQrImage = $pixData['qr_code_base64'] ?? null;
-            $this->pixQrCodeText = $pixData['qr_code'] ?? null;
+            $this->pixQrImage = $qrCodeBase64;
+            $this->pixQrCodeText = $qrCode;
             $this->pixAmount = $numeric_final_price;
             $this->pixExpiresAt = now()->addMinutes(30); // PIX expira em 30 minutos por padrão
             $this->showPixModal = true;
 
             Log::channel('payment_checkout')->info('PagePay: PIX gerado com sucesso', [
                 'payment_id' => $this->pixTransactionId,
+                'qr_code_found' => !empty($qrCode),
+                'qr_code_preview' => substr($qrCode ?? '', 0, 50) . '...',
             ]);
 
             // Notifica o frontend para iniciar polling
@@ -1280,14 +1303,41 @@ class PagePay extends Component
 
             if ($response['status'] === 'success' && isset($response['data'])) {
                 $pixData = $response['data'];
+                
+                // Log completo para debug em produção
+                Log::error('🔍 [PRODUCTION DEBUG] PIX CONTROLLER RESPONSE', [
+                    'full_response' => $response,
+                    'pixData_keys' => array_keys($pixData),
+                    'pixData' => $pixData,
+                ]);
+                
+                // Tenta diferentes campos para o código PIX
+                $qrCode = $pixData['qr_code'] 
+                    ?? $pixData['copyAndPaste'] 
+                    ?? $pixData['pix_code'] 
+                    ?? $pixData['code']
+                    ?? $pixData['copia_cola']
+                    ?? $pixData['copy_paste']
+                    ?? null;
+                
+                $qrCodeBase64 = $pixData['qr_code_base64'] 
+                    ?? $pixData['qrCodeBase64']
+                    ?? $pixData['qr_code']
+                    ?? null;
+                
                 $this->pixTransactionId = $pixData['payment_id'] ?? null;
-                $this->pixQrImage = $pixData['qr_code_base64'] ?? null;
-                $this->pixQrCodeText = $pixData['qr_code'] ?? null;
+                $this->pixQrImage = $qrCodeBase64;
+                $this->pixQrCodeText = $qrCode;
                 $this->pixAmount = $pixData['amount'] ?? ($totalAmount / 100);
                 $this->pixExpiresAt = $pixData['expiration_date'] ?? null;
                 $this->pixStatus = $pixData['status'] ?? 'pending';
                 $this->showPixModal = true;
                 $this->showProcessingModal = false;
+
+                Log::info('PIX Generated Successfully - Controller Path', [
+                    'payment_id' => $this->pixTransactionId,
+                    'qr_code_found' => !empty($qrCode),
+                ]);
 
                 // Iniciar polling para checar status
                 if ($this->pixTransactionId) {

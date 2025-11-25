@@ -2,12 +2,12 @@
 
 namespace Tests\Feature;
 
-use App\Services\MercadoPagoPixService;
+use App\Services\PushingPayPixService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 /**
- * Testes de Feature para PIX Mercado Pago
+ * Testes de Feature para PIX Pushing Pay
  * 
  * Execute com:
  * php artisan test tests/Feature/PixPaymentTest.php
@@ -16,12 +16,12 @@ class PixPaymentTest extends TestCase
 {
     use RefreshDatabase;
 
-    private MercadoPagoPixService $pixService;
+    private PushingPayPixService $pixService;
 
     protected function setUp(): void
     {
         parent::setUp();
-        $this->pixService = app(MercadoPagoPixService::class);
+        $this->pixService = app(PushingPayPixService::class);
     }
 
     /**

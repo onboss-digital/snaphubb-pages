@@ -20,18 +20,6 @@ return [
         'token' => env('POSTMARK_TOKEN'),
     ],
 
-    'mercadopago' => [
-        'env' => env('MERCADOPAGO_ENV', 'sandbox'),
-        'access_token' => env('MERCADOPAGO_ACCESS_TOKEN'),
-        'sandbox_token' => env('MERCADOPAGO_SANDBOX_TOKEN'),
-        'production_token' => env('MERCADOPAGO_PRODUCTION_TOKEN'),
-        'webhook_url' => env('MERCADOPAGO_WEBHOOK_URL'),
-        // Dynamic token selection based on environment
-        'current_token' => env('MERCADOPAGO_ENV', 'sandbox') === 'production' 
-            ? env('MERCADOPAGO_PRODUCTION_TOKEN') 
-            : env('MERCADOPAGO_SANDBOX_TOKEN'),
-    ],
-
     'ses' => [
         'key' => env('AWS_ACCESS_KEY_ID'),
         'secret' => env('AWS_SECRET_ACCESS_KEY'),
