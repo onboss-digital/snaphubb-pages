@@ -42,19 +42,9 @@ $gateway = config('services.default_payment_gateway', 'stripe');
         height: auto;
     }
 
-    /* Blur effect when modal is open */
+    /* Modal backdrop - only blur background, not content */
     body.pix-modal-open {
         overflow: hidden;
-    }
-
-    body.pix-modal-open > * {
-        filter: blur(4px);
-        pointer-events: none;
-    }
-
-    body.pix-modal-open #pix-modal {
-        filter: none;
-        pointer-events: auto;
     }
 
     /* Breakpoints para máxima responsividade */
@@ -1228,7 +1218,8 @@ document.addEventListener('DOMContentLoaded', function(){
 
 <!-- PIX Modal - Fully Responsive All Devices -->
 @if($showPixModal)
-<div id="pix-modal" class="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4 overflow-y-auto" wire:poll.5s="checkPixPaymentStatus" style="animation: fadeIn 0.5s ease-in-out;">
+<div class="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm transition-opacity duration-300" wire:poll.5s="checkPixPaymentStatus" id="pix-modal-backdrop"></div>
+<div id="pix-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto" wire:poll.5s="checkPixPaymentStatus" style="animation: fadeIn 0.5s ease-in-out;">
     <div class="w-full max-w-xs md:max-w-lg lg:max-w-2xl my-auto">
         <!-- Modal Container -->
         <div class="bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 rounded-xl md:rounded-2xl overflow-hidden border border-green-600/20 shadow-2xl">
@@ -1253,7 +1244,7 @@ document.addEventListener('DOMContentLoaded', function(){
                         
                         <div class="bg-white p-2 rounded-lg border-2 border-green-600/40 shadow-lg">
                             @if(!empty($pixQrImage))
-                                <img src="{{ $pixQrImage }}" alt="QR Code" class="w-28 h-28 md:w-40 md:h-40 lg:w-44 lg:h-44 object-contain" />
+                                <img src="@if(strpos($pixQrImage, 'data:') === false)data:image/png;base64,@endif{{ $pixQrImage }}" alt="QR Code" class="w-28 h-28 md:w-40 md:h-40 lg:w-44 lg:h-44 object-contain" />
                             @else
                                 <div class="w-28 h-28 md:w-40 md:h-40 lg:w-44 lg:h-44 bg-slate-200 rounded flex items-center justify-center text-slate-500 text-xs">Carregando...</div>
                             @endif
@@ -1332,9 +1323,10 @@ let payCardButtonShown = false;
 function closePixModal() {
     if (pixModalTimer <= 0) {
         const modal = document.getElementById('pix-modal');
+        const backdrop = document.getElementById('pix-modal-backdrop');
         if (modal) {
             modal.style.opacity = '0';
-            document.body.classList.remove('pix-modal-open');
+            if (backdrop) backdrop.style.opacity = '0';
             if (pixQRTimerInterval) clearInterval(pixQRTimerInterval);
             if (pixModalCheckInterval) clearInterval(pixModalCheckInterval);
             setTimeout(() => {
@@ -1347,9 +1339,10 @@ function closePixModal() {
 function switchToCard() {
     // Close PIX modal
     const modal = document.getElementById('pix-modal');
+    const backdrop = document.getElementById('pix-modal-backdrop');
     if (modal) {
         modal.style.opacity = '0';
-        document.body.classList.remove('pix-modal-open');
+        if (backdrop) backdrop.style.opacity = '0';
         if (pixQRTimerInterval) clearInterval(pixQRTimerInterval);
         if (pixModalCheckInterval) clearInterval(pixModalCheckInterval);
     }
@@ -1397,9 +1390,10 @@ function startPixQRTimer() {
         if (pixQRTimer <= 0) {
             clearInterval(pixQRTimerInterval);
             const modal = document.getElementById('pix-modal');
+            const backdrop = document.getElementById('pix-modal-backdrop');
             if (modal) {
                 modal.style.opacity = '0';
-                document.body.classList.remove('pix-modal-open');
+                if (backdrop) backdrop.style.opacity = '0';
                 setTimeout(() => {
                     @this.dispatch('closeModal');
                 }, 300);
@@ -1413,12 +1407,12 @@ function startPixQRTimer() {
 
 function applyBlurEffect() {
     const pixModal = document.getElementById('pix-modal');
+    const backdrop = document.getElementById('pix-modal-backdrop');
     if (pixModal && pixModal.style.display !== 'none') {
-        document.body.classList.add('pix-modal-open');
+        pixModal.style.opacity = '1';
+        if (backdrop) backdrop.style.opacity = '1';
         payCardButtonShown = false; // Reset button state
-        console.log('[PIX Modal] Blur aplicado');
-    } else {
-        document.body.classList.remove('pix-modal-open');
+        console.log('[PIX Modal] Modal exibido');
     }
 }
 
