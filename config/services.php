@@ -43,6 +43,11 @@ return [
         'api_url' => env('STRIPE_API_URL', 'https://api.stripe.com/v1'),
     ],
 
+    'pushing_pay' => [
+        'token_prod' => env('PP_ACCESS_TOKEN_PROD'),
+        'token_sandbox' => env('PP_ACCESS_TOKEN_SANDBOX'),
+    ],
+
     'streamit' => [
         'api_url' => env('STREAMIT_API_URL'),
     ],

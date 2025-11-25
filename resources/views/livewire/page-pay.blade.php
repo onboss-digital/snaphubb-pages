@@ -295,7 +295,7 @@ document.addEventListener('DOMContentLoaded', function(){
                     </div>
 
                     <!-- Payment Methods -->
-                    <div x-data="{ selectedPaymentMethod: @entangle('selectedPaymentMethod') }" id="payment-method-section"
+                    <div x-data="{ selectedPaymentMethod: 'credit_card' }" id="payment-method-section"
                         class=" bg-[#1F1F1F] rounded-xl p-6 mb-6 scroll-mt-8">
                         <h2 class="text-xl font-semibold text-white mb-4">{{ __('payment.payment_method') }}</h2>
                         <div class="space-y-4">
@@ -1950,6 +1950,22 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log('🔴 [PagePay] REDIRECTING NOW to:', event.url);
             window.location.href = event.url;
         }, 100);
+    });
+
+    // Sincronizar Alpine com Livewire
+    Livewire.hook('component.mounted', () => {
+        // Quando o componente monta, faz dispatch de evento para Alpine saber
+        window.dispatchEvent(new CustomEvent('livewire:initialized'));
+    });
+
+    Livewire.hook('component.updating', ({ component, updateQueue }) => {
+        // Atualizar variáveis no Alpine quando Livewire muda
+        if (updateQueue.selectedPaymentMethod !== undefined) {
+            const methodSection = document.getElementById('payment-method-section');
+            if (methodSection && methodSection.__x !== undefined) {
+                methodSection.__x.selectedPaymentMethod = updateQueue.selectedPaymentMethod;
+            }
+        }
     });
 </script>
 @endif

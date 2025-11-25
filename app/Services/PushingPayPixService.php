@@ -29,13 +29,31 @@ class PushingPayPixService
     {
         // Sempre usar produção - o token está configurado
         $this->baseUrl = 'https://api.pushinpay.com.br/api';
-        $this->accessToken = trim(env('PP_ACCESS_TOKEN_PROD', ''), ' "\'');
+        
+        // Tentar ler token do .env com múltiplas tentativas
+        $token = trim(env('PP_ACCESS_TOKEN_PROD', ''), ' "\'');
+        
+        // Se falhar, tentar verificar via $_ENV ou getenv()
+        if (empty($token)) {
+            $token = trim(getenv('PP_ACCESS_TOKEN_PROD') ?: '', ' "\'');
+        }
+        
+        // Se ainda não encontrou, tentar com config()
+        if (empty($token)) {
+            $token = trim(config('services.pushing_pay.token_prod', ''), ' "\'');
+        }
+        
+        $this->accessToken = $token;
 
         if (empty($this->accessToken)) {
-            Log::warning("PushingPayPixService: Token de produção não configurado - usando simulação");
+            Log::warning("PushingPayPixService: ⚠️ Token de produção NÃO ENCONTRADO - usando SIMULAÇÃO", [
+                'env_check' => env('PP_ACCESS_TOKEN_PROD') ? 'tem valor' : 'vazio',
+                'getenv_check' => getenv('PP_ACCESS_TOKEN_PROD') ? 'tem valor' : 'vazio',
+                'config_check' => config('services.pushing_pay.token_prod') ? 'tem valor' : 'vazio',
+            ]);
             $this->simulate = true;
         } else {
-            Log::info("PushingPayPixService: Token de produção encontrado com " . strlen($this->accessToken) . " caracteres");
+            Log::info("PushingPayPixService: ✅ Token de produção encontrado com " . strlen($this->accessToken) . " caracteres");
         }
     }
 
