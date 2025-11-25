@@ -78,6 +78,21 @@ function setupMasksAndValidators() {
 document.addEventListener('livewire:init', () => {
     let pixPollingInterval = null;
 
+    const hideClientPixLoader = () => {
+        const loader = document.getElementById('client-pix-loader');
+        if (!loader) {
+            return;
+        }
+
+        loader.style.transition = 'opacity 0.5s ease-out';
+        loader.style.opacity = '0';
+
+        setTimeout(() => {
+            loader.classList.add('hidden');
+            loader.style.display = 'none';
+        }, 500);
+    };
+
     function initializeAll() {
         // Configura o intl-tel-input para o telefone do formulário principal
         setupIntlTelInput("input[name='phone']", 'updatePhone');
@@ -105,5 +120,19 @@ document.addEventListener('livewire:init', () => {
 
     Livewire.on('stop-pix-polling', () => {
         if (pixPollingInterval) clearInterval(pixPollingInterval);
+    });
+
+    Livewire.on('pix-ready', (payload = {}) => {
+        if (window._clientPixFallback) {
+            try { clearTimeout(window._clientPixFallback); } catch (error) {}
+        }
+
+        hideClientPixLoader();
+
+        try {
+            window.dispatchEvent(new CustomEvent('pix-ready', { detail: payload }));
+        } catch (error) {
+            console.warn('pix-ready dispatch fallback failed', error);
+        }
     });
 });

@@ -160,16 +160,26 @@ class PagePay extends Component
         app()->setLocale($this->selectedLanguage);
 
         $this->testimonials = trans('testimonials.testimonials');
-        $this->plans = $this->getPlans();
-        $this->selectedCurrency = Session::get('selectedCurrency', 'BRL');
-        $this->selectedPlan = Session::get('selectedPlan', 'monthly');
-        $this->activityCount = rand(1, 50);
-
+        
         // Se idioma for Português (BR), selecionar PIX como método padrão
         if ($this->selectedLanguage === 'br') {
             $this->selectedPaymentMethod = 'pix';
             Log::info('PagePay: PIX selecionado automaticamente (idioma BR)');
         }
+
+        // PIX SEMPRE usa MOCK, Stripe usa API
+        // Carrega os planos baseado no método de pagamento selecionado
+        if ($this->selectedPaymentMethod === 'pix') {
+            $this->plans = $this->getPlansFromMock();
+            Log::info('PagePay::mount - PIX: Usando planos do MOCK');
+        } else {
+            $this->plans = $this->getPlans(); // API para Stripe
+            Log::info('PagePay::mount - Stripe: Usando planos da API');
+        }
+        
+        $this->selectedCurrency = Session::get('selectedCurrency', 'BRL');
+        $this->selectedPlan = Session::get('selectedPlan', 'monthly');
+        $this->activityCount = rand(1, 50);
 
         // Update product details based on the selected plan
         $this->updateProductDetails();
@@ -232,42 +242,90 @@ class PagePay extends Component
         }
     }
 
+    /**
+     * Carrega planos APENAS do arquivo MOCK para PIX
+     * PIX nunca deve chamar a API de planos - usa MOCK local
+     */
+    public function getPlansFromMock(): array
+    {
+        try {
+            $mockPath = resource_path('mock/get-plans.json');
+            
+            if (!file_exists($mockPath)) {
+                Log::error('PagePay: Mock file não encontrado', ['path' => $mockPath]);
+                return [];
+            }
+            
+            $mockJson = file_get_contents($mockPath);
+            $plansData = json_decode($mockJson, true);
+            
+            if (!is_array($plansData) || empty($plansData)) {
+                Log::error('PagePay: Mock file vazio ou inválido', ['path' => $mockPath]);
+                return [];
+            }
+            
+            Log::info('PagePay: Planos carregados do MOCK com sucesso', [
+                'count' => count($plansData),
+                'plans' => implode(', ', array_keys($plansData))
+            ]);
+            
+            return $plansData;
+        } catch (\Exception $e) {
+            Log::error('PagePay: Erro ao carregar MOCK', [
+                'error' => $e->getMessage()
+            ]);
+            return [];
+        }
+    }
+
     // calculateTotals, startCheckout, rejectUpsell, acceptUpsell remain largely the same
     // but sendCheckout and prepareCheckoutData will be modified.
 
     public function calculateTotals()
-{
-    // 1. Verificamos se o plano selecionado realmente existe nos dados da API
-    if (!isset($this->plans[$this->selectedPlan])) {
-        Log::error('Plano selecionado não encontrado na resposta da API.', [
-            'selected_plan' => $this->selectedPlan
-        ]);
-        // Interrompe a execução para evitar erros em cascata
-        return;
-    }
-    $plan = $this->plans[$this->selectedPlan];
+    {
+        // Se estamos em PIX, já temos $this->plans do MOCK
+        // Se estamos em Stripe, temos da API
+        // Não precisa recarregar aqui
+        
+        if (empty($this->plans)) {
+            Log::warning('calculateTotals: Nenhum plano carregado', [
+                'method' => $this->selectedPaymentMethod,
+                'selected_plan' => $this->selectedPlan
+            ]);
+            return;
+        }
+        
+        // 1. Verificamos se o plano selecionado realmente existe
+        if (!isset($this->plans[$this->selectedPlan])) {
+            Log::error('Plano selecionado não encontrado.', [
+                'selected_plan' => $this->selectedPlan,
+                'available_plans' => implode(', ', array_keys($this->plans))
+            ]);
+            return;
+        }
+        $plan = $this->plans[$this->selectedPlan];
 
-    // 2. Verificamos se existe um array de preços para o plano
-    if (!isset($plan['prices']) || !is_array($plan['prices'])) {
-        Log::error('Array de preços não encontrado para o plano.', [
-            'plan' => $this->selectedPlan
-        ]);
-        return;
-    }
+        // 2. Verificamos se existe um array de preços para o plano
+        if (!isset($plan['prices']) || !is_array($plan['prices'])) {
+            Log::error('Array de preços não encontrado para o plano.', [
+                'plan' => $this->selectedPlan
+            ]);
+            return;
+        }
 
-    // 3. Verificamos se a moeda atual tem um preço definido. Se não, tentamos um fallback.
-    $availableCurrency = null;
-    if (isset($plan['prices'][$this->selectedCurrency])) {
-        $availableCurrency = $this->selectedCurrency;
-    } elseif (isset($plan['prices']['BRL'])) {
-        // Tenta BRL como primeira alternativa
-        $availableCurrency = 'BRL';
-    } elseif (isset($plan['prices']['USD'])) {
-        // Tenta USD como segunda alternativa
-        $availableCurrency = 'USD';
-    }
-    
-    // 4. Se nenhuma moeda válida foi encontrada, interrompemos
+        // 3. Verificamos se a moeda atual tem um preço definido. Se não, tentamos um fallback.
+        $availableCurrency = null;
+        if (isset($plan['prices'][$this->selectedCurrency])) {
+            $availableCurrency = $this->selectedCurrency;
+        } elseif (isset($plan['prices']['BRL'])) {
+            // Tenta BRL como primeira alternativa
+            $availableCurrency = 'BRL';
+        } elseif (isset($plan['prices']['USD'])) {
+            // Tenta USD como segunda alternativa
+            $availableCurrency = 'USD';
+        }
+        
+        // 4. Se nenhuma moeda válida foi encontrada, interrompemos
     if (is_null($availableCurrency)) {
         Log::error('Nenhuma moeda válida (BRL, USD, etc.) encontrada para o plano.', [
             'plan' => $this->selectedPlan
@@ -1071,13 +1129,14 @@ class PagePay extends Component
             // - Em outros idiomas: apenas cartão (PIX não deve aparecer)
             if ($this->selectedLanguage === 'br') {
                 $this->selectedPaymentMethod = 'pix';
+                // PIX sempre usa MOCK
+                $this->plans = $this->getPlansFromMock();
             } else {
                 $this->selectedPaymentMethod = 'credit_card';
+                // Stripe usa API
+                $this->plans = $this->getPlans();
             }
             
-            
-            // Recalculate plans and totals as language might affect labels (though prices should be language-agnostic)
-            $this->plans = $this->getPlans(); // Re-fetch plans to update labels
             $this->testimonials = trans('checkout.testimonials');
             $this->calculateTotals();
             // Dispatch an event if JS needs to react to language change for UI elements not covered by Livewire re-render
@@ -1144,34 +1203,37 @@ class PagePay extends Component
     /**
      * Prepara dados do PIX sincronizados com o Stripe
      * Reutiliza o mesmo valor e estrutura de carrinho
+     * PIX sempre usa $this->plans que já vem do MOCK no mount()
      */
     private function preparePIXData(): array
     {
-        // SEMPRE CARREGAR PREÇOS DO MOCK PARA PIX
-        $mockPath = resource_path('mock/get-plans.json');
-        if (file_exists($mockPath)) {
-            $mockJson = file_get_contents($mockPath);
-            $mockData = json_decode($mockJson, true);
-            if (is_array($mockData) && !empty($mockData)) {
-                // Usar temporariamente os dados do mock
-                $mockPlans = $mockData;
-                Log::info('preparePIXData: Usando preços do MOCK', ['plan' => $this->selectedPlan]);
-            } else {
-                $mockPlans = $this->plans; // Fallback
-                Log::warning('preparePIXData: Mock inválido, usando planos normais');
-            }
-        } else {
-            $mockPlans = $this->plans; // Fallback
-            Log::warning('preparePIXData: Mock não encontrado, usando planos normais');
+        // PIX SEMPRE tem os planos do MOCK já carregados em $this->plans
+        if (empty($this->plans) || !isset($this->plans[$this->selectedPlan])) {
+            Log::error('preparePIXData: Plano não encontrado', [
+                'selected_plan' => $this->selectedPlan,
+                'available_plans' => array_keys($this->plans ?? [])
+            ]);
+            throw new \Exception('Plano selecionado não encontrado');
         }
         
-        // 1. EXTRAIR VALOR DO MOCK
-        $currentPlanDetails = $mockPlans[$this->selectedPlan];
+        // 1. EXTRAIR VALOR DOS PLANOS MOCK
+        $currentPlanDetails = $this->plans[$this->selectedPlan];
+        
+        if (!isset($currentPlanDetails['prices'][$this->selectedCurrency])) {
+            Log::error('preparePIXData: Moeda não encontrada', [
+                'plan' => $this->selectedPlan,
+                'currency' => $this->selectedCurrency,
+                'available_currencies' => array_keys($currentPlanDetails['prices'] ?? [])
+            ]);
+            throw new \Exception('Moeda não disponível para este plano');
+        }
+        
         $currentPlanPriceInfo = $currentPlanDetails['prices'][$this->selectedCurrency];
         $numeric_final_price = floatval($currentPlanPriceInfo['descont_price']);
         
-        Log::info('preparePIXData: Valor calculado', [
+        Log::info('preparePIXData: Valor calculado do MOCK', [
             'plan' => $this->selectedPlan,
+            'currency' => $this->selectedCurrency,
             'price' => $numeric_final_price,
             'amount_cents' => (int)round($numeric_final_price * 100)
         ]);
@@ -1316,13 +1378,20 @@ class PagePay extends Component
 
                 // Iniciar polling para checar status
                 if ($this->pixTransactionId) {
-                    $this->dispatch('startPixPolling', transactionId: $this->pixTransactionId);
+                    $this->dispatch('start-pix-polling', transactionId: $this->pixTransactionId);
                 }
                 // Notifica o front-end que o PIX está pronto (para esconder loader cliente)
                 try {
                     $this->dispatchBrowserEvent('pix-ready', ['payment_id' => $this->pixTransactionId]);
                 } catch (\Exception $_) {
                     // não-fatal
+                }
+
+                // Livewire event paralelo para listeners JS (garante fechamento do loader)
+                try {
+                    $this->dispatch('pix-ready', paymentId: $this->pixTransactionId);
+                } catch (\Exception $_) {
+                    // evitar quebra do fluxo caso dispatch falhe
                 }
             } else {
                 $this->errorMessage = $response['message'] ?? __('payment.pix_generation_failed');
