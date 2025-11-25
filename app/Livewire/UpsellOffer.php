@@ -92,7 +92,7 @@ class UpsellOffer extends Component
             ];
 
             // Call PixController directly (same pattern as PagePay)
-            $controller = new \App\Http\Controllers\PixController(app(\App\Services\MercadoPagoPixService::class));
+            $controller = new \App\Http\Controllers\PixController(app(\App\Services\PushingPayPixService::class));
             $request = \Illuminate\Http\Request::create('/api/pix/create', 'POST', $pixData, [], [], [], json_encode($pixData));
             $request->headers->set('Accept', 'application/json');
             $request->headers->set('Content-Type', 'application/json');

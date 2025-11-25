@@ -40,7 +40,7 @@ class PixController extends Controller
                 'currency_code' => 'required|in:BRL,USD,EUR',
                 'plan_key' => 'required|string',
                 'offer_hash' => 'required|string',
-                'device_id' => 'nullable|string', // Device ID do SDK MercadoPago.JS V2
+                'device_id' => 'nullable|string', // Device ID do Pushing Pay
                 'customer' => 'required|array',
                 'customer.name' => 'required|string|min:3',
                 'customer.email' => 'required|email',
