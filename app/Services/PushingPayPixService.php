@@ -33,42 +33,19 @@ class PushingPayPixService
         $tokenProd = trim(env('PP_ACCESS_TOKEN_PROD', ''), ' "\'');
         $tokenSandbox = trim(env('PP_ACCESS_TOKEN_SANDBOX', ''), ' "\'');
         
-        Log::error('🔍 [PUSHING PAY INIT] Detecção de Token', [
-            'environment' => $environment,
-            'ENVIRONMENT_VAR' => getenv('ENVIRONMENT'),
-            'PP_ACCESS_TOKEN_PROD_raw' => env('PP_ACCESS_TOKEN_PROD'),
-            'PP_ACCESS_TOKEN_PROD_trimmed' => $tokenProd,
-            'PP_ACCESS_TOKEN_PROD_exists' => !empty($tokenProd),
-            'PP_ACCESS_TOKEN_PROD_length' => strlen($tokenProd),
-            'PP_ACCESS_TOKEN_SANDBOX_exists' => !empty($tokenSandbox),
-            'PP_ACCESS_TOKEN_SANDBOX_length' => strlen($tokenSandbox),
-        ]);
-        
         if ($environment === 'production') {
             $this->baseUrl = 'https://api.pushinpay.com.br/api';
             $this->accessToken = $tokenProd;
-            Log::error('🔍 [PUSHING PAY PROD] Configuração de Produção', [
-                'baseUrl' => $this->baseUrl,
-                'token_found' => !empty($this->accessToken),
-                'token_preview' => !empty($this->accessToken) ? substr($this->accessToken, 0, 20) . '...' : 'VAZIO',
-            ]);
         } else {
-            // Assumindo que o usuário configurará o ambiente sandbox
             $this->baseUrl = 'https://api-sandbox.pushinpay.com.br/api';
             $this->accessToken = $tokenSandbox;
-            Log::error('🔍 [PUSHING PAY SANDBOX] Configuração de Sandbox', [
-                'baseUrl' => $this->baseUrl,
-                'token_found' => !empty($this->accessToken),
-            ]);
         }
 
         if (empty($this->accessToken)) {
-            Log::error("❌ [PUSHING PAY] Access Token NÃO CONFIGURADO para '{$environment}' - ATIVANDO MODO SIMULAÇÃO!");
-            // Não lançar exceção em ambiente de desenvolvimento; ativar simulação
+            Log::warning("PushingPayPixService: Token vazio para '{$environment}' - usando simulação. Token PROD length: " . strlen($tokenProd) . ", Token SANDBOX length: " . strlen($tokenSandbox));
             $this->simulate = true;
         } else {
-            Log::error("✅ [PUSHING PAY] Access Token encontrado - usando API REAL");
-            $this->simulate = false;
+            Log::info("PushingPayPixService: Token encontrado para '{$environment}' com " . strlen($this->accessToken) . " caracteres");
         }
     }
 
@@ -97,14 +74,8 @@ class PushingPayPixService
         }
 
         try {
-            // Se estamos em modo de simulação, retornar uma resposta mock sem chamar a API externa
             if ($this->simulate) {
                 $mockId = 'sim_' . time() . rand(1000, 9999);
-                Log::error('❌ [PUSHING PAY] MODO SIMULAÇÃO ATIVADO - PIX SIMULADO', [
-                    'mock_id' => $mockId, 
-                    'value' => $value,
-                    'reason' => 'Token não foi encontrado no construtor',
-                ]);
                 return [
                     'status' => 'success',
                     'data' => [
@@ -118,13 +89,6 @@ class PushingPayPixService
                 ];
             }
 
-            Log::error('🚀 [PUSHING PAY] Enviando requisição para API REAL', [
-                'url' => "{$this->baseUrl}/pix/cashIn",
-                'value' => $value,
-                'webhook_url' => $webhookUrl,
-                'token_preview' => substr($this->accessToken, 0, 20) . '...',
-            ]);
-
             $response = Http::withHeaders([
                 'Authorization' => 'Bearer ' . $this->accessToken,
                 'Accept' => 'application/json',
@@ -136,16 +100,7 @@ class PushingPayPixService
 
             $responseData = $response->json();
 
-            // Log completo da resposta para debug em produção
-            Log::error('📨 [PUSHING PAY] Resposta da API', [
-                'status_code' => $response->status(),
-                'response_keys' => array_keys($responseData ?? []),
-                'response' => $responseData,
-                'environment' => $this->baseUrl,
-            ]);
-
             if ($response->successful() && isset($responseData['id'])) {
-                // Tenta diferentes nomes de campo para o código PIX
                 $qrCode = $responseData['qr_code'] 
                     ?? $responseData['copyAndPaste'] 
                     ?? $responseData['pix_code'] 
@@ -153,17 +108,8 @@ class PushingPayPixService
                     ?? null;
 
                 $qrCodeBase64 = $responseData['qr_code_base64'] 
-                    ?? $responseData['qrCodeBase64']
                     ?? $responseData['qr_code'] 
                     ?? null;
-
-                Log::error('✅ [PUSHING PAY] PIX Criado com Sucesso!', [
-                    'payment_id' => $responseData['id'],
-                    'qr_code_found' => !empty($qrCode),
-                    'qr_code' => $qrCode ? substr($qrCode, 0, 50) . '...' : 'NOT_FOUND',
-                    'qr_code_base64_found' => !empty($qrCodeBase64),
-                    'all_response_fields' => json_encode($responseData),
-                ]);
 
                 return [
                     'status' => 'success',
@@ -178,7 +124,7 @@ class PushingPayPixService
                 ];
             }
 
-            Log::error('❌ [PUSHING PAY] Erro ao Criar PIX', [
+            Log::error('Pushing Pay PIX Creation Error', [
                 'response' => $responseData,
                 'status_code' => $response->status(),
             ]);
@@ -188,12 +134,7 @@ class PushingPayPixService
             ];
 
         } catch (\Exception $e) {
-            Log::error('💥 [PUSHING PAY] Exceção', [
-                'exception' => $e->getMessage(),
-                'file' => $e->getFile(),
-                'line' => $e->getLine(),
-                'trace' => $e->getTraceAsString(),
-            ]);
+            Log::error('Pushing Pay PIX Creation Exception', ['exception' => $e->getMessage()]);
             return [
                 'status' => 'error',
                 'message' => 'Exceção ao comunicar com a Pushing Pay: ' . $e->getMessage(),

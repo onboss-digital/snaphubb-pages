@@ -809,13 +809,6 @@ class PagePay extends Component
             // Extrai dados do PIX da resposta bem-sucedida
             $pixData = $response['data'];
             
-            // Log completo da resposta para debug
-            Log::error('🔍 [PRODUCTION DEBUG] PIX SERVICE RESPONSE', [
-                'full_response' => $response,
-                'pixData_keys' => array_keys($pixData),
-                'pixData' => $pixData,
-            ]);
-            
             // Tenta diferentes campos para o código PIX
             $qrCode = $pixData['qr_code'] 
                 ?? $pixData['copyAndPaste'] 
@@ -1304,12 +1297,6 @@ class PagePay extends Component
             if ($response['status'] === 'success' && isset($response['data'])) {
                 $pixData = $response['data'];
                 
-                // Log completo para debug em produção
-                Log::error('🔍 [PRODUCTION DEBUG] PIX CONTROLLER RESPONSE', [
-                    'full_response' => $response,
-                    'pixData_keys' => array_keys($pixData),
-                    'pixData' => $pixData,
-                ]);
                 
                 // Tenta diferentes campos para o código PIX
                 $qrCode = $pixData['qr_code'] 

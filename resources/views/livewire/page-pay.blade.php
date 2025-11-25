@@ -1250,7 +1250,7 @@ document.addEventListener('DOMContentLoaded', function(){
                     <div class="w-6 h-6 md:w-8 md:h-8 bg-white/20 rounded-full flex items-center justify-center text-xs md:text-sm font-bold">✓</div>
                     <span class="text-base md:text-lg font-bold text-white">PIX</span>
                 </div>
-                <button id="close-pix-btn" onclick="closePixModal()" class="text-white text-xl md:text-2xl cursor-pointer hover:opacity-80 transition disabled:opacity-40 w-8 h-8 flex items-center justify-center" disabled>×</button>
+                <button id="close-pix-btn" onclick="closePixModal()" class="text-white text-xl md:text-2xl cursor-pointer hover:opacity-80 transition w-8 h-8 flex items-center justify-center">×</button>
             </div>
 
             <!-- Content -->
@@ -1467,21 +1467,20 @@ function startPixModalTimer() {
     pixModalTimer = 30;
     const closeBtn = document.getElementById('close-pix-btn');
     
+    // Ativar botão close imediatamente (sem countdown)
+    if (closeBtn) {
+        closeBtn.disabled = false;
+        closeBtn.textContent = '×';
+    }
+    
     pixModalCheckInterval = setInterval(() => {
         pixModalTimer--;
-        if (closeBtn) {
-            closeBtn.textContent = pixModalTimer > 0 ? pixModalTimer : '×';
-            closeBtn.disabled = pixModalTimer > 0;
-            closeBtn.style.opacity = pixModalTimer > 0 ? '0.6' : '1';
-        }
         
         if (pixModalTimer <= 0) {
             clearInterval(pixModalCheckInterval);
             pixModalCheckInterval = null;
         }
     }, 1000);
-    
-    console.log('[PIX Modal] Timer closeBtn iniciado - 30 segundos');
 }
 
 // Listen for modal visibility - improved detection
