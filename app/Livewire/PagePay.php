@@ -79,6 +79,8 @@ class PagePay extends Component
     public $activityCount = 0;
     public $totals = [];
 
+    private $lastBumpsState = [];
+
     private PaymentGatewayInterface $paymentGateway; // Added
 
     public $gateway;
@@ -1175,6 +1177,31 @@ class PagePay extends Component
         return;
     }
 
+    public function updatedSelectedPaymentMethod($value)
+    {
+        if ($value === 'pix') {
+            // Salvar o estado atual dos bumps antes de desativá-los
+            $this->lastBumpsState = collect($this->bumps)->pluck('active', 'id')->all();
+
+            foreach ($this->bumps as $index => $bump) {
+                $this->bumps[$index]['active'] = false;
+            }
+            $this->calculateTotals();
+        } else {
+            // Se voltar para cartão de crédito, restaurar o estado anterior dos bumps
+            if (!empty($this->lastBumpsState)) {
+                foreach ($this->bumps as $index => $bump) {
+                    if (isset($this->lastBumpsState[$bump['id']])) {
+                        $this->bumps[$index]['active'] = $this->lastBumpsState[$bump['id']];
+                    }
+                }
+                $this->calculateTotals();
+                // Limpar o estado salvo
+                $this->lastBumpsState = [];
+            }
+        }
+    }
+
     private function updateProductDetails()
     {
         if (isset($this->plans[$this->selectedPlan])) {
@@ -1263,10 +1290,11 @@ class PagePay extends Component
         // 4. ADICIONAR ORDER BUMPS (se houver) - usar preços reais dos bumps
         foreach ($this->bumps as $bump) {
             if (!empty($bump['active'])) {
+                $bumpPrice = (int)round(floatval($bump['price']) * 100);
                 $cartItems[] = [
                     'product_hash' => $bump['hash'],
                     'title' => $bump['title'],
-                    'price' => (int)round(floatval($bump['price']) * 100),
+                    'price' => $bumpPrice,
                     'quantity' => 1,
                     'operation_type' => 2,
                 ];
