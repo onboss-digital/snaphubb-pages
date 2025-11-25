@@ -27,25 +27,15 @@ class PushingPayPixService
 
     public function __construct()
     {
-        $environment = env('ENVIRONMENT', 'sandbox');
-        
-        // Ler token e remover aspas se existirem
-        $tokenProd = trim(env('PP_ACCESS_TOKEN_PROD', ''), ' "\'');
-        $tokenSandbox = trim(env('PP_ACCESS_TOKEN_SANDBOX', ''), ' "\'');
-        
-        if ($environment === 'production') {
-            $this->baseUrl = 'https://api.pushinpay.com.br/api';
-            $this->accessToken = $tokenProd;
-        } else {
-            $this->baseUrl = 'https://api-sandbox.pushinpay.com.br/api';
-            $this->accessToken = $tokenSandbox;
-        }
+        // Sempre usar produção - o token está configurado
+        $this->baseUrl = 'https://api.pushinpay.com.br/api';
+        $this->accessToken = trim(env('PP_ACCESS_TOKEN_PROD', ''), ' "\'');
 
         if (empty($this->accessToken)) {
-            Log::warning("PushingPayPixService: Token vazio para '{$environment}' - usando simulação. Token PROD length: " . strlen($tokenProd) . ", Token SANDBOX length: " . strlen($tokenSandbox));
+            Log::warning("PushingPayPixService: Token de produção não configurado - usando simulação");
             $this->simulate = true;
         } else {
-            Log::info("PushingPayPixService: Token encontrado para '{$environment}' com " . strlen($this->accessToken) . " caracteres");
+            Log::info("PushingPayPixService: Token de produção encontrado com " . strlen($this->accessToken) . " caracteres");
         }
     }
 

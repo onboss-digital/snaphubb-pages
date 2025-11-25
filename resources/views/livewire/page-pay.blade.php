@@ -1236,350 +1236,454 @@ document.addEventListener('DOMContentLoaded', function(){
     </div>
 </div>
 
-<!-- PIX Modal - Fully Responsive All Devices -->
+<!-- PIX Modal - Novo do zero baseado em código simples -->
 @if($showPixModal)
-<div class="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm transition-opacity duration-300" wire:poll.5s="checkPixPaymentStatus" id="pix-modal-backdrop"></div>
-<div id="pix-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto" wire:poll.5s="checkPixPaymentStatus" style="animation: fadeIn 0.5s ease-in-out;">
-    <div class="w-full max-w-xs md:max-w-lg lg:max-w-2xl my-auto">
-        <!-- Modal Container -->
-        <div class="bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 rounded-xl md:rounded-2xl overflow-hidden border border-green-600/20 shadow-2xl">
+<div class="modal-overlay" id="pix-modal-overlay" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.6); display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 9999; overflow-y: auto;">
+    <div class="modal" style="background: linear-gradient(135deg, #0f1419 0%, #1a1f2e 100%); border-radius: 16px; border: 1px solid rgba(76, 175, 80, 0.2); box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5), 0 0 40px rgba(76, 175, 80, 0.1); max-width: 900px; width: 100%; overflow: hidden; my-auto: auto;">
+        
+        <!-- Header -->
+        <div class="modal-header" style="background: linear-gradient(135deg, #1db854 0%, #149c3d 100%); padding: 24px; display: flex; align-items: center; justify-content: space-between; color: white;">
+            <div class="modal-header-title" style="display: flex; align-items: center; gap: 12px; font-size: 18px; font-weight: 600;">
+                <div class="modal-header-icon" style="width: 24px; height: 24px; background: rgba(255, 255, 255, 0.2); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px;">✓</div>
+                PIX
+            </div>
+            <button class="close-btn" onclick="document.getElementById('pix-modal-overlay').style.display='none'; @this.dispatch('closeModal');" style="background: none; border: none; color: white; font-size: 24px; cursor: pointer; opacity: 0.8; transition: opacity 0.3s; padding: 0; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">×</button>
+        </div>
+
+        <!-- Content -->
+        <div class="modal-content" style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px; padding: 40px;">
             
-            <!-- Header -->
-            <div class="bg-gradient-to-r from-green-600 to-green-700 px-4 md:px-6 py-3 md:py-4 flex items-center justify-between">
-                <div class="flex items-center gap-2">
-                    <div class="w-6 h-6 md:w-8 md:h-8 bg-white/20 rounded-full flex items-center justify-center text-xs md:text-sm font-bold">✓</div>
-                    <span class="text-base md:text-lg font-bold text-white">PIX</span>
+            <!-- QR Code Section -->
+            <div class="qr-section" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px;">
+                <div class="qr-label" style="color: #a0aec0; font-size: 14px; font-weight: 500; text-transform: uppercase; letter-spacing: 1px;">Escanear o QR Code</div>
+                <div class="qr-code" style="width: 220px; height: 220px; background: white; border-radius: 12px; padding: 12px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3); display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);">
+                    @if(!empty($pixQrImage))
+                        <img src="@if(strpos($pixQrImage, 'data:') === false)data:image/png;base64,@endif{{ $pixQrImage }}" alt="QR Code" style="width: 100%; height: 100%; object-fit: contain;">
+                    @else
+                        <div style="width: 100%; height: 100%; background: #f0f0f0; display: flex; align-items: center; justify-content: center; text-align: center; color: #999; font-size: 12px;">Carregando...</div>
+                    @endif
                 </div>
-                <button id="close-pix-btn" onclick="closePixModal()" class="text-white text-xl md:text-2xl cursor-pointer hover:opacity-80 transition w-8 h-8 flex items-center justify-center">×</button>
+                <div class="qr-footer" style="font-size: 12px; color: #718096; text-align: center;">Câmera do banco</div>
             </div>
 
-            <!-- Content -->
-            <div class="p-4 md:p-6">
-                <!-- Desktop: Grid 2 cols | Mobile: Stack vertical -->
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
-                    
-                    <!-- QR Code Section - Left (Desktop) / Bottom (Mobile) -->
-                    <div class="lg:col-span-1 flex flex-col items-center justify-start gap-2 lg:border-r border-slate-700/30 lg:pr-6 order-last lg:order-first">
-                        <p class="text-slate-400 text-xs font-semibold uppercase tracking-wide">Escanear QR</p>
-                        
-                        <div class="bg-white p-2 rounded-lg border-2 border-green-600/40 shadow-lg">
-                            @if(!empty($pixQrImage))
-                                <img src="@if(strpos($pixQrImage, 'data:') === false)data:image/png;base64,@endif{{ $pixQrImage }}" alt="QR Code" class="w-24 h-24 sm:w-28 sm:h-28 md:w-40 md:h-40 lg:w-44 lg:h-44 object-contain" />
-                            @else
-                                <div class="w-24 h-24 sm:w-28 sm:h-28 md:w-40 md:h-40 lg:w-44 lg:h-44 bg-slate-200 rounded flex items-center justify-center text-slate-500 text-xs">Carregando...</div>
-                            @endif
-                        </div>
-                        
-                        <p id="pix-timer" class="text-green-400 text-sm font-bold font-mono">5:00</p>
-                        
-                        <!-- Button to pay with card - appears after 30 seconds -->
-                        <button id="pay-card-btn" onclick="switchToCard()" class="hidden mt-4 px-4 py-2 text-xs text-slate-400 hover:text-slate-300 border border-slate-600/40 rounded-lg hover:border-slate-500/60 transition-all duration-300 hover:bg-slate-800/20 font-medium">
-                            Ou pagar com Cartão
-                        </button>
+            <!-- Payment Section -->
+            <div class="payment-section" style="display: flex; flex-direction: column; gap: 24px;">
+                
+                <!-- Código PIX -->
+                <div class="payment-info" style="background: rgba(45, 212, 191, 0.05); border: 1px solid rgba(45, 212, 191, 0.2); border-radius: 12px; padding: 20px;">
+                    <div class="info-label" style="color: #a0aec0; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">Código PIX</div>
+                    <div class="info-value" style="color: #e2e8f0; font-size: 14px; line-height: 1.6; word-break: break-all; font-family: 'Monaco', 'Courier New', monospace; max-height: 80px; overflow-y: auto;" id="pix-code-display">{{ $pixQrCodeText ?? 'Código PIX' }}</div>
+                    <button class="copy-btn" onclick="copyPixCode(event)" style="width: 100%; background: linear-gradient(135deg, #1db854 0%, #149c3d 100%); color: white; border: none; padding: 14px 24px; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 8px;">
+                        📋 <span id="copy-text">Copiar código</span>
+                    </button>
+                    <div id="copy-message" style="display: none; color: #4caf50; font-size: 14px; font-weight: 600; text-align: center; margin-top: 12px; padding: 12px; background: rgba(76, 175, 80, 0.1); border-radius: 8px; border: 1px solid rgba(76, 175, 80, 0.2);">
+                        ✓ Entre em seu banco e realize o pagamento
                     </div>
+                </div>
 
-                    <!-- Payment Section - Right (Desktop) / Top (Mobile) -->
-                    <div class="lg:col-span-2 flex flex-col gap-3 md:gap-4 order-first lg:order-last">
-                        
-                        <!-- Código PIX -->
-                        <div class="bg-cyan-500/10 border border-cyan-500/20 rounded-xl p-3 md:p-4">
-                            <p class="text-slate-300 text-xs font-bold uppercase tracking-wide mb-2">Código PIX</p>
-                            <div class="bg-slate-950 border border-slate-700 rounded-lg p-2 md:p-3 font-mono text-slate-200 text-xs break-all max-h-16 md:max-h-20 overflow-y-auto text-center mb-2 leading-tight" id="pix-code-display">{{ $pixQrCodeText ?? 'Código PIX' }}</div>
-                            <button id="copy-pix-btn" class="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white py-2 md:py-2.5 px-3 rounded-lg font-bold text-xs transition-all duration-300 active:scale-95 flex items-center justify-center gap-2 shadow-lg hover:shadow-green-600/50" onclick="copyPixCode()">
-                                <svg class="w-3.5 h-3.5 md:w-4 md:h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
-                                <span id="copy-text">Copiar código</span>
-                            </button>
-                        </div>
-
-                        <!-- Price Section -->
-                        <div class="bg-green-600/10 border border-green-600/20 rounded-xl p-3 md:p-4">
-                            <div class="space-y-2">
-                                <div class="flex justify-between items-center text-xs pb-2 border-b border-green-600/20">
-                                    <span class="text-slate-400">{{ str_replace(['1/month', '1 mês', '1/mes'], '1x/mês', substr($product['title'] ?? 'Streaming', 0, 30)) }}</span>
-                                    <span class="text-slate-300 font-medium">R$ 49,90</span>
-                                </div>
-                                <div class="flex justify-between items-center text-xs pb-2 border-b border-green-600/20">
-                                    <span class="text-slate-400">Desconto PIX</span>
-                                    <span class="bg-green-600/30 text-green-300 text-xs font-bold px-2 py-0.5 rounded">-R$ 25,00</span>
-                                </div>
-                                <div class="flex justify-between items-center text-sm md:text-base pt-1 font-semibold">
-                                    <span class="text-slate-300">Total:</span>
-                                    <span class="text-green-400 text-lg md:text-xl lg:text-2xl">R$ {{ $totals['final_price'] ?? '24,90' }}</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Security & Info - Compact -->
-                        <div class="bg-slate-800/20 border border-slate-700/30 rounded-xl p-3 md:p-4 space-y-1.5">
-                            <div class="flex items-center gap-2 text-slate-300 text-xs">
-                                <span class="text-orange-400">⏱</span>
-                                <span>Confirmação em segundos</span>
-                            </div>
-                            <div class="flex items-center gap-2 text-slate-300 text-xs">
-                                <span class="text-green-400">✓</span>
-                                <span>Acesso imediato - Suporte 24/7</span>
-                            </div>
-                            <div class="flex items-center gap-2 text-slate-300 text-xs">
-                                <span class="text-blue-400">🔒</span>
-                                <span>100% seguro</span>
-                            </div>
-                        </div>
+                <!-- Price Section -->
+                <div class="price-section" style="background: rgba(76, 175, 80, 0.08); border: 1px solid rgba(76, 175, 80, 0.2); border-radius: 12px; padding: 24px;">
+                    <div class="price-item" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; color: #cbd5e0; font-size: 14px;">
+                        <span>{{ str_replace(['1/month', '1 mês', '1/mes'], '1x/mês', substr($product['title'] ?? 'Streaming', 0, 30)) }}</span>
+                        <span>R$ 49,90</span>
                     </div>
+                    <div class="price-item" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; color: #cbd5e0; font-size: 14px;">
+                        <span>Desconto PIX</span>
+                        <span style="display: inline-block; background: rgba(76, 175, 80, 0.15); color: #4caf50; font-size: 12px; padding: 4px 8px; border-radius: 6px; font-weight: 500;">-R$ 25,00</span>
+                    </div>
+                    <div class="price-item" style="display: flex; justify-content: space-between; align-items: center; padding-top: 16px; border-top: 1px solid rgba(76, 175, 80, 0.2); font-size: 16px; font-weight: 600; color: #4caf50;">
+                        <span>Total a Pagar:</span>
+                        <span>R$ {{ $totals['final_price'] ?? '24,90' }}</span>
+                    </div>
+                </div>
 
+                <!-- Security Section -->
+                <div class="security-section" style="display: flex; flex-direction: column; gap: 12px; margin-top: 20px; padding-top: 20px; border-top: 1px solid rgba(76, 175, 80, 0.1);">
+                    <div class="security-item" style="display: flex; align-items: center; gap: 10px; color: #cbd5e0; font-size: 13px;">
+                        <span style="color: #4caf50; font-size: 16px; flex-shrink: 0;">⏱</span>
+                        <span>Confirmação em segundos</span>
+                    </div>
+                    <div class="security-item" style="display: flex; align-items: center; gap: 10px; color: #cbd5e0; font-size: 13px;">
+                        <span style="color: #4caf50; font-size: 16px; flex-shrink: 0;">✓</span>
+                        <span>Acesso imediato - Suporte 24/7</span>
+                    </div>
+                    <div class="security-item" style="display: flex; align-items: center; gap: 10px; color: #cbd5e0; font-size: 13px;">
+                        <span style="color: #4caf50; font-size: 16px; flex-shrink: 0;">🔒</span>
+                        <span>100% seguro</span>
+                    </div>
+                </div>
+
+                <!-- Timer -->
+                <div class="timer-section" style="display: flex; align-items: center; gap: 8px; color: #f97316; font-size: 13px; margin-top: 16px; padding: 12px; background: rgba(249, 115, 22, 0.08); border-radius: 8px;">
+                    <span style="font-size: 16px; flex-shrink: 0;">⏳</span>
+                    <span>Válido por <span id="pix-timer">5:00</span></span>
                 </div>
             </div>
         </div>
     </div>
 </div>
-@endif
+
+<style>
+    @media (max-width: 1024px) {
+        .modal {
+            max-width: 90% !important;
+        }
+    }
+    
+    @media (max-width: 768px) {
+        .modal {
+            max-width: 95% !important;
+            border-radius: 14px !important;
+        }
+        
+        .modal-header {
+            padding: 20px !important;
+        }
+        
+        .modal-header-title {
+            font-size: 16px !important;
+            gap: 8px !important;
+        }
+        
+        .modal-header-icon {
+            width: 20px !important;
+            height: 20px !important;
+            font-size: 12px !important;
+        }
+        
+        .close-btn {
+            font-size: 28px !important;
+            width: 32px !important;
+            height: 32px !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+        }
+        
+        .modal-content {
+            grid-template-columns: 1fr !important;
+            gap: 24px !important;
+            padding: 20px !important;
+        }
+        
+        .qr-section {
+            order: 2 !important;
+            gap: 16px !important;
+        }
+        
+        .qr-label {
+            font-size: 12px !important;
+        }
+        
+        .qr-code {
+            width: 200px !important;
+            height: 200px !important;
+            padding: 10px !important;
+        }
+        
+        .qr-footer {
+            font-size: 11px !important;
+        }
+        
+        .payment-section {
+            order: 1 !important;
+            gap: 16px !important;
+        }
+        
+        .payment-info,
+        .price-section {
+            padding: 16px !important;
+        }
+        
+        .info-label {
+            font-size: 11px !important;
+            margin-bottom: 6px !important;
+        }
+        
+        .info-value {
+            font-size: 13px !important;
+            max-height: 70px !important;
+        }
+        
+        .copy-btn {
+            padding: 12px 16px !important;
+            font-size: 14px !important;
+            gap: 6px !important;
+        }
+        
+        .price-item {
+            font-size: 13px !important;
+            margin-bottom: 10px !important;
+            gap: 8px !important;
+        }
+        
+        .price-item:last-child {
+            font-size: 14px !important;
+        }
+    }
+    
+    @media (max-width: 480px) {
+        .modal {
+            max-width: 98% !important;
+            border-radius: 12px !important;
+            max-height: 85vh !important;
+            overflow-y: auto !important;
+        }
+        
+        .modal-header {
+            padding: 16px !important;
+            gap: 8px !important;
+            flex-wrap: wrap !important;
+        }
+        
+        .modal-header-title {
+            font-size: 15px !important;
+            gap: 6px !important;
+        }
+        
+        .modal-header-icon {
+            width: 18px !important;
+            height: 18px !important;
+            font-size: 11px !important;
+        }
+        
+        .close-btn {
+            font-size: 26px !important;
+            width: 28px !important;
+            height: 28px !important;
+            padding: 0 !important;
+            min-width: 28px !important;
+        }
+        
+        .modal-content {
+            grid-template-columns: 1fr !important;
+            gap: 16px !important;
+            padding: 16px !important;
+        }
+        
+        .qr-section {
+            order: 2 !important;
+            gap: 12px !important;
+            padding-top: 0 !important;
+        }
+        
+        .qr-label {
+            font-size: 11px !important;
+            letter-spacing: 0.5px !important;
+        }
+        
+        .qr-code {
+            width: 160px !important;
+            height: 160px !important;
+            padding: 8px !important;
+            border-radius: 10px !important;
+        }
+        
+        .qr-footer {
+            font-size: 10px !important;
+        }
+        
+        .payment-section {
+            order: 1 !important;
+            gap: 12px !important;
+        }
+        
+        .payment-info,
+        .price-section {
+            padding: 12px !important;
+            border-radius: 10px !important;
+        }
+        
+        .info-label {
+            font-size: 10px !important;
+            margin-bottom: 6px !important;
+            letter-spacing: 0.3px !important;
+        }
+        
+        .info-value {
+            font-size: 12px !important;
+            max-height: 60px !important;
+            line-height: 1.4 !important;
+        }
+        
+        .copy-btn {
+            width: 100% !important;
+            padding: 10px 12px !important;
+            font-size: 13px !important;
+            gap: 4px !important;
+            border-radius: 8px !important;
+            margin-top: 6px !important;
+        }
+        
+        .price-item {
+            font-size: 12px !important;
+            margin-bottom: 8px !important;
+            flex-wrap: wrap !important;
+            gap: 4px !important;
+        }
+        
+        .price-item:last-child {
+            font-size: 13px !important;
+            padding-top: 12px !important;
+        }
+        
+        .security-section {
+            gap: 8px !important;
+            margin-top: 12px !important;
+            padding-top: 12px !important;
+        }
+        
+        .security-item {
+            font-size: 12px !important;
+            gap: 8px !important;
+        }
+        
+        .timer-section {
+            font-size: 12px !important;
+            margin-top: 12px !important;
+            padding: 10px !important;
+            gap: 6px !important;
+        }
+    }
+    
+    @media (max-width: 360px) {
+        .modal {
+            max-width: 100% !important;
+            margin: 0 10px !important;
+            border-radius: 10px !important;
+            max-height: 90vh !important;
+        }
+        
+        .modal-header {
+            padding: 12px !important;
+        }
+        
+        .modal-header-title {
+            font-size: 14px !important;
+        }
+        
+        .modal-content {
+            padding: 12px !important;
+            gap: 12px !important;
+        }
+        
+        .qr-code {
+            width: 140px !important;
+            height: 140px !important;
+        }
+        
+        .info-value {
+            font-size: 11px !important;
+            max-height: 50px !important;
+        }
+        
+        .copy-btn {
+            padding: 8px 10px !important;
+            font-size: 12px !important;
+        }
+        
+        .price-item {
+            font-size: 11px !important;
+        }
+    }
+</style>
 
 <script>
-let pixModalTimer = 30;
-let pixQRTimer = 300; // 5 minutes in seconds
-let pixModalCheckInterval = null;
-let pixQRTimerInterval = null;
-let payCardButtonShown = false;
+let pixQRTimer = 300; // 5 minutes
 
-function closePixModal() {
-    if (pixModalTimer <= 0) {
-        const modal = document.getElementById('pix-modal');
-        const backdrop = document.getElementById('pix-modal-backdrop');
-        if (modal) {
-            modal.style.opacity = '0';
-            if (backdrop) backdrop.style.opacity = '0';
-            if (pixQRTimerInterval) clearInterval(pixQRTimerInterval);
-            if (pixModalCheckInterval) clearInterval(pixModalCheckInterval);
-            setTimeout(() => {
-                @this.dispatch('closeModal');
-            }, 300);
-        }
-    }
-}
-
-function switchToCard() {
-    // Close PIX modal
-    const modal = document.getElementById('pix-modal');
-    const backdrop = document.getElementById('pix-modal-backdrop');
-    if (modal) {
-        modal.style.opacity = '0';
-        if (backdrop) {
-            backdrop.style.opacity = '0';
-            backdrop.classList.add('hidden');
-        }
-        // Remove blur effect from body
-        document.body.classList.remove('pix-modal-open');
-        if (pixQRTimerInterval) clearInterval(pixQRTimerInterval);
-        if (pixModalCheckInterval) clearInterval(pixModalCheckInterval);
-    }
+function copyPixCode(e) {
+    if (e) e.preventDefault();
     
-    // Dispatch event to show card modal
-    @this.dispatch('switchToCardPayment');
-    
-    setTimeout(() => {
-        @this.dispatch('closeModal');
-    }, 300);
-}
-
-function formatTime(seconds) {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-}
-
-function startPixQRTimer() {
-    if (pixQRTimerInterval) {
-        clearInterval(pixQRTimerInterval);
-    }
-    
-    pixQRTimer = 300; // Reset to 5 minutes
-    
-    pixQRTimerInterval = setInterval(() => {
-        pixQRTimer--;
-        
-        const timerEl = document.getElementById('pix-timer');
-        if (timerEl) {
-            timerEl.textContent = formatTime(pixQRTimer);
-        }
-        
-        // Show card payment button after 30 seconds
-        if (pixQRTimer === 270 && !payCardButtonShown) {
-            const cardBtn = document.getElementById('pay-card-btn');
-            if (cardBtn) {
-                cardBtn.classList.remove('hidden');
-                cardBtn.style.display = 'flex';
-                payCardButtonShown = true;
-                console.log('[PIX Modal] ✅ Botão de cartão exibido após 30 segundos');
-                console.log('[PIX Modal] Tempo restante:', formatTime(pixQRTimer));
-            }
-        }
-        
-        // Close modal when timer reaches 0
-        if (pixQRTimer <= 0) {
-            clearInterval(pixQRTimerInterval);
-            const modal = document.getElementById('pix-modal');
-            const backdrop = document.getElementById('pix-modal-backdrop');
-            if (modal) {
-                modal.style.opacity = '0';
-                if (backdrop) {
-                    backdrop.style.opacity = '0';
-                    backdrop.classList.add('hidden');
-                }
-                // Remove blur effect from body
-                document.body.classList.remove('pix-modal-open');
-                setTimeout(() => {
-                    @this.dispatch('closeModal');
-                }, 300);
-            }
-            console.log('[PIX Modal] QR code expirou');
-        }
-    }, 1000);
-    
-    console.log('[PIX Modal] Timer QR iniciado - 5 minutos');
-}
-
-function applyBlurEffect() {
-    const pixModal = document.getElementById('pix-modal');
-    const backdrop = document.getElementById('pix-modal-backdrop');
-    const cardBtn = document.getElementById('pay-card-btn');
-    if (pixModal && pixModal.style.display !== 'none') {
-        pixModal.style.opacity = '1';
-        if (backdrop) {
-            backdrop.style.opacity = '1';
-            backdrop.classList.remove('hidden');
-        }
-        // Reset button to hidden state
-        if (cardBtn) {
-            cardBtn.classList.add('hidden');
-            cardBtn.style.display = 'none';
-        }
-        // Add blur effect to body
-        document.body.classList.add('pix-modal-open');
-        payCardButtonShown = false; // Reset button state
-        console.log('[PIX Modal] Modal exibido com blur aplicado e botão cartão resetado');
-    }
-}
-
-function startPixModalTimer() {
-    if (pixModalCheckInterval) {
-        clearInterval(pixModalCheckInterval);
-    }
-    
-    pixModalTimer = 30;
-    const closeBtn = document.getElementById('close-pix-btn');
-    
-    // Ativar botão close imediatamente (sem countdown)
-    if (closeBtn) {
-        closeBtn.disabled = false;
-        closeBtn.textContent = '×';
-    }
-    
-    pixModalCheckInterval = setInterval(() => {
-        pixModalTimer--;
-        
-        if (pixModalTimer <= 0) {
-            clearInterval(pixModalCheckInterval);
-            pixModalCheckInterval = null;
-        }
-    }, 1000);
-}
-
-// Listen for modal visibility - improved detection
-if (document.addEventListener) {
-    document.addEventListener('livewire:updated', function() {
-        setTimeout(() => {
-            applyBlurEffect();
-            const pixModal = document.getElementById('pix-modal');
-            if (pixModal && pixModal.style.display !== 'none') {
-                startPixModalTimer();
-                startPixQRTimer();
-            }
-        }, 100);
-    });
-    
-    // Also watch for mutations
-    const observer = new MutationObserver(function() {
-        applyBlurEffect();
-        const pixModal = document.getElementById('pix-modal');
-        if (pixModal && pixModal.style.display !== 'none' && pixModalTimer === 30) {
-            startPixModalTimer();
-            startPixQRTimer();
-        }
-    });
-    
-    observer.observe(document.body, {
-        attributes: true,
-        childList: true,
-        subtree: true,
-        attributeFilter: ['style', 'display']
-    });
-}
-
-function copyPixCode() {
     const pixCodeDisplay = document.getElementById('pix-code-display');
-    const pixCode = pixCodeDisplay ? pixCodeDisplay.textContent.trim() : '';
+    if (!pixCodeDisplay) {
+        console.error('Elemento pix-code-display não encontrado');
+        return;
+    }
+    
+    const pixCode = pixCodeDisplay.textContent.trim();
     
     if (!pixCode || pixCode === 'Código PIX') {
-        console.error('Código PIX não disponível');
+        alert('Código PIX não disponível');
         return;
     }
 
-    const btn = document.getElementById('copy-pix-btn');
+    const btn = document.querySelector('.copy-btn');
     const text = document.getElementById('copy-text');
+    const copyMessage = document.getElementById('copy-message');
     const originalText = text.textContent;
 
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(pixCode)
-            .then(() => {
-                text.textContent = '✓ Copiado!';
-                btn.classList.add('scale-95');
-                
-                setTimeout(() => {
-                    text.textContent = originalText;
-                    btn.classList.remove('scale-95');
-                }, 2000);
-            })
-            .catch(() => fallbackCopyPixCode(pixCode, btn, text, originalText));
+    // Tentar com Clipboard API
+    if (navigator.clipboard) {
+        navigator.clipboard.writeText(pixCode).then(() => {
+            updateCopyUI(text, btn, copyMessage, originalText);
+        }).catch((err) => {
+            console.error('Clipboard API falhou:', err);
+            fallbackCopy(pixCode, text, btn, copyMessage, originalText);
+        });
     } else {
-        fallbackCopyPixCode(pixCode, btn, text, originalText);
+        // Fallback para navegadores antigos
+        fallbackCopy(pixCode, text, btn, copyMessage, originalText);
     }
 }
 
-function fallbackCopyPixCode(pixCode, btn, text, originalText) {
-    const textarea = document.createElement('textarea');
-    textarea.value = pixCode;
-    document.body.appendChild(textarea);
-    textarea.select();
+function updateCopyUI(text, btn, copyMessage, originalText) {
+    text.textContent = '✓ Código copiado!';
+    if (btn) btn.style.background = 'linear-gradient(135deg, #4caf50 0%, #388e3c 100%)';
+    if (copyMessage) copyMessage.style.display = 'block';
+    
+    setTimeout(() => {
+        text.textContent = originalText;
+        if (btn) btn.style.background = 'linear-gradient(135deg, #1db854 0%, #149c3d 100%)';
+    }, 3000);
+}
+
+function fallbackCopy(pixCode, text, btn, copyMessage, originalText) {
     try {
-        document.execCommand('copy');
-        text.textContent = '✓ Copiado!';
-        btn.classList.add('scale-95');
+        const textarea = document.createElement('textarea');
+        textarea.value = pixCode;
+        textarea.style.position = 'fixed';
+        textarea.style.left = '-9999px';
+        textarea.style.top = '-9999px';
+        document.body.appendChild(textarea);
+        textarea.focus();
+        textarea.select();
         
-        setTimeout(() => {
-            text.textContent = originalText;
-            btn.classList.remove('scale-95');
-        }, 2000);
+        const successful = document.execCommand('copy');
+        document.body.removeChild(textarea);
+        
+        if (successful) {
+            updateCopyUI(text, btn, copyMessage, originalText);
+        } else {
+            alert('Falha ao copiar. Por favor, copie manualmente: ' + pixCode);
+        }
     } catch (err) {
         console.error('Erro ao copiar:', err);
-        text.textContent = '✗ Erro';
-        setTimeout(() => {
-            text.textContent = originalText;
-        }, 2000);
+        alert('Erro ao copiar o código. Por favor, tente novamente.');
     }
-    document.body.removeChild(textarea);
 }
 
-// Auto-start timer when page loads if modal exists
+// Iniciar timer quando modal aparecer
 document.addEventListener('DOMContentLoaded', function() {
-    applyBlurEffect();
-    const pixModal = document.getElementById('pix-modal');
-    if (pixModal && pixModal.style.display !== 'none') {
-        setTimeout(() => {
-            startPixModalTimer();
-            startPixQRTimer();
-        }, 200);
+    const timerEl = document.getElementById('pix-timer');
+    
+    function formatTime(seconds) {
+        const mins = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        return `${mins}:${secs.toString().padStart(2, '0')}`;
     }
+    
+    function updateTimer() {
+        if (timerEl && pixQRTimer > 0) {
+            pixQRTimer--;
+            timerEl.textContent = formatTime(pixQRTimer);
+            setTimeout(updateTimer, 1000);
+        }
+    }
+    
+    updateTimer();
 });
 </script>
+@endif
 
 <!-- Error Modal -->
 <div id="error-modal"

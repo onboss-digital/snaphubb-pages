@@ -3,8 +3,6 @@
 namespace App\Factories;
 
 use App\Interfaces\PaymentGatewayInterface;
-use App\Services\PaymentGateways\TriboPayGateway;
-use App\Services\PaymentGateways\For4PaymentGateway;
 use App\Services\PaymentGateways\StripeGateway;
 use Illuminate\Support\Facades\Log;
 use InvalidArgumentException;
@@ -19,15 +17,11 @@ class PaymentGatewayFactory
         Log::channel('payment_checkout')->info('PaymentGatewayFactory: Creating gateway - ' . $gatewayName);
 
         switch (strtolower($gatewayName)) {
-            case 'tribopay':
-                return app(TriboPayGateway::class);
             case 'stripe':
                 return app(StripeGateway::class);
-            case 'for4payment':
-                return app(For4PaymentGateway::class);
             case 'pushinpay':
-                // PIX via Pushing Pay (use Tribopay as fallback for card payments)
-                return app(TriboPayGateway::class);
+                // PIX via Pushing Pay - use Stripe for card payments
+                return app(StripeGateway::class);
             // Add other gateways here
             default:
                 Log::channel('payment_checkout')->error('PaymentGatewayFactory: Invalid gateway specified - ' . $gatewayName);

@@ -163,20 +163,14 @@ class PagePay extends Component
 
         $this->testimonials = trans('testimonials.testimonials');
         
+        // Sempre carregar planos da API Stripe para o cartão de crédito
+        $this->plans = $this->getPlans();
+        Log::info('PagePay::mount - Carregando planos da API Stripe');
+        
         // Se idioma for Português (BR), selecionar PIX como método padrão
         if ($this->selectedLanguage === 'br') {
             $this->selectedPaymentMethod = 'pix';
             Log::info('PagePay: PIX selecionado automaticamente (idioma BR)');
-        }
-
-        // PIX SEMPRE usa MOCK, Stripe usa API
-        // Carrega os planos baseado no método de pagamento selecionado
-        if ($this->selectedPaymentMethod === 'pix') {
-            $this->plans = $this->getPlansFromMock();
-            Log::info('PagePay::mount - PIX: Usando planos do MOCK');
-        } else {
-            $this->plans = $this->getPlans(); // API para Stripe
-            Log::info('PagePay::mount - Stripe: Usando planos da API');
         }
         
         $this->selectedCurrency = Session::get('selectedCurrency', 'BRL');
@@ -1126,17 +1120,16 @@ class PagePay extends Component
                 : ($lang === 'en' ? 'USD'
                     : ($lang === 'es' ? 'EUR' : 'BRL'));
             
+            // Sempre carregar planos da API Stripe para o cartão
+            $this->plans = $this->getPlans();
+            
             // Forçar método de pagamento padrão conforme idioma:
             // - Em PT-BR: manter PIX disponível e selecionado por padrão
             // - Em outros idiomas: apenas cartão (PIX não deve aparecer)
             if ($this->selectedLanguage === 'br') {
                 $this->selectedPaymentMethod = 'pix';
-                // PIX sempre usa MOCK
-                $this->plans = $this->getPlansFromMock();
             } else {
                 $this->selectedPaymentMethod = 'credit_card';
-                // Stripe usa API
-                $this->plans = $this->getPlans();
             }
             
             $this->testimonials = trans('checkout.testimonials');
@@ -1330,6 +1323,11 @@ class PagePay extends Component
             // Limpar mensagem de validação anterior
             $this->pixValidationError = null;
             
+            // IMPORTANTE: Recarregar planos do MOCK para PIX
+            // (pois na blade o cartão usa API, mas PIX precisa do mock)
+            $this->plans = $this->getPlansFromMock();
+            Log::info('generatePixPayment: Recarregando planos do MOCK para PIX');
+            
             // Validar dados obrigatórios do PIX
             $hasErrors = false;
 
@@ -1403,6 +1401,24 @@ class PagePay extends Component
                     'payment_id' => $this->pixTransactionId,
                     'qr_code_found' => !empty($qrCode),
                 ]);
+
+                // Iniciar polling para checar status
+                if ($this->pixTransactionId) {
+                    $this->dispatch('start-pix-polling', transactionId: $this->pixTransactionId);
+                }
+                // Notifica o front-end que o PIX está pronto (para esconder loader cliente)
+                try {
+                    $this->dispatchBrowserEvent('pix-ready', ['payment_id' => $this->pixTransactionId]);
+                } catch (\Exception $_) {
+                    // não-fatal
+                }
+
+                // Livewire event paralelo para listeners JS (garante fechamento do loader)
+                try {
+                    $this->dispatch('pix-ready', paymentId: $this->pixTransactionId);
+                } catch (\Exception $_) {
+                    // evitar quebra do fluxo caso dispatch falhe
+                }
 
                 // Iniciar polling para checar status
                 if ($this->pixTransactionId) {

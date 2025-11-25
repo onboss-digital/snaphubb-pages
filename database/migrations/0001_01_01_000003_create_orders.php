@@ -17,6 +17,9 @@ return new class extends Migration
             $table->string('plan');
             $table->string('currency');
             $table->decimal('price', 10, 2);
+            $table->string('pix_id')->nullable()->index();
+            $table->string('external_payment_id')->nullable()->index();
+            $table->string('payment_status')->default('pending');
             $table->timestamps();
         });
     }

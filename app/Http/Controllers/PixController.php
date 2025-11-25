@@ -151,7 +151,31 @@ class PixController extends Controller
                 'plan_key' => $validated['plan_key'],
             ]);
 
-            // 7. RETORNAR DADOS DO PIX PARA O FRONTEND
+            // 7. SALVAR ORDEM NO BANCO DE DADOS (OPCIONAL - NÃO BLOQUEIA PIX)
+            // Desabilitado: Não é crítico para gerar PIX
+            // try {
+            //     $order = \App\Models\Order::create([
+            //         'user_id' => auth()->id() ?? 1,
+            //         'plan' => $validated['plan_key'],
+            //         'currency' => $validated['currency_code'],
+            //         'price' => ($validated['amount'] / 100),
+            //         'pix_id' => $pixResponse['data']['payment_id'],
+            //         'external_payment_id' => $pixResponse['data']['payment_id'],
+            //         'payment_status' => 'pending',
+            //     ]);
+            //     
+            //     Log::info('Order salvo com sucesso', [
+            //         'order_id' => $order->id,
+            //         'pix_id' => $pixResponse['data']['payment_id'],
+            //     ]);
+            // } catch (\Exception $e) {
+            //     Log::error('Erro ao salvar order', [
+            //         'error' => $e->getMessage(),
+            //     ]);
+            //     // Continua mesmo se falhar ao salvar a ordem
+            // }
+
+            // 8. RETORNAR DADOS DO PIX PARA O FRONTEND
             return response()->json([
                 'status' => 'success',
                 'data' => [

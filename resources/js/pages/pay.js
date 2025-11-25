@@ -123,16 +123,13 @@ document.addEventListener('livewire:init', () => {
     });
 
     Livewire.on('pix-ready', (payload = {}) => {
-        if (window._clientPixFallback) {
-            try { clearTimeout(window._clientPixFallback); } catch (error) {}
-        }
-
+        console.log('[JS] PIX modal should now be visible', payload);
+        
+        // Esconde loader do cliente se ainda estiver visível
         hideClientPixLoader();
-
-        try {
-            window.dispatchEvent(new CustomEvent('pix-ready', { detail: payload }));
-        } catch (error) {
-            console.warn('pix-ready dispatch fallback failed', error);
-        }
+        console.log('[JS] Client loader hidden');
+        
+        // O modal agora é renderizado pelo Livewire @if($showPixModal)
+        // Não precisa de refresh forçado - o renderizado já ocorreu
     });
 });
