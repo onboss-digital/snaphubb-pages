@@ -722,6 +722,7 @@ class PagePay extends Component
         $this->showPixModal = false;
         $this->pixQrImage = null;
         $this->pixQrCodeText = null;
+        $this->dispatch('pix-modal-closed');
     }
 
     public function decrementTimer()
