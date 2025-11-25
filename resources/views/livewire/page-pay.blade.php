@@ -42,6 +42,20 @@ $gateway = config('services.default_payment_gateway', 'stripe');
         height: auto;
     }
 
+    /* Backdrop blur effect */
+    #pix-modal-backdrop {
+        backdrop-filter: blur(4px);
+        -webkit-backdrop-filter: blur(4px);
+        background-color: rgba(0, 0, 0, 0.5);
+        opacity: 1;
+        transition: opacity 0.3s ease-in-out;
+    }
+
+    #pix-modal-backdrop.hidden {
+        opacity: 0;
+        pointer-events: none;
+    }
+
     /* Modal backdrop - only blur background, not content */
     body.pix-modal-open {
         overflow: hidden;
@@ -1126,6 +1140,12 @@ document.addEventListener('DOMContentLoaded', function(){
                 }, 500);
             }
         });
+
+        // Listen for closeModal event to remove blur effect
+        Livewire.on('closeModal', () => {
+            document.body.classList.remove('pix-modal-open');
+            console.log('[PIX Modal] Classe pix-modal-open removida do body');
+        });
     });
 </script>
 
@@ -1244,17 +1264,17 @@ document.addEventListener('DOMContentLoaded', function(){
                         
                         <div class="bg-white p-2 rounded-lg border-2 border-green-600/40 shadow-lg">
                             @if(!empty($pixQrImage))
-                                <img src="@if(strpos($pixQrImage, 'data:') === false)data:image/png;base64,@endif{{ $pixQrImage }}" alt="QR Code" class="w-28 h-28 md:w-40 md:h-40 lg:w-44 lg:h-44 object-contain" />
+                                <img src="@if(strpos($pixQrImage, 'data:') === false)data:image/png;base64,@endif{{ $pixQrImage }}" alt="QR Code" class="w-24 h-24 sm:w-28 sm:h-28 md:w-40 md:h-40 lg:w-44 lg:h-44 object-contain" />
                             @else
-                                <div class="w-28 h-28 md:w-40 md:h-40 lg:w-44 lg:h-44 bg-slate-200 rounded flex items-center justify-center text-slate-500 text-xs">Carregando...</div>
+                                <div class="w-24 h-24 sm:w-28 sm:h-28 md:w-40 md:h-40 lg:w-44 lg:h-44 bg-slate-200 rounded flex items-center justify-center text-slate-500 text-xs">Carregando...</div>
                             @endif
                         </div>
                         
                         <p id="pix-timer" class="text-green-400 text-sm font-bold font-mono">5:00</p>
                         
                         <!-- Button to pay with card - appears after 30 seconds -->
-                        <button id="pay-card-btn" onclick="switchToCard()" class="hidden mt-2 px-3 py-1.5 text-xs text-slate-400 hover:text-slate-300 border border-slate-600/40 rounded-lg hover:border-slate-500/60 transition-all duration-300 hover:bg-slate-800/20">
-                            Pagar com Cartão
+                        <button id="pay-card-btn" onclick="switchToCard()" class="hidden mt-4 px-4 py-2 text-xs text-slate-400 hover:text-slate-300 border border-slate-600/40 rounded-lg hover:border-slate-500/60 transition-all duration-300 hover:bg-slate-800/20 font-medium">
+                            Ou pagar com Cartão
                         </button>
                     </div>
 
@@ -1342,7 +1362,12 @@ function switchToCard() {
     const backdrop = document.getElementById('pix-modal-backdrop');
     if (modal) {
         modal.style.opacity = '0';
-        if (backdrop) backdrop.style.opacity = '0';
+        if (backdrop) {
+            backdrop.style.opacity = '0';
+            backdrop.classList.add('hidden');
+        }
+        // Remove blur effect from body
+        document.body.classList.remove('pix-modal-open');
         if (pixQRTimerInterval) clearInterval(pixQRTimerInterval);
         if (pixModalCheckInterval) clearInterval(pixModalCheckInterval);
     }
@@ -1381,8 +1406,10 @@ function startPixQRTimer() {
             const cardBtn = document.getElementById('pay-card-btn');
             if (cardBtn) {
                 cardBtn.classList.remove('hidden');
+                cardBtn.style.display = 'flex';
                 payCardButtonShown = true;
-                console.log('[PIX Modal] Botão de cartão exibido');
+                console.log('[PIX Modal] ✅ Botão de cartão exibido após 30 segundos');
+                console.log('[PIX Modal] Tempo restante:', formatTime(pixQRTimer));
             }
         }
         
@@ -1393,7 +1420,12 @@ function startPixQRTimer() {
             const backdrop = document.getElementById('pix-modal-backdrop');
             if (modal) {
                 modal.style.opacity = '0';
-                if (backdrop) backdrop.style.opacity = '0';
+                if (backdrop) {
+                    backdrop.style.opacity = '0';
+                    backdrop.classList.add('hidden');
+                }
+                // Remove blur effect from body
+                document.body.classList.remove('pix-modal-open');
                 setTimeout(() => {
                     @this.dispatch('closeModal');
                 }, 300);
@@ -1408,11 +1440,22 @@ function startPixQRTimer() {
 function applyBlurEffect() {
     const pixModal = document.getElementById('pix-modal');
     const backdrop = document.getElementById('pix-modal-backdrop');
+    const cardBtn = document.getElementById('pay-card-btn');
     if (pixModal && pixModal.style.display !== 'none') {
         pixModal.style.opacity = '1';
-        if (backdrop) backdrop.style.opacity = '1';
+        if (backdrop) {
+            backdrop.style.opacity = '1';
+            backdrop.classList.remove('hidden');
+        }
+        // Reset button to hidden state
+        if (cardBtn) {
+            cardBtn.classList.add('hidden');
+            cardBtn.style.display = 'none';
+        }
+        // Add blur effect to body
+        document.body.classList.add('pix-modal-open');
         payCardButtonShown = false; // Reset button state
-        console.log('[PIX Modal] Modal exibido');
+        console.log('[PIX Modal] Modal exibido com blur aplicado e botão cartão resetado');
     }
 }
 

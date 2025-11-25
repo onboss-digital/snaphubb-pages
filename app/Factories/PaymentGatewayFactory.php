@@ -30,6 +30,9 @@ class PaymentGatewayFactory
                 return app(MercadoPagoGateway::class);
             case 'for4payment':
                 return app(For4PaymentGateway::class);
+            case 'pushinpay':
+                // Pushinpay uses MercadoPago gateway for now
+                return app(MercadoPagoGateway::class);
             // Add other gateways here
             default:
                 Log::channel('payment_checkout')->error('PaymentGatewayFactory: Invalid gateway specified - ' . $gatewayName);
