@@ -87,6 +87,7 @@ class UpsellOffer extends Component
                 'metadata' => [
                     'payment_method' => 'pix',
                     'is_upsell' => true,
+                    'webhook_url' => url('/api/pix/webhook'),
                 ],
             ];
 

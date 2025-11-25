@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Factories\PixServiceFactory;
-use App\Services\MercadoPagoPixService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -29,6 +28,11 @@ class PixController extends Controller
      */
     public function create(Request $request): JsonResponse
     {
+        Log::info('PixController::create - Recebido', [
+            'method' => $request->method(),
+            'amount' => $request->input('amount'),
+            'customer_email' => $request->input('customer.email'),
+        ]);
         try {
             // 1. VALIDAR DADOS OBRIGATÓRIOS DO FRONTEND
             $validated = $request->validate([
@@ -48,9 +52,11 @@ class PixController extends Controller
                 'customer.address.zip' => 'nullable|string',
                 'customer.address.city' => 'nullable|string',
                 'customer.address.state' => 'nullable|string',
-                'cart' => 'required|array|min:1',
-                'cart.*.category_id' => 'nullable|string', // Categoria do item
-                'cart.*.description' => 'nullable|string', // Descrição do item
+                'cart' => 'nullable|array',
+                'cart.*.product_hash' => 'nullable|string',
+                'cart.*.title' => 'nullable|string',
+                'cart.*.price' => 'nullable|integer',
+                'cart.*.quantity' => 'nullable|integer',
                 'metadata' => 'nullable|array',
             ]);
 
@@ -92,10 +98,21 @@ class PixController extends Controller
                 $validated['customer']['name']
             );
 
-            // 5. CHAMAR MERCADO PAGO PARA GERAR PIX
+            // 5. CHAMAR SERVIÇO PIX PARA GERAR PAGAMENTO
             $pixPaymentData = [
                 'amount' => (int) $validated['amount'],
+                'currency' => $validated['currency_code'] ?? 'BRL',
+                'currency_code' => $validated['currency_code'] ?? 'BRL',
                 'description' => $description,
+                'customer' => [
+                    'name' => $validated['customer']['name'],
+                    'email' => $validated['customer']['email'],
+                    'phone_number' => $validated['customer']['phone_number'] ?? null,
+                    'document' => $validated['customer']['document'] ?? null,
+                    'cpf' => $validated['customer']['document'] ?? null,
+                    'phone' => $validated['customer']['phone_number'] ?? null,
+                    'address' => $validated['customer']['address'] ?? null,
+                ],
                 'customerName' => $validated['customer']['name'],
                 'customerEmail' => $validated['customer']['email'],
                 'customerPhone' => $validated['customer']['phone_number'] ?? null,
@@ -103,13 +120,19 @@ class PixController extends Controller
                 'customerAddress' => $validated['customer']['address'] ?? null,
                 'device_id' => $validated['device_id'] ?? null,
                 'external_reference' => $validated['offer_hash'] ?? null,
+                'plan_key' => $validated['plan_key'] ?? null,
+                'offer_hash' => $validated['offer_hash'] ?? null,
                 'cart' => $validated['cart'] ?? [],
+                'metadata' => $validated['metadata'] ?? [],
             ];
 
             $pixResponse = $this->pixService->createPixPayment($pixPaymentData);
 
-            if ($pixResponse['status'] !== 'success') {
-                Log::error('Erro ao criar PIX no Mercado Pago', [
+            // Validar resposta - aceita tanto 'success' => true quanto 'status' => 'success'
+            $isSuccess = ($pixResponse['success'] ?? false) === true || ($pixResponse['status'] ?? null) === 'success';
+
+            if (!$isSuccess) {
+                Log::error('Erro ao criar PIX', [
                     'response' => $pixResponse,
                     'customer_email' => $validated['customer']['email'],
                 ]);

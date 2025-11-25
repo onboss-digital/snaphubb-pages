@@ -23,10 +23,56 @@ $gateway = config('services.default_payment_gateway', 'stripe');
     @keyframes fadeIn {
         from {
             opacity: 0;
+            transform: scale(0.98);
         }
 
         to {
             opacity: 1;
+            transform: scale(1);
+        }
+    }
+
+    /* PIX Modal Responsive Styles */
+    #pix-modal {
+        animation: fadeIn 0.5s ease-in-out;
+    }
+
+    #pix-modal img {
+        max-width: 100%;
+        height: auto;
+    }
+
+    /* Blur effect when modal is open */
+    body.pix-modal-open {
+        overflow: hidden;
+    }
+
+    body.pix-modal-open > * {
+        filter: blur(4px);
+        pointer-events: none;
+    }
+
+    body.pix-modal-open #pix-modal {
+        filter: none;
+        pointer-events: auto;
+    }
+
+    /* Breakpoints para máxima responsividade */
+    @media (max-width: 383px) {
+        #pix-modal {
+            padding: 12px;
+        }
+    }
+
+    @media (min-width: 640px) and (max-width: 1023px) {
+        #pix-modal > div {
+            max-width: 32rem;
+        }
+    }
+
+    @media (min-width: 1024px) {
+        #pix-modal > div {
+            max-width: 48rem;
         }
     }
 
@@ -1180,133 +1226,323 @@ document.addEventListener('DOMContentLoaded', function(){
     </div>
 </div>
 
-<!-- PIX Modal - Fully Responsive, No Scroll -->
+<!-- PIX Modal - Fully Responsive All Devices -->
 @if($showPixModal)
-<div id="pix-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-2 sm:p-4 animate-fade-in" wire:poll.5s="checkPixPaymentStatus" style="animation: fadeIn 0.5s ease-in-out;">
-    <div class="w-full max-w-md md:max-w-lg flex flex-col max-h-[90vh] md:max-h-auto">
-        <div class="bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 rounded-2xl md:rounded-3xl overflow-hidden flex flex-col border border-slate-700 shadow-2xl">
+<div id="pix-modal" class="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4 overflow-y-auto" wire:poll.5s="checkPixPaymentStatus" style="animation: fadeIn 0.5s ease-in-out;">
+    <div class="w-full max-w-xs md:max-w-lg lg:max-w-2xl my-auto">
+        <!-- Modal Container -->
+        <div class="bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 rounded-xl md:rounded-2xl overflow-hidden border border-green-600/20 shadow-2xl">
             
-            <!-- Header - Compact -->
-            <div class="bg-gradient-to-r from-green-600 to-green-700 px-3 py-2.5 sm:px-6 sm:py-4 flex items-center justify-between flex-shrink-0">
-                <h1 class="text-base sm:text-xl font-bold text-white flex items-center gap-2">
-                    <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-                    Pagamento PIX
-                </h1>
-                <button onclick="Livewire.dispatch('call', { method: 'closeModal' })" class="text-white/70 hover:text-white transition text-xl">✕</button>
+            <!-- Header -->
+            <div class="bg-gradient-to-r from-green-600 to-green-700 px-4 md:px-6 py-3 md:py-4 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <div class="w-6 h-6 md:w-8 md:h-8 bg-white/20 rounded-full flex items-center justify-center text-xs md:text-sm font-bold">✓</div>
+                    <span class="text-base md:text-lg font-bold text-white">PIX</span>
+                </div>
+                <button id="close-pix-btn" onclick="closePixModal()" class="text-white text-xl md:text-2xl cursor-pointer hover:opacity-80 transition disabled:opacity-40 w-8 h-8 flex items-center justify-center" disabled>×</button>
             </div>
 
-            <!-- Content - Scrollable on mobile only -->
-            <div class="overflow-y-auto md:overflow-visible px-3 py-3 sm:px-6 sm:py-4 space-y-2.5 sm:space-y-3">
-                
-                <!-- Price Section - Ultra Compact -->
-                <div class="bg-gradient-to-br from-green-500/10 to-green-600/5 border border-green-500/40 rounded-lg p-2.5 sm:p-4">
-                    <div class="flex justify-between items-center mb-1.5">
-                        <span class="text-slate-400 text-xs sm:text-sm font-medium truncate pr-2">{{ str_replace(['1/month', '1 mês', '1/mes'], '1x/mês', $product['title'] ?? 'Streaming Snaphubb - 1x/mês') }}</span>
-                        <span class="text-slate-500 line-through text-xs sm:text-sm flex-shrink-0">R$ 49,90</span>
-                    </div>
-                    <div class="flex justify-between items-end gap-2">
-                        <div class="min-w-0">
-                            <p class="text-green-300 text-xs font-semibold leading-tight">🎉 Desconto PIX</p>
-                            <p class="text-green-200 text-xs mt-0.5 leading-tight">Economize R$ 25</p>
+            <!-- Content -->
+            <div class="p-4 md:p-6">
+                <!-- Desktop: Grid 2 cols | Mobile: Stack vertical -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
+                    
+                    <!-- QR Code Section - Left (Desktop) / Bottom (Mobile) -->
+                    <div class="lg:col-span-1 flex flex-col items-center justify-start gap-2 lg:border-r border-slate-700/30 lg:pr-6 order-last lg:order-first">
+                        <p class="text-slate-400 text-xs font-semibold uppercase tracking-wide">Escanear QR</p>
+                        
+                        <div class="bg-white p-2 rounded-lg border-2 border-green-600/40 shadow-lg">
+                            @if(!empty($pixQrImage))
+                                <img src="{{ $pixQrImage }}" alt="QR Code" class="w-28 h-28 md:w-40 md:h-40 lg:w-44 lg:h-44 object-contain" />
+                            @else
+                                <div class="w-28 h-28 md:w-40 md:h-40 lg:w-44 lg:h-44 bg-slate-200 rounded flex items-center justify-center text-slate-500 text-xs">Carregando...</div>
+                            @endif
                         </div>
-                        <p class="text-2xl sm:text-4xl font-bold text-green-400 flex-shrink-0">{{ $currencies[$selectedCurrency]['symbol'] ?? 'R$' }} {{ $totals['final_price'] ?? '24,90' }}</p>
+                        
+                        <p id="pix-timer" class="text-green-400 text-sm font-bold font-mono">5:00</p>
+                        
+                        <!-- Button to pay with card - appears after 30 seconds -->
+                        <button id="pay-card-btn" onclick="switchToCard()" class="hidden mt-2 px-3 py-1.5 text-xs text-slate-400 hover:text-slate-300 border border-slate-600/40 rounded-lg hover:border-slate-500/60 transition-all duration-300 hover:bg-slate-800/20">
+                            Pagar com Cartão
+                        </button>
                     </div>
-                </div>
 
-                <!-- QR Code Section - Optimized Size -->
-                <div class="flex flex-col items-center gap-1.5 bg-slate-800/50 rounded-lg p-2.5 sm:p-4 border border-slate-700">
-                    <p class="text-white font-semibold text-xs sm:text-sm">Escaneie o QR Code</p>
-                    <div class="bg-white p-2 sm:p-3 rounded-lg shadow-lg">
-                        @if(!empty($pixQrImage))
-                            <img src="data:image/png;base64,{{ $pixQrImage }}" alt="PIX QR Code" class="w-20 h-20 sm:w-32 sm:h-32 md:w-40 md:h-40" />
-                        @else
-                            <svg class="w-20 h-20 sm:w-32 sm:h-32 md:w-40 md:h-40" viewBox="0 0 200 200"><rect width="200" height="200" fill="white"/><g fill="black"><rect x="10" y="10" width="40" height="40"/><rect x="150" y="10" width="40" height="40"/><rect x="10" y="150" width="40" height="40"/><rect x="60" y="30" width="8" height="8"/><rect x="70" y="30" width="8" height="8"/><rect x="60" y="45" width="8" height="8"/><rect x="75" y="45" width="8" height="8"/></g></svg>
-                        @endif
-                    </div>
-                    <p class="text-slate-300 text-xs text-center leading-tight">Aponte a câmera<br/>do seu banco</p>
-                </div>
+                    <!-- Payment Section - Right (Desktop) / Top (Mobile) -->
+                    <div class="lg:col-span-2 flex flex-col gap-3 md:gap-4 order-first lg:order-last">
+                        
+                        <!-- Código PIX -->
+                        <div class="bg-cyan-500/10 border border-cyan-500/20 rounded-xl p-3 md:p-4">
+                            <p class="text-slate-300 text-xs font-bold uppercase tracking-wide mb-2">Código PIX</p>
+                            <div class="bg-slate-950 border border-slate-700 rounded-lg p-2 md:p-3 font-mono text-slate-200 text-xs break-all max-h-16 md:max-h-20 overflow-y-auto text-center mb-2 leading-tight" id="pix-code-display">{{ $pixQrCodeText ?? 'Código PIX' }}</div>
+                            <button id="copy-pix-btn" class="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white py-2 md:py-2.5 px-3 rounded-lg font-bold text-xs transition-all duration-300 active:scale-95 flex items-center justify-center gap-2 shadow-lg hover:shadow-green-600/50" onclick="copyPixCode()">
+                                <svg class="w-3.5 h-3.5 md:w-4 md:h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                                <span id="copy-text">Copiar código</span>
+                            </button>
+                        </div>
 
-                <!-- Copy Code Section -->
-                <div class="bg-slate-800/50 rounded-lg p-2.5 sm:p-4 border border-slate-700" id="pix-copy-section">
-                    <p class="text-slate-300 text-xs font-semibold mb-1.5 block">Ou copie o código:</p>
-                    <div class="bg-slate-950 border-2 border-slate-600 rounded p-1.5 sm:p-2 font-mono text-slate-200 text-xs break-all overflow-x-auto max-h-14 overflow-y-auto mb-2 leading-relaxed">{{ $pixQrCodeText ?? 'Código PIX' }}</div>
-                    <button id="copy-pix-btn" class="w-full py-2 sm:py-3 px-3 sm:px-6 rounded-lg font-bold text-xs sm:text-base transition-all duration-300 flex items-center justify-center gap-2 bg-green-500 hover:bg-green-600 text-white shadow-lg active:scale-95" onclick="copyPixCode()">
-                        <svg class="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
-                        <span id="copy-text">Copiar código</span>
-                    </button>
-                </div>
+                        <!-- Price Section -->
+                        <div class="bg-green-600/10 border border-green-600/20 rounded-xl p-3 md:p-4">
+                            <div class="space-y-2">
+                                <div class="flex justify-between items-center text-xs pb-2 border-b border-green-600/20">
+                                    <span class="text-slate-400">{{ str_replace(['1/month', '1 mês', '1/mes'], '1x/mês', substr($product['title'] ?? 'Streaming', 0, 30)) }}</span>
+                                    <span class="text-slate-300 font-medium">R$ 49,90</span>
+                                </div>
+                                <div class="flex justify-between items-center text-xs pb-2 border-b border-green-600/20">
+                                    <span class="text-slate-400">Desconto PIX</span>
+                                    <span class="bg-green-600/30 text-green-300 text-xs font-bold px-2 py-0.5 rounded">-R$ 25,00</span>
+                                </div>
+                                <div class="flex justify-between items-center text-sm md:text-base pt-1 font-semibold">
+                                    <span class="text-slate-300">Total:</span>
+                                    <span class="text-green-400 text-lg md:text-xl lg:text-2xl">R$ {{ $totals['final_price'] ?? '24,90' }}</span>
+                                </div>
+                            </div>
+                        </div>
 
-                <!-- Reassurance Section -->
-                <div class="bg-blue-500/10 border border-blue-500/40 rounded-lg p-2 sm:p-3 flex items-start gap-2">
-                    <svg class="w-4 h-4 text-blue-400 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.338 5.59a6.79 6.79 0 010 9.647A6.811 6.811 0 015 12.5c0-1.995.822-3.815 2.149-5.09.937-.957 2.116-1.687 3.352-2.053A6.902 6.902 0 0112 3a6.94 6.94 0 015.024 2.078l.896.895.708-.707A6.5 6.5 0 008.854 2.5a8.5 8.5 0 00-3.516 8z" clip-rule="evenodd"/></svg>
-                    <div class="min-w-0">
-                        <p class="text-blue-200 text-xs sm:text-sm font-semibold leading-tight">Protegido com SSL</p>
-                        <p class="text-blue-300/70 text-xs mt-0.5 leading-tight">Seus dados são 100% seguros</p>
-                    </div>
-                </div>
-
-                <!-- Status Info -->
-                <div class="bg-amber-500/10 border border-amber-500/40 rounded-lg p-2 sm:p-3">
-                    <div class="flex items-start gap-2">
-                        <div class="w-2 h-2 bg-amber-400 rounded-full animate-pulse mt-1 flex-shrink-0"></div>
-                        <div class="flex-1 min-w-0">
-                            <p class="text-amber-200 font-semibold text-xs sm:text-sm leading-tight">Aguardando confirmação</p>
-                            <p class="text-amber-100/80 text-xs leading-snug mt-0.5">✓ Confirmação em segundos<br/>✓ Acesso imediato<br/>✓ Suporte 24/7</p>
+                        <!-- Security & Info - Compact -->
+                        <div class="bg-slate-800/20 border border-slate-700/30 rounded-xl p-3 md:p-4 space-y-1.5">
+                            <div class="flex items-center gap-2 text-slate-300 text-xs">
+                                <span class="text-orange-400">⏱</span>
+                                <span>Confirmação em segundos</span>
+                            </div>
+                            <div class="flex items-center gap-2 text-slate-300 text-xs">
+                                <span class="text-green-400">✓</span>
+                                <span>Acesso imediato - Suporte 24/7</span>
+                            </div>
+                            <div class="flex items-center gap-2 text-slate-300 text-xs">
+                                <span class="text-blue-400">🔒</span>
+                                <span>100% seguro</span>
+                            </div>
                         </div>
                     </div>
+
                 </div>
             </div>
         </div>
     </div>
+</div>
 @endif
 
 <script>
+let pixModalTimer = 30;
+let pixQRTimer = 300; // 5 minutes in seconds
+let pixModalCheckInterval = null;
+let pixQRTimerInterval = null;
+let payCardButtonShown = false;
+
+function closePixModal() {
+    if (pixModalTimer <= 0) {
+        const modal = document.getElementById('pix-modal');
+        if (modal) {
+            modal.style.opacity = '0';
+            document.body.classList.remove('pix-modal-open');
+            if (pixQRTimerInterval) clearInterval(pixQRTimerInterval);
+            if (pixModalCheckInterval) clearInterval(pixModalCheckInterval);
+            setTimeout(() => {
+                @this.dispatch('closeModal');
+            }, 300);
+        }
+    }
+}
+
+function switchToCard() {
+    // Close PIX modal
+    const modal = document.getElementById('pix-modal');
+    if (modal) {
+        modal.style.opacity = '0';
+        document.body.classList.remove('pix-modal-open');
+        if (pixQRTimerInterval) clearInterval(pixQRTimerInterval);
+        if (pixModalCheckInterval) clearInterval(pixModalCheckInterval);
+    }
+    
+    // Dispatch event to show card modal
+    @this.dispatch('switchToCardPayment');
+    
+    setTimeout(() => {
+        @this.dispatch('closeModal');
+    }, 300);
+}
+
+function formatTime(seconds) {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+}
+
+function startPixQRTimer() {
+    if (pixQRTimerInterval) {
+        clearInterval(pixQRTimerInterval);
+    }
+    
+    pixQRTimer = 300; // Reset to 5 minutes
+    
+    pixQRTimerInterval = setInterval(() => {
+        pixQRTimer--;
+        
+        const timerEl = document.getElementById('pix-timer');
+        if (timerEl) {
+            timerEl.textContent = formatTime(pixQRTimer);
+        }
+        
+        // Show card payment button after 30 seconds
+        if (pixQRTimer === 270 && !payCardButtonShown) {
+            const cardBtn = document.getElementById('pay-card-btn');
+            if (cardBtn) {
+                cardBtn.classList.remove('hidden');
+                payCardButtonShown = true;
+                console.log('[PIX Modal] Botão de cartão exibido');
+            }
+        }
+        
+        // Close modal when timer reaches 0
+        if (pixQRTimer <= 0) {
+            clearInterval(pixQRTimerInterval);
+            const modal = document.getElementById('pix-modal');
+            if (modal) {
+                modal.style.opacity = '0';
+                document.body.classList.remove('pix-modal-open');
+                setTimeout(() => {
+                    @this.dispatch('closeModal');
+                }, 300);
+            }
+            console.log('[PIX Modal] QR code expirou');
+        }
+    }, 1000);
+    
+    console.log('[PIX Modal] Timer QR iniciado - 5 minutos');
+}
+
+function applyBlurEffect() {
+    const pixModal = document.getElementById('pix-modal');
+    if (pixModal && pixModal.style.display !== 'none') {
+        document.body.classList.add('pix-modal-open');
+        payCardButtonShown = false; // Reset button state
+        console.log('[PIX Modal] Blur aplicado');
+    } else {
+        document.body.classList.remove('pix-modal-open');
+    }
+}
+
+function startPixModalTimer() {
+    if (pixModalCheckInterval) {
+        clearInterval(pixModalCheckInterval);
+    }
+    
+    pixModalTimer = 30;
+    const closeBtn = document.getElementById('close-pix-btn');
+    
+    pixModalCheckInterval = setInterval(() => {
+        pixModalTimer--;
+        if (closeBtn) {
+            closeBtn.textContent = pixModalTimer > 0 ? pixModalTimer : '×';
+            closeBtn.disabled = pixModalTimer > 0;
+            closeBtn.style.opacity = pixModalTimer > 0 ? '0.6' : '1';
+        }
+        
+        if (pixModalTimer <= 0) {
+            clearInterval(pixModalCheckInterval);
+            pixModalCheckInterval = null;
+        }
+    }, 1000);
+    
+    console.log('[PIX Modal] Timer closeBtn iniciado - 30 segundos');
+}
+
+// Listen for modal visibility - improved detection
+if (document.addEventListener) {
+    document.addEventListener('livewire:updated', function() {
+        setTimeout(() => {
+            applyBlurEffect();
+            const pixModal = document.getElementById('pix-modal');
+            if (pixModal && pixModal.style.display !== 'none') {
+                startPixModalTimer();
+                startPixQRTimer();
+            }
+        }, 100);
+    });
+    
+    // Also watch for mutations
+    const observer = new MutationObserver(function() {
+        applyBlurEffect();
+        const pixModal = document.getElementById('pix-modal');
+        if (pixModal && pixModal.style.display !== 'none' && pixModalTimer === 30) {
+            startPixModalTimer();
+            startPixQRTimer();
+        }
+    });
+    
+    observer.observe(document.body, {
+        attributes: true,
+        childList: true,
+        subtree: true,
+        attributeFilter: ['style', 'display']
+    });
+}
+
 function copyPixCode() {
-    const pixCodeElement = document.querySelector('#pix-copy-section > div');
-    const pixCode = pixCodeElement ? pixCodeElement.textContent.trim() : '';
+    const pixCodeDisplay = document.getElementById('pix-code-display');
+    const pixCode = pixCodeDisplay ? pixCodeDisplay.textContent.trim() : '';
     
     if (!pixCode || pixCode === 'Código PIX') {
-        alert('Código PIX não disponível');
+        console.error('Código PIX não disponível');
         return;
     }
 
     const btn = document.getElementById('copy-pix-btn');
-    const icon = document.getElementById('copy-icon');
     const text = document.getElementById('copy-text');
     const originalText = text.textContent;
 
     if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(pixCode)
             .then(() => {
-                text.textContent = '✓ Código copiado!';
-                btn.classList.add('bg-green-600');
-                btn.classList.remove('hover:bg-green-600');
+                text.textContent = '✓ Copiado!';
+                btn.classList.add('scale-95');
                 
                 setTimeout(() => {
                     text.textContent = originalText;
-                    btn.classList.remove('bg-green-600');
-                    btn.classList.add('hover:bg-green-600');
+                    btn.classList.remove('scale-95');
                 }, 2000);
             })
-            .catch(() => {
-                // Fallback
-                const textarea = document.createElement('textarea');
-                textarea.value = pixCode;
-                document.body.appendChild(textarea);
-                textarea.select();
-                try {
-                    document.execCommand('copy');
-                    text.textContent = '✓ Código copiado!';
-                    setTimeout(() => {
-                        text.textContent = originalText;
-                    }, 2000);
-                } catch (err) {
-                    alert('Erro ao copiar. Copie manualmente o código acima.');
-                }
-                document.body.removeChild(textarea);
-            });
+            .catch(() => fallbackCopyPixCode(pixCode, btn, text, originalText));
+    } else {
+        fallbackCopyPixCode(pixCode, btn, text, originalText);
     }
 }
+
+function fallbackCopyPixCode(pixCode, btn, text, originalText) {
+    const textarea = document.createElement('textarea');
+    textarea.value = pixCode;
+    document.body.appendChild(textarea);
+    textarea.select();
+    try {
+        document.execCommand('copy');
+        text.textContent = '✓ Copiado!';
+        btn.classList.add('scale-95');
+        
+        setTimeout(() => {
+            text.textContent = originalText;
+            btn.classList.remove('scale-95');
+        }, 2000);
+    } catch (err) {
+        console.error('Erro ao copiar:', err);
+        text.textContent = '✗ Erro';
+        setTimeout(() => {
+            text.textContent = originalText;
+        }, 2000);
+    }
+    document.body.removeChild(textarea);
+}
+
+// Auto-start timer when page loads if modal exists
+document.addEventListener('DOMContentLoaded', function() {
+    applyBlurEffect();
+    const pixModal = document.getElementById('pix-modal');
+    if (pixModal && pixModal.style.display !== 'none') {
+        setTimeout(() => {
+            startPixModalTimer();
+            startPixQRTimer();
+        }, 200);
+    }
+});
 </script>
 
 <!-- Error Modal -->

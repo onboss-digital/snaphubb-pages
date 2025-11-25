@@ -6,7 +6,6 @@ use App\Factories\PaymentGatewayFactory; // Added
 use App\Factories\PixServiceFactory;
 use App\Interfaces\PaymentGatewayInterface; // Added
 use App\Rules\ValidPhoneNumber;
-use App\Services\MercadoPagoPixService; // Added for PIX payments
 use GuzzleHttp\Client;
 use GuzzleHttp\Psr7\Request;
 use Illuminate\Support\Facades\Http;
@@ -794,6 +793,7 @@ class PagePay extends Component
                 'description' => 'Pagamento - ' . ($this->product['title'] ?? 'Produto'),
                 'customerEmail' => $this->email,
                 'customerName' => $this->cardName,
+                'webhook_url' => url('/api/pix/webhook'),
             ]);
 
             // Trata erros da criação do PIX
@@ -847,7 +847,7 @@ class PagePay extends Component
 
         try {
             // Consulta o status do pagamento PIX
-            $response = $this->pixService->getPaymentStatus((int)$this->pixTransactionId);
+            $response = $this->pixService->getPaymentStatus($this->pixTransactionId);
 
             if ($response['status'] === 'error') {
                 Log::warning('PagePay: Erro ao consultar status do PIX', [
@@ -1215,7 +1215,6 @@ class PagePay extends Component
             'offer_hash' => $currentPlanDetails['hash'],
             'customer' => $customerData,
             'cart' => $cartItems,
-            'gateway' => 'mercadopago',
             'metadata' => [
                 'product_main_hash' => $this->product['hash'],
                 'bumps_selected' => collect($this->bumps)->where('active', true)->pluck('id')->implode(','),
