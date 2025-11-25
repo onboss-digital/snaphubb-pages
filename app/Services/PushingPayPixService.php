@@ -110,13 +110,37 @@ class PushingPayPixService
 
             $responseData = $response->json();
 
+            // Log completo da resposta para debug em produção
+            Log::info('Pushing Pay API Response (Full)', [
+                'status_code' => $response->status(),
+                'response' => $responseData,
+                'environment' => $this->baseUrl,
+            ]);
+
             if ($response->successful() && isset($responseData['id'])) {
+                // Tenta diferentes nomes de campo para o código PIX
+                $qrCode = $responseData['qr_code'] 
+                    ?? $responseData['copyAndPaste'] 
+                    ?? $responseData['pix_code'] 
+                    ?? $responseData['code'] 
+                    ?? null;
+
+                $qrCodeBase64 = $responseData['qr_code_base64'] 
+                    ?? $responseData['qr_code'] 
+                    ?? null;
+
+                Log::info('Pushing Pay PIX Created Successfully', [
+                    'payment_id' => $responseData['id'],
+                    'qr_code_found' => !empty($qrCode),
+                    'qr_code_base64_found' => !empty($qrCodeBase64),
+                ]);
+
                 return [
                     'status' => 'success',
                     'data' => [
                         'payment_id' => $responseData['id'], // ID da transação Pushing Pay
-                        'qr_code_base64' => $responseData['qr_code_base64'] ?? null,
-                        'qr_code' => $responseData['qr_code'] ?? null, // Código copia e cola (Pix Copia e Cola)
+                        'qr_code_base64' => $qrCodeBase64, // QR Code em base64
+                        'qr_code' => $qrCode, // Código copia e cola (Pix Copia e Cola)
                         // A Pushing Pay não retorna a data de expiração, assumimos 30 minutos (padrão Mercado Pago)
                         'expiration_date' => now()->addMinutes(30)->toIso8601String(), 
                         'amount' => ($value / 100),
@@ -125,7 +149,10 @@ class PushingPayPixService
                 ];
             }
 
-            Log::error('Pushing Pay PIX Creation Error', ['response' => $responseData]);
+            Log::error('Pushing Pay PIX Creation Error', [
+                'response' => $responseData,
+                'status_code' => $response->status(),
+            ]);
             return [
                 'status' => 'error',
                 'message' => $responseData['message'] ?? 'Erro ao criar pagamento PIX na Pushing Pay.',
