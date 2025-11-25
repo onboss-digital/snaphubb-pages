@@ -100,7 +100,16 @@ class PushingPayPixService
 
             $responseData = $response->json();
 
-            if ($response->successful() && isset($responseData['id'])) {
+            Log::info('PushingPayPixService: Response da criação de PIX', [
+                'status_code' => $response->status(),
+                'response_keys' => array_keys($responseData),
+                'full_response' => $responseData,
+            ]);
+
+            // O campo de ID pode estar em: 'id', 'payment_id', ou 'transactionId'
+            $paymentId = $responseData['id'] ?? $responseData['payment_id'] ?? $responseData['transactionId'] ?? null;
+
+            if ($response->successful() && $paymentId) {
                 $qrCode = $responseData['qr_code'] 
                     ?? $responseData['copyAndPaste'] 
                     ?? $responseData['pix_code'] 
@@ -114,7 +123,7 @@ class PushingPayPixService
                 return [
                     'status' => 'success',
                     'data' => [
-                        'payment_id' => $responseData['id'],
+                        'payment_id' => $paymentId,
                         'qr_code_base64' => $qrCodeBase64,
                         'qr_code' => $qrCode,
                         'expiration_date' => now()->addMinutes(30)->toIso8601String(), 
@@ -165,21 +174,35 @@ class PushingPayPixService
                 ];
             }
 
+            Log::info('PushingPayPixService: Consultando status do PIX', [
+                'payment_id' => $paymentId,
+                'url' => "{$this->baseUrl}/pix/{$paymentId}",
+            ]);
+
             $response = Http::withHeaders([
                 'Authorization' => 'Bearer ' . $this->accessToken,
                 'Accept' => 'application/json',
-            ])->get("{$this->baseUrl}/pix/cashIn/{$paymentId}");
+            ])->get("{$this->baseUrl}/pix/{$paymentId}");
 
             $responseData = $response->json();
 
-            if ($response->successful() && isset($responseData['id'])) {
+            Log::info('PushingPayPixService: Response do status do PIX', [
+                'status_code' => $response->status(),
+                'payment_id' => $paymentId,
+                'response_keys' => array_keys($responseData),
+            ]);
+
+            // O campo de ID pode estar em: 'id', 'payment_id', ou 'transactionId'
+            $responsePaymentId = $responseData['id'] ?? $responseData['payment_id'] ?? $responseData['transactionId'] ?? null;
+
+            if ($response->successful() && $responsePaymentId) {
                 // Mapeamento de status da Pushing Pay para o padrão do Mercado Pago
                 $mappedStatus = $this->mapStatus($responseData['status'] ?? 'created');
 
                 return [
                     'status' => 'success',
                     'data' => [
-                        'payment_id' => $responseData['id'],
+                        'payment_id' => $responsePaymentId,
                         'payment_status' => $mappedStatus,
                         'status_detail' => null,
                         'amount' => (($responseData['value'] ?? 0) / 100),

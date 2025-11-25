@@ -875,6 +875,8 @@ class PagePay extends Component
     /**
      * Consulta o status do pagamento PIX
      * Chamado via polling a cada 3-5 segundos
+     * NOTA: A API Pushing Pay não fornece rota de consulta de status.
+     * O status será atualizado via webhook quando o pagamento for confirmado.
      */
     public function checkPixPaymentStatus()
     {
@@ -883,47 +885,11 @@ class PagePay extends Component
             return;
         }
 
-        try {
-            // Consulta o status do pagamento PIX
-            $response = $this->pixService->getPaymentStatus($this->pixTransactionId);
-
-            if ($response['status'] === 'error') {
-                Log::warning('PagePay: Erro ao consultar status do PIX', [
-                    'payment_id' => $this->pixTransactionId,
-                    'message' => $response['message'],
-                ]);
-                return;
-            }
-
-            $paymentData = $response['data'];
-            $paymentStatus = $paymentData['payment_status'] ?? 'pending';
-
-            Log::channel('payment_checkout')->debug('PagePay: Status do PIX consultado', [
-                'payment_id' => $this->pixTransactionId,
-                'status' => $paymentStatus,
-            ]);
-
-            // Atualiza o status local
-            $this->pixStatus = $paymentStatus;
-
-            // Trata diferentes status de pagamento
-            if ($paymentStatus === 'approved') {
-                // Pagamento aprovado - redireciona para sucesso
-                $this->handlePixApproved();
-            } elseif ($paymentStatus === 'rejected' || $paymentStatus === 'cancelled') {
-                // Pagamento rejeitado/cancelado
-                $this->handlePixRejected();
-            } elseif ($paymentStatus === 'expired') {
-                // Pagamento expirou
-                $this->handlePixExpired();
-            }
-            // else: mantém 'pending' e continua polling
-
-        } catch (\Exception $e) {
-            Log::error('PagePay: Erro ao verificar status do PIX', [
-                'message' => $e->getMessage(),
-            ]);
-        }
+        // Para Pushing Pay, confiamos no webhook para notificar o status
+        // Não há rota pública para consultar status individual
+        Log::debug('PagePay: Aguardando notificação via webhook do PIX', [
+            'payment_id' => $this->pixTransactionId,
+        ]);
     }
 
     
