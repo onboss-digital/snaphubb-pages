@@ -732,54 +732,76 @@ class PagePay extends Component
             $this->pixError = null;
             $this->pixStatus = 'pending';
 
-            // SEMPRE USAR MOCK PARA PIX
-            Log::info('generatePix: Carregando preços do MOCK para PIX', ['selectedPlan' => $this->selectedPlan]);
-            
+            // Carregar dados do MOCK para calcular o preço do PIX
             $mockPath = resource_path('mock/get-plans.json');
-            if (file_exists($mockPath)) {
-                $mockJson = file_get_contents($mockPath);
-                $mockData = json_decode($mockJson, true);
-                if (is_array($mockData) && !empty($mockData)) {
-                    // Salvar planos originais
-                    $originalPlans = $this->plans;
-                    
-                    // Temporariamente usar mock apenas para calcular o preço do PIX
-                    $this->plans = $mockData;
-                    $this->updateProductDetails();
-                    $this->calculateTotals();
-                    $this->usingPixMock = true;
-                    
-                    Log::info('generatePix: Mock carregado para PIX', [
-                        'selectedPlan' => $this->selectedPlan,
-                        'final_price' => $this->totals['final_price'] ?? 'N/A'
-                    ]);
-                } else {
-                    Log::error('generatePix: Mock inválido (parse falhou)');
-                    $this->errorMessage = __('payment.plan_not_loaded') ?? 'Plano não disponível no momento. Tente novamente mais tarde.';
-                    $this->showErrorModal = true;
-                    $this->showProcessingModal = false;
-                    return;
+            if (!file_exists($mockPath)) {
+                Log::error('generatePix: Mock não encontrado em ' . $mockPath);
+                $this->errorMessage = __('payment.plan_not_loaded') ?? 'Plano não disponível no momento. Tente novamente mais tarde.';
+                $this->showErrorModal = true;
+                $this->showProcessingModal = false;
+                return;
+            }
+
+            $mockJson = file_get_contents($mockPath);
+            $mockData = json_decode($mockJson, true);
+            
+            if (!is_array($mockData) || empty($mockData)) {
+                Log::error('generatePix: Mock inválido (parse falhou ou vazio)');
+                $this->errorMessage = __('payment.plan_not_loaded') ?? 'Plano não disponível no momento. Tente novamente mais tarde.';
+                $this->showErrorModal = true;
+                $this->showProcessingModal = false;
+                return;
+            }
+
+            // Verificar se o plano selecionado existe no mock
+            if (!isset($mockData[$this->selectedPlan])) {
+                Log::error('generatePix: Plano não encontrado no mock', [
+                    'selectedPlan' => $this->selectedPlan,
+                    'available_plans' => array_keys($mockData)
+                ]);
+                $this->errorMessage = __('payment.plan_not_loaded') ?? 'Plano não disponível no momento. Tente novamente mais tarde.';
+                $this->showErrorModal = true;
+                $this->showProcessingModal = false;
+                return;
+            }
+
+            // Extrair dados do plano do mock
+            $plan = $mockData[$this->selectedPlan];
+            
+            // Procurar a moeda com preço disponível (prioridade: selecionada > BRL > USD)
+            $availableCurrency = null;
+            if (isset($plan['prices'][$this->selectedCurrency])) {
+                $availableCurrency = $this->selectedCurrency;
+            } elseif (isset($plan['prices']['BRL'])) {
+                $availableCurrency = 'BRL';
+            } elseif (isset($plan['prices']['USD'])) {
+                $availableCurrency = 'USD';
+            }
+
+            if (!$availableCurrency) {
+                Log::error('generatePix: Nenhuma moeda válida encontrada no mock', [
+                    'selectedPlan' => $this->selectedPlan,
+                    'available_currencies' => array_keys($plan['prices'] ?? [])
+                ]);
+                $this->errorMessage = __('payment.plan_not_loaded') ?? 'Plano não disponível no momento. Tente novamente mais tarde.';
+                $this->showErrorModal = true;
+                $this->showProcessingModal = false;
+                return;
+            }
+
+            // Calcular preço final
+            $prices = $plan['prices'][$availableCurrency];
+            $finalPrice = $prices['descont_price'];
+
+            // Adicionar bumps se ativos
+            foreach ($this->bumps as $bump) {
+                if (!empty($bump['active'])) {
+                    $finalPrice += floatval($bump['price']);
                 }
-            } else {
-                Log::error('generatePix: Mock não encontrado');
-                $this->errorMessage = __('payment.plan_not_loaded') ?? 'Plano não disponível no momento. Tente novamente mais tarde.';
-                $this->showErrorModal = true;
-                $this->showProcessingModal = false;
-                return;
             }
 
-            // Verifica se os dados do plano/preços foram carregados
-            if (empty($this->totals) || !isset($this->totals['final_price'])) {
-                Log::error('generatePix: Totals ainda ausentes após carregar mock');
-                $this->errorMessage = __('payment.plan_not_loaded') ?? 'Plano não disponível no momento. Tente novamente mais tarde.';
-                $this->showErrorModal = true;
-                $this->showProcessingModal = false;
-                return;
-            }
-
-            // Calcula o valor final em centavos (agora totals devem existir)
-            $numeric_final_price = floatval(str_replace(',', '.', str_replace('.', '', $this->totals['final_price'])));
-            $amountInCents = (int)round($numeric_final_price * 100);
+            // Calcula o valor final em centavos
+            $amountInCents = (int)round($finalPrice * 100);
 
             Log::channel('payment_checkout')->info('PagePay: Iniciando geração de PIX', [
                 'email' => $this->email,
