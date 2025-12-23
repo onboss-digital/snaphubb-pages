@@ -25,3 +25,4 @@ yarn-error.log
 laravel_server.log
 *.log
 composer.phar
+.env.forge-production
