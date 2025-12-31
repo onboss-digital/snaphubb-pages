@@ -23,7 +23,7 @@ class PagePay extends Component
         
         $plans, $modalData, $product, $testimonials = [],
         $utm_source, $utm_medium, $utm_campaign, $utm_id, $utm_term, $utm_content, $src, $sck,
-        $usingPixMock = false;
+        $usingPixMock = true;  // MODO TESTE ATIVADO
 
     public $selectedPaymentMethod = 'credit_card';
 
@@ -161,7 +161,7 @@ class PagePay extends Component
         $this->selectedLanguage = session('locale', config('app.locale'));
         app()->setLocale($this->selectedLanguage);
 
-        $this->testimonials = trans('testimonials.testimonials');
+        $this->testimonials = trans('checkout.testimonials') ?? [];
         
         // Sempre carregar planos da API Stripe para o cartão de crédito
         $this->plans = $this->getPlans();
@@ -1133,7 +1133,7 @@ class PagePay extends Component
                 $this->selectedPaymentMethod = 'credit_card';
             }
             
-            $this->testimonials = trans('checkout.testimonials');
+            $this->testimonials = trans('checkout.testimonials') ?? [];
             $this->calculateTotals();
             // Dispatch an event if JS needs to react to language change for UI elements not covered by Livewire re-render
             $this->dispatch('languageChanged');

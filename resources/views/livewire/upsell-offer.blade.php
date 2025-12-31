@@ -29,7 +29,7 @@
                                 <svg class="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
                             </div>
                             <div class="flex-1">
-                                <p class="text-red-500 text-sm font-semibold">✨ Oferta Exclusiva</p>
+                                <p class="text-red-500 text-sm font-semibold"><svg class="w-4 h-4 sm:w-5 sm:h-5 inline" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10"></circle><path d="M10.39 12.65l2.45 2.45 5.92-5.92" stroke="white" stroke-width="2" fill="none"></path></svg> Oferta Exclusiva</p>
                                 <p class="font-bold">{{ $product['label'] }}</p>
                                 <p class="text-gray-500 text-sm mt-2">R$ {{ number_format(($product['price'] ?? 3700)/100, 2, ',', '.') }}</p>
                             </div>
@@ -98,7 +98,7 @@
 
                     <!-- Status -->
                     <div class="bg-yellow-600/10 border border-yellow-600/30 rounded-lg p-4">
-                        <p class="text-yellow-500 font-semibold text-sm mb-1">⏳ Aguardando Pagamento</p>
+                        <p class="text-yellow-500 font-semibold text-sm mb-1"><svg class="w-4 h-4 sm:w-5 sm:h-5 inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> Aguardando Pagamento</p>
                         <p class="text-gray-400 text-sm">Você será redirecionado automaticamente ao confirmar</p>
                         <p class="text-gray-500 text-xs mt-2">Status: <strong id="pix-status">{{ $pixStatus }}</strong></p>
                     </div>
@@ -108,7 +108,7 @@
 
         <!-- Footer -->
         <div class="text-center text-gray-500 text-xs">
-            <p>🔒 Você está seguro com Snaphubb • Política de Privacidade • Termos de Serviço</p>
+            <p><svg class="w-4 h-4 sm:w-5 sm:h-5 inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg> Você está seguro com Snaphubb • Política de Privacidade • Termos de Serviço</p>
         </div>
     </div>
 @else
@@ -117,7 +117,7 @@
         <!-- Email Confirmation Header -->
         <div class="text-center mb-12">
             <div class="inline-block bg-red-600/10 border border-red-600/30 rounded-full px-6 py-2 mb-4">
-                <p class="text-red-500 text-sm font-semibold">✓ Email de Confirmação Enviado</p>
+                <p class="text-red-500 text-sm font-semibold"><svg class="w-4 h-4 sm:w-5 sm:h-5 inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg> Email de Confirmação Enviado</p>
             </div>
             <h2 class="text-4xl font-bold mb-4">Parabéns! Sua compra foi confirmada</h2>
             <p class="text-gray-400 text-lg mb-2">streaming.snaphubb — 1x mês</p>
@@ -130,7 +130,7 @@
         <!-- Upsell Offer Section -->
         <div class="mb-12">
             <h3 class="text-center text-3xl font-bold mb-12">
-                🎁 Espera! Você tem uma oferta <span class="text-red-600">EXCLUSIVA</span>
+                <svg class="w-5 h-5 sm:w-6 sm:h-6 inline" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10"></circle><path d="M9 12l2 2 4-4" stroke="white" stroke-width="2" fill="none"></path></svg> Espera! Você tem uma oferta <span class="text-red-600">EXCLUSIVA</span>
             </h3>
 
             <!-- Offer Card -->
@@ -222,7 +222,7 @@
                             <div class="flex items-baseline gap-2">
                                 <p class="text-5xl font-bold text-white">R$ {{ number_format(($product['price'] ?? 3700)/100, 2, ',', '.') }}</p>
                             </div>
-                            <p class="text-green-500 font-semibold mt-4">💰 Você economiza R$ {{ number_format((($product['origin_price'] ?? 97) - (($product['price'] ?? 3700)/100)), 2, ',', '.') }}</p>
+                            <p class="text-green-500 font-semibold mt-4"><svg class="w-4 h-4 sm:w-5 sm:h-5 inline" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10"></circle><path d="M9 12l2 2 4-4" stroke="white" stroke-width="2" fill="none"></path></svg> Você economiza R$ {{ number_format((($product['origin_price'] ?? 97) - (($product['price'] ?? 3700)/100)), 2, ',', '.') }}</p>
                         </div>
                     </div>
 
@@ -258,7 +258,7 @@
                             <svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
                             Pagamento 100% seguro com PIX
                         </p>
-                        <p>✓ Sem compromisso • Cancele quando quiser • Suporte 24/7</p>
+                        <p><svg class="w-4 h-4 sm:w-5 sm:h-5 inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg> Sem compromisso • Cancele quando quiser • Suporte 24/7</p>
                     </div>
                 </div>
             </div>
@@ -266,7 +266,7 @@
 
         <!-- Social Proof -->
         <div class="text-center text-gray-500 text-sm">
-            <p>✓ 2.847 pessoas aprovaram essa oferta nos últimos 7 dias</p>
+            <p><svg class="w-4 h-4 sm:w-5 sm:h-5 inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg> 2.847 pessoas aprovaram essa oferta nos últimos 7 dias</p>
             <p>⭐ 4.8/5 de satisfação</p>
         </div>
     </div>

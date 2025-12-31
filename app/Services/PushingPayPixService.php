@@ -101,7 +101,7 @@ class PushingPayPixService
                 'Authorization' => 'Bearer ' . $this->accessToken,
                 'Accept' => 'application/json',
                 'Content-Type' => 'application/json',
-            ])->post("{$this->baseUrl}/pix/cashIn", [
+            ])->withoutVerifying()->post("{$this->baseUrl}/pix/cashIn", [
                 'value' => $value,
                 'webhook_url' => $webhookUrl,
             ]);
@@ -190,7 +190,7 @@ class PushingPayPixService
             $response = Http::withHeaders([
                 'Authorization' => 'Bearer ' . $this->accessToken,
                 'Accept' => 'application/json',
-            ])->get("{$this->baseUrl}/pix/{$paymentId}");
+            ])->withoutVerifying()->get("{$this->baseUrl}/pix/{$paymentId}");
 
             $responseData = $response->json();
 

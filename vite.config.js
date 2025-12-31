@@ -24,6 +24,9 @@ export default defineConfig({
             ignored: [
                 '**/vendor/**',
                 '**/node_modules/**',
+                '**/storage/**',
+                '**/.env*',
+                '**/public/build/**',
             ],
         },
     },

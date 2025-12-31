@@ -30,13 +30,21 @@ return [
 
     // Payment
     'payment_method' => 'Método de pago',
-    'card' => 'Tarjeta',
+    'credit_card' => 'Tarjeta de Crédito',
+    'card_number' => 'Número de tarjeta',
+    'card_number_placeholder' => '0000 0000 0000 0000',
     'expiry_date' => 'Fecha de expiración',
+    'expiry_date_placeholder' => 'MM/AA',
     'security_code' => 'Código de seguridad',
+    'security_code_placeholder' => 'CVV',
     'card_name' => 'Nombre en la tarjeta',
+    'card_name_hint' => 'Nombre como aparece en la tarjeta',
+    'card_field_email_label' => 'Correo electrónico',
+    'card_field_email_hint' => 'Para recibir tu acceso',
+    'card_field_phone_label' => 'Teléfono',
+    'card_field_phone_hint' => 'Para notificaciones de suscripción',
     'email' => 'Correo electrónico',
     'phone' => 'Teléfono',
-    'cpf' => 'CPF (obligatorio para pagos en Brasil)',
 
     // Order Bump
     'exclusive_access' => 'Acceso exclusivo a transmisiones en vivo semanales',

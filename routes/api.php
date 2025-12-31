@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\PixController;
+use App\Http\Controllers\BannerController;
 use Illuminate\Support\Facades\Route;
 
 /**
@@ -15,6 +16,15 @@ Route::prefix('pix')->group(function () {
     // Consultar status do pagamento PIX
     // GET /api/pix/status/:payment_id
     Route::get('/status/{paymentId}', [PixController::class, 'getPaymentStatus'])->name('pix.status');
+});
+
+/**
+ * API Routes para Banners
+ */
+Route::prefix('banners')->group(function () {
+    Route::post('/upload', [BannerController::class, 'upload'])->name('banners.upload');
+    Route::get('/list', [BannerController::class, 'list'])->name('banners.list');
+    Route::delete('/{filename}', [BannerController::class, 'delete'])->name('banners.delete');
 });
 
 // Pushing Pay webhook (PIX notifications)

@@ -17,8 +17,8 @@ return [
     'email_helper' => 'Para recibir tu acceso y actualizaciones',
 
     // Banners (URLs)
-    'banner_desktop' => 'https://web.snaphubb.online/wp-content/uploads/2025/09/banner-mexico.jpg',
-    'banner_mobile' => 'https://web.snaphubb.online/wp-content/uploads/2025/10/ESPANHOL.png',
+    'banner_desktop' => asset('imgs/banners/desktop-latam.jpg'),
+    'banner_mobile' => asset('imgs/banners/mobile-latam.jpg'),
 
     // Testimonials
     'testimonials_title' => 'Lo que dicen nuestros suscriptores',
@@ -60,15 +60,10 @@ return [
     // Benefits
     'benefits_title' => 'Tus Beneficios Premium',
     'benefits' => [
-        'no_fake_content' => 'El Fin del Contenido Falso.',
-        'no_fake_content_desc' => 'Se acabó el porno con guiones falsos y actuaciones ridículas. Nuestro catálogo está 100% enfocado en lo que buscas: contenido amateur y real, con mujeres reales de todo el mundo. Es la autenticidad que excita, con la calidad de cine que exiges.',
-        'all_platforms' => 'Todas las Plataformas. Un Único Precio.',
-        'all_platforms_desc' => 'Deja de gastar una fortuna suscribiéndote a docenas de perfiles. Reunimos el contenido de pago y exclusivo de OnlyFans, Fansly, LoyalFans y otros en un solo lugar. Es todo el contenido premium que deseas, por una fracción del costo. Es tu acceso VIP a todo.',
-        'curated_content' => 'Solo lo Mejor. Sin Rodeos.',
-        'curated_content_desc' => 'Tu tiempo es valioso. Se acabó el buscar un buen video en medio de la basura. Nuestra comunidad filtra y vota, asegurando que solo veas lo que realmente vale la pena. Aquí es 100% de tu tiempo, 100% de provecho.',
-        'on_demand_content' => 'Tú Mandas en el Contenido.',
-        'on_demand_content_desc' => '¿No encuentras a esa modelo o ese fetiche específico? Usa nuestro sistema de sugerencias. Nuestro equipo de curación buscará el contenido a la carta que pediste. Aquí, tu deseo es una orden.',
-        'easy_cancel' => 'Cancela en 2 Clics. Sin Trampas.',
-        'easy_cancel_desc' => 'Odiamos las trampas de suscripción tanto como tú. Aquí no hay burocracia, ni formularios, ni "habla con un agente". Te suscribes cuando quieres y te vas cuando quieres. Tienes el control total.',
+        ['title' => 'El Fin del Contenido Falso.', 'text' => 'Se acabó el porno con guiones falsos y actuaciones ridículas. Nuestro catálogo está 100% enfocado en lo que buscas: contenido amateur y real, con mujeres reales de todo el mundo. Es la autenticidad que excita, con la calidad de cine que exiges.'],
+        ['title' => 'Todas las Plataformas. Un Único Precio.', 'text' => 'Deja de gastar una fortuna suscribiéndote a docenas de perfiles. Reunimos el contenido de pago y exclusivo de OnlyFans, Fansly, LoyalFans y otros en un solo lugar. Es todo el contenido premium que deseas, por una fracción del costo. Es tu acceso VIP a todo.'],
+        ['title' => 'Solo lo Mejor. Sin Rodeos.', 'text' => 'Tu tiempo es valioso. Se acabó el buscar un buen video en medio de la basura. Nuestra comunidad filtra y vota, asegurando que solo veas lo que realmente vale la pena. Aquí es 100% de tu tiempo, 100% de provecho.'],
+        ['title' => 'Tú Mandas en el Contenido.', 'text' => '¿No encuentras a esa modelo o ese fetiche específico? Usa nuestro sistema de sugerencias. Nuestro equipo de curación buscará el contenido a la carta que pediste. Aquí, tu deseo es una orden.'],
+        ['title' => 'Cancela en 2 Clics. Sin Trampas.', 'text' => 'Odiamos las trampas de suscripción tanto como tú. Aquí no hay burocracia, ni formularios, ni "habla con un agente". Te suscribes cuando quieres y te vas cuando quieres. Tienes el control total.'],
     ],
 ];

@@ -17,8 +17,8 @@ return [
     'email_helper' => 'To receive your access and updates',
 
     // Banners (URLs)
-    'banner_desktop' => 'https://web.snaphubb.online/wp-content/uploads/2025/09/banner-estados-unidos.jpg',
-    'banner_mobile' => 'https://web.snaphubb.online/wp-content/uploads/2025/10/INGLES.png',
+    'banner_desktop' => asset('imgs/banners/desktop-america.jpg'),
+    'banner_mobile' => asset('imgs/banners/mobile-america.jpg'),
 
     // Testimonials
     'testimonials_title' => 'What our subscribers say',
@@ -60,15 +60,10 @@ return [
     // Benefits
     'benefits_title' => 'Your Premium Benefits',
     'benefits' => [
-        'no_fake_content' => 'The End of Fake Content.',
-        'no_fake_content_desc' => 'No more fake scripted porn and ridiculous acting. Our catalog is 100% focused on what you\'re looking for: real amateur content with real women from all over the world. It\'s the authenticity that excites, with the cinema quality you demand.',
-        'all_platforms' => 'All Platforms. One Single Price.',
-        'all_platforms_desc' => 'Stop spending a fortune subscribing to dozens of profiles. We bring together paid and exclusive content from OnlyFans, Fansly, LoyalFans, and others in one place. It\'s all the premium content you want, for a fraction of the cost. It\'s your VIP access to everything.',
-        'curated_content' => 'Only the Best. No Bullshit.',
-        'curated_content_desc' => 'Your time is valuable. No more hunting for good videos in a sea of trash. Our community filters and votes, ensuring you only see what\'s truly worth it. Here, it\'s 100% of your time, 100% worthwhile.',
-        'on_demand_content' => 'You\'re in Charge of the Content.',
-        'on_demand_content_desc' => 'Can\'t find that specific model or fetish? Use our suggestion system. Our curation team will hunt down the on-demand content you requested. Here, your wish is our command.',
-        'easy_cancel' => 'Cancel in 2 Clicks. No Tricks.',
-        'easy_cancel_desc' => 'We hate subscription traps as much as you do. There\'s no bureaucracy, no forms, no "talk to an agent." You subscribe when you want and leave when you want. You\'re in total control.',
+        ['title' => 'The End of Fake Content.', 'text' => 'No more fake scripted porn and ridiculous acting. Our catalog is 100% focused on what you\'re looking for: real amateur content with real women from all over the world. It\'s the authenticity that excites, with the cinema quality you demand.'],
+        ['title' => 'All Platforms. One Single Price.', 'text' => 'Stop spending a fortune subscribing to dozens of profiles. We bring together paid and exclusive content from OnlyFans, Fansly, LoyalFans, and others in one place. It\'s all the premium content you want, for a fraction of the cost. It\'s your VIP access to everything.'],
+        ['title' => 'Only the Best. No Bullshit.', 'text' => 'Your time is valuable. No more hunting for good videos in a sea of trash. Our community filters and votes, ensuring you only see what\'s truly worth it. Here, it\'s 100% of your time, 100% worthwhile.'],
+        ['title' => 'You\'re in Charge of the Content.', 'text' => 'Can\'t find that specific model or fetish? Use our suggestion system. Our curation team will hunt down the on-demand content you requested. Here, your wish is our command.'],
+        ['title' => 'Cancel in 2 Clicks. No Tricks.', 'text' => 'We hate subscription traps as much as you do. There\'s no bureaucracy, no forms, no "talk to an agent." You subscribe when you want and leave when you want. You\'re in total control.'],
     ],
 ];

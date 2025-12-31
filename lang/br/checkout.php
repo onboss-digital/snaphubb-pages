@@ -17,8 +17,8 @@ return [
     'email_helper' => 'Para receber seu acesso e atualizações',
 
     // Banners (URLs)
-    'banner_desktop' => 'https://web.snaphubb.online/wp-content/uploads/2025/09/banner-brasil.jpg',
-    'banner_mobile' => 'https://web.snaphubb.online/wp-content/uploads/2025/10/BRASIL.png',
+    'banner_desktop' => asset('imgs/banners/desktop-brasil.jpg'),
+    'banner_mobile' => asset('imgs/banners/mobile-brasil.jpg'),
 
     // Testimonials
     'testimonials_title' => 'O que dizem nossos assinantes',
@@ -60,15 +60,10 @@ return [
     // Benefits
     'benefits_title' => 'Seus benefícios Premium',
     'benefits' => [
-        'no_fake_content' => 'O Fim do Conteúdo Falso.',
-        'no_fake_content_desc' => 'Chega de pornô com roteiro falso e atuações ridículas. Nosso catálogo é 100% focado no que você procura: conteúdo amador e real, com mulheres reais do mundo todo. É a autenticidade que excita, com a qualidade de cinema que você exige.',
-        'all_platforms' => 'Todas as Plataformas. Um Único Preço.',
-        'all_platforms_desc' => 'Pare de gastar uma fortuna assinando dezenas de perfis. Nós reunimos o conteúdo pago e exclusivo do OnlyFans, Fansly, LoyalFans e outros em um só lugar. É todo o conteúdo premium que você deseja, por uma fração do custo. É o seu acesso VIP a tudo.',
-        'curated_content' => 'Só o Filé Mignon. Sem Enrolação.',
-        'curated_content_desc' => 'Seu tempo é valioso. Chega de caçar vídeo bom no meio do lixo. Nossa comunidade filtra e vota, garantindo que você veja apenas o que realmente vale a pena. Aqui é 100% do seu tempo, 100% de aproveitamento.',
-        'on_demand_content' => 'Você Manda no Conteúdo.',
-        'on_demand_content_desc' => 'Não achou aquela modelo ou aquele fetiche específico? Use nosso sistema de sugestão. Nossa equipe de curadoria vai atrás do conteúdo sob demanda que você pediu. Aqui, o seu desejo é uma ordem.',
-        'easy_cancel' => 'Cancele em 2 Cliques. Sem Pegadinhas.',
-        'easy_cancel_desc' => 'Nós odiamos armadilhas de assinatura tanto quanto você. Aqui não tem burocracia, nem formulário, nem "fale com atendente". Você assina quando quer e sai a hora que quer. Você está no controle total.',
+        ['title' => 'O Fim do Conteúdo Falso.', 'text' => 'Chega de pornô com roteiro falso e atuações ridículas. Nosso catálogo é 100% focado no que você procura: conteúdo amador e real, com mulheres reais do mundo todo. É a autenticidade que excita, com a qualidade de cinema que você exige.'],
+        ['title' => 'Todas as Plataformas. Um Único Preço.', 'text' => 'Pare de gastar uma fortuna assinando dezenas de perfis. Nós reunimos o conteúdo pago e exclusivo do OnlyFans, Fansly, LoyalFans e outros em um só lugar. É todo o conteúdo premium que você deseja, por uma fração do custo. É o seu acesso VIP a tudo.'],
+        ['title' => 'Só o Filé Mignon. Sem Enrolação.', 'text' => 'Seu tempo é valioso. Chega de caçar vídeo bom no meio do lixo. Nossa comunidade filtra e vota, garantindo que você veja apenas o que realmente vale a pena. Aqui é 100% do seu tempo, 100% de aproveitamento.'],
+        ['title' => 'Você Manda no Conteúdo.', 'text' => 'Não achou aquela modelo ou aquele fetiche específico? Use nosso sistema de sugestão. Nossa equipe de curadoria vai atrás do conteúdo sob demanda que você pediu. Aqui, o seu desejo é uma ordem.'],
+        ['title' => 'Cancele em 2 Cliques. Sem Pegadinhas.', 'text' => 'Nós odiamos armadilhas de assinatura tanto quanto você. Aqui não tem burocracia, nem formulário, nem "fale com atendente". Você assina quando quer e sai a hora que quer. Você está no controle total.'],
     ],
 ];

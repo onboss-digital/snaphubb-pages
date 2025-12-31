@@ -30,13 +30,21 @@ return [
 
     // Payment
     'payment_method' => 'Payment Method',
-    'card' => 'Card',
-    'expiry_date' => 'Expiry date',
-    'security_code' => 'Security code',
-    'card_name' => 'Name on card',
+    'credit_card' => 'Credit Card',
+    'card_number' => 'Card Number',
+    'card_number_placeholder' => '0000 0000 0000 0000',
+    'expiry_date' => 'Expiry Date',
+    'expiry_date_placeholder' => 'MM/YY',
+    'security_code' => 'Security Code',
+    'security_code_placeholder' => 'CVV',
+    'card_name' => 'Name on Card',
+    'card_name_hint' => 'Name as it appears on card',
+    'card_field_email_label' => 'Email',
+    'card_field_email_hint' => 'To receive your access',
+    'card_field_phone_label' => 'Phone',
+    'card_field_phone_hint' => 'For subscription notifications',
     'email' => 'Email',
     'phone' => 'Phone number',
-    'cpf' => 'CPF (required for payments in Brazil)',
 
     // Order Bump
     'exclusive_access' => 'Exclusive access to weekly live sessions',
@@ -122,7 +130,7 @@ return [
     'release' => '⏳ Release',
     'cancellation' => '🧾 Cancellation',
 
-    // PIX
+    // PIX (Brazil only)
     'pix' => 'PIX',
     'pix_description' => 'Instant transfer • No fees',
     'credit_card_description' => 'Debit or credit',

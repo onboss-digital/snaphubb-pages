@@ -233,27 +233,35 @@ document.addEventListener('DOMContentLoaded', function(){
             </div>
 
             @php
+            // Banners reagem ao idioma selecionado
             $banners = [
                 'br' => [
-                    'desktop' => 'https://web.snaphubb.online/wp-content/uploads/2025/09/banner-brasil.jpg',
-                    'mobile' => 'https://web.snaphubb.online/wp-content/uploads/2025/10/BRASIL.png',
+                    'desktop' => asset('imgs/banners/desktop-brasil.jpg'),
+                    'mobile' => asset('imgs/banners/mobile-brasil.jpg'),
                 ],
                 'en' => [
-                    'desktop' => 'https://web.snaphubb.online/wp-content/uploads/2025/09/banner-estados-unidos.jpg',
-                    'mobile' => 'https://web.snaphubb.online/wp-content/uploads/2025/10/INGLES.png',
+                    'desktop' => asset('imgs/banners/desktop-america.jpg'),
+                    'mobile' => asset('imgs/banners/mobile-america.jpg'),
                 ],
                 'es' => [
-                    'desktop' => 'https://web.snaphubb.online/wp-content/uploads/2025/09/banner-mexico.jpg',
-                    'mobile' => 'https://web.snaphubb.online/wp-content/uploads/2025/10/ESPANHOL.png',
+                    'desktop' => asset('imgs/banners/desktop-latam.jpg'),
+                    'mobile' => asset('imgs/banners/mobile-latam.jpg'),
                 ],
             ];
-            $currentBanners = $banners[$selectedLanguage] ?? $banners['br'];
+            
+            // Use o idioma selecionado ou padrão para português
+            $currentLang = $selectedLanguage ?? 'br';
+            $currentBanners = $banners[$currentLang] ?? $banners['br'];
             @endphp
             <div class="mt-6 w-full rounded-xl overflow-hidden bg-gray-900">
                 <!-- Desktop Banner -->
-                <img class="w-full hidden md:block" src="{{ $currentBanners['desktop'] }}" alt="Promotional Banner">
+                @if(!empty($currentBanners['desktop']))
+                    <img class="w-full hidden md:block" src="{{ $currentBanners['desktop'] }}" alt="Promotional Banner">
+                @endif
                 <!-- Mobile Banner -->
-                <img class="w-full md:hidden" src="{{ $currentBanners['mobile'] }}" alt="Promotional Banner">
+                @if(!empty($currentBanners['mobile']))
+                    <img class="w-full md:hidden" src="{{ $currentBanners['mobile'] }}" alt="Promotional Banner">
+                @endif
             </div>
 
             <h1 class="text-3xl md:text-4xl font-bold text-white mt-6 text-center">
@@ -318,6 +326,7 @@ document.addEventListener('DOMContentLoaded', function(){
                                 <!-- Credit Card Option -->
                                 <div class="relative">
                                     <input type="radio" id="method_credit_card" name="payment_method" value="credit_card"
+                                        wire:click="$set('selectedPaymentMethod', 'credit_card')"
                                         x-on:change="selectedPaymentMethod = 'credit_card'; $nextTick(()=>{ const el = document.querySelector('input[name=card_name]'); if(el) el.focus(); })"
                                         class="hidden"
                                         :checked="selectedPaymentMethod === 'credit_card'" />
@@ -355,6 +364,7 @@ document.addEventListener('DOMContentLoaded', function(){
                                 @if ($selectedLanguage === 'br')
                                     <div class="relative">
                                         <input type="radio" id="method_pix" name="payment_method" value="pix"
+                                            wire:click="$set('selectedPaymentMethod', 'pix')"
                                             x-on:change="selectedPaymentMethod = 'pix'; $nextTick(()=>{ const el = document.querySelector('input[name=pix_name]'); if(el) el.focus(); })"
                                             class="hidden"
                                             :checked="selectedPaymentMethod === 'pix'" />
@@ -781,15 +791,15 @@ document.addEventListener('DOMContentLoaded', function(){
                         <!-- Trust badges -->
                         <div class="mt-4 flex flex-col items-center space-y-2">
                             <div class="flex items-center space-x-2">
-                                <span class="text-green-500">✅</span>
+                                <svg class="w-5 h-5 sm:w-6 sm:h-6 text-green-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
                                 <span class="text-sm text-gray-300">{{ __('payment.7_day_guarantee') }}</span>
                             </div>
                             <div class="flex items-center space-x-2">
-                                <span class="text-green-500">🔒</span>
+                                <svg class="w-5 h-5 sm:w-6 sm:h-6 text-green-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
                                 <span class="text-sm text-gray-300">{{ __('payment.secure_ssl') }}</span>
                             </div>
                             <div class="flex items-center space-x-2">
-                                <span class="text-green-500">🔁</span>
+                                <svg class="w-4 h-4 sm:w-5 sm:h-5 text-green-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2-8.83"></path></svg>
                                 <span class="text-sm text-gray-300">{{ __('payment.easy_cancel') }}</span>
                             </div>
                         </div>
@@ -861,11 +871,11 @@ document.addEventListener('DOMContentLoaded', function(){
                             <!-- Timing Info -->
                             <div class="space-y-2 mb-4 text-sm text-gray-300">
                                 <div class="flex items-center gap-2">
-                                    <span class="text-lg">⏳</span>
+                                    <svg class="w-5 h-5 sm:w-6 sm:h-6 text-red-500 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor"><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/></svg>
                                     <span>A oferta via PIX expira em: <strong>5 minutos</strong></span>
                                 </div>
                                 <div class="flex items-center gap-2">
-                                    <span class="text-lg">🕒</span>
+                                    <svg class="w-5 h-5 sm:w-6 sm:h-6 text-yellow-500 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
                                     <span>O código PIX expira em <strong>10 minutos</strong></span>
                                 </div>
                             </div>
@@ -873,11 +883,11 @@ document.addEventListener('DOMContentLoaded', function(){
                             <!-- Benefits -->
                             <div class="space-y-2 mb-4 text-sm text-gray-300">
                                 <div class="flex items-center gap-2">
-                                    <span class="text-lg">🔓</span>
+                                    <svg class="w-5 h-5 sm:w-6 sm:h-6 text-green-500 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></svg>
                                     <span>Acesso liberado imediatamente após o pagamento</span>
                                 </div>
                                 <div class="flex items-center gap-2">
-                                    <span class="text-lg">🔁</span>
+                                    <svg class="w-5 h-5 sm:w-6 sm:h-6 text-green-500 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2-8.83"></path></svg>
                                     <span>Plano mensal, cancele quando quiser</span>
                                 </div>
                             </div>
@@ -885,11 +895,11 @@ document.addEventListener('DOMContentLoaded', function(){
                             <!-- Social Proof -->
                             <div class="bg-gray-800/50 rounded-lg p-4 mb-4 space-y-2 text-sm text-gray-300">
                                 <div class="flex items-center gap-2">
-                                    <span class="text-lg">👥</span>
+                                    <svg class="w-5 h-5 sm:w-6 sm:h-6 text-blue-500 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
                                     <span id="buying-count"><strong>{{ rand(12, 47) }}</strong> pessoas estão comprando agora</span>
                                 </div>
                                 <div class="flex items-center gap-2">
-                                    <span class="text-lg">📉</span>
+                                    <svg class="w-5 h-5 sm:w-6 sm:h-6 text-orange-500 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg>
                                     <span id="slots-count">Vagas restantes: <strong>{{ $spotsLeft }}</strong></span>
                                 </div>
                             </div>
@@ -897,19 +907,19 @@ document.addEventListener('DOMContentLoaded', function(){
                             <!-- Trust Badges PIX -->
                             <div class="grid grid-cols-2 gap-2 mb-6 text-xs text-center">
                                 <div class="bg-gray-800/50 rounded-lg p-3">
-                                    <div class="text-lg mb-1">✔️</div>
+                                    <svg class="w-6 h-6 sm:w-8 sm:h-8 text-green-500 mx-auto mb-1" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></svg>
                                     <p class="text-gray-300">Garantia de 7 dias</p>
                                 </div>
                                 <div class="bg-gray-800/50 rounded-lg p-3">
-                                    <div class="text-lg mb-1">🔒</div>
+                                    <svg class="w-6 h-6 sm:w-8 sm:h-8 text-green-500 mx-auto mb-1 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
                                     <p class="text-gray-300">Pagamento seguro SSL</p>
                                 </div>
                                 <div class="bg-gray-800/50 rounded-lg p-3">
-                                    <div class="text-lg mb-1">❌</div>
+                                    <svg class="w-6 h-6 sm:w-8 sm:h-8 text-red-500 mx-auto mb-1 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15" stroke="white" stroke-width="2"></line><line x1="9" y1="9" x2="15" y2="15" stroke="white" stroke-width="2"></line></svg>
                                     <p class="text-gray-300">Cancelamento fácil</p>
                                 </div>
                                 <div class="bg-gray-800/50 rounded-lg p-3">
-                                    <div class="text-lg mb-1">👤</div>
+                                    <svg class="w-6 h-6 sm:w-8 sm:h-8 text-purple-500 mx-auto mb-1" viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
                                     <p class="text-gray-300">Compra anônima e segura</p>
                                 </div>
                             </div>
@@ -977,7 +987,7 @@ document.addEventListener('DOMContentLoaded', function(){
                                             </div>
                                         </div>
 
-                                        <p class="text-gray-100 text-base leading-relaxed">"{{ $testimonial['text'] }}"</p>
+                                        <p class="text-gray-100 text-base leading-relaxed">"{{ $testimonial['quote'] }}"</p>
 
                                         <div class="flex items-center justify-between text-xs text-gray-400">
                                             <span class="uppercase tracking-widest text-[11px] text-gray-500">Avaliação verificada</span>
@@ -1244,7 +1254,7 @@ document.addEventListener('DOMContentLoaded', function(){
         <!-- Header -->
         <div class="modal-header" style="background: linear-gradient(135deg, #1db854 0%, #149c3d 100%); padding: 24px; display: flex; align-items: center; justify-content: space-between; color: white;">
             <div class="modal-header-title" style="display: flex; align-items: center; gap: 12px; font-size: 18px; font-weight: 600;">
-                <div class="modal-header-icon" style="width: 24px; height: 24px; background: rgba(255, 255, 255, 0.2); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px;">✓</div>
+                <div class="modal-header-icon" style="width: 24px; height: 24px; background: rgba(255, 255, 255, 0.2); border-radius: 50%; display: flex; align-items: center; justify-content: center;"><svg class="w-3 h-3 sm:w-4 sm:h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg></div>
                 PIX
             </div>
             <button class="close-btn" onclick="document.getElementById('pix-modal-overlay').style.display='none'; @this.dispatch('closeModal');" style="background: none; border: none; color: white; font-size: 24px; cursor: pointer; opacity: 0.8; transition: opacity 0.3s; padding: 0; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">×</button>
@@ -1274,10 +1284,11 @@ document.addEventListener('DOMContentLoaded', function(){
                     <div class="info-label" style="color: #a0aec0; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">Código PIX</div>
                     <div class="info-value" style="color: #e2e8f0; font-size: 14px; line-height: 1.6; word-break: break-all; font-family: 'Monaco', 'Courier New', monospace; max-height: 80px; overflow-y: auto;" id="pix-code-display">{{ $pixQrCodeText ?? 'Código PIX' }}</div>
                     <button class="copy-btn" onclick="copyPixCode(event)" style="width: 100%; background: linear-gradient(135deg, #1db854 0%, #149c3d 100%); color: white; border: none; padding: 14px 24px; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 8px;">
-                        📋 <span id="copy-text">Copiar código</span>
+                        <svg class="w-5 h-5 sm:w-6 sm:h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>
+                        <span id="copy-text">Copiar código</span>
                     </button>
                     <div id="copy-message" style="display: none; color: #4caf50; font-size: 14px; font-weight: 600; text-align: center; margin-top: 12px; padding: 12px; background: rgba(76, 175, 80, 0.1); border-radius: 8px; border: 1px solid rgba(76, 175, 80, 0.2);">
-                        ✓ Entre em seu banco e realize o pagamento
+                        Código copiado com sucesso - Vá até a opção "Copiar e colar do seu banco"
                     </div>
                 </div>
 
@@ -1300,23 +1311,23 @@ document.addEventListener('DOMContentLoaded', function(){
                 <!-- Security Section -->
                 <div class="security-section" style="display: flex; flex-direction: column; gap: 12px; margin-top: 20px; padding-top: 20px; border-top: 1px solid rgba(76, 175, 80, 0.1);">
                     <div class="security-item" style="display: flex; align-items: center; gap: 10px; color: #cbd5e0; font-size: 13px;">
-                        <span style="color: #4caf50; font-size: 16px; flex-shrink: 0;">⏱</span>
+                        <svg class="w-4 h-4 sm:w-5 sm:h-5 text-green-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-4M20.49 15a9 9 0 0 1-14.85 4"></path></svg>
                         <span>Confirmação em segundos</span>
                     </div>
                     <div class="security-item" style="display: flex; align-items: center; gap: 10px; color: #cbd5e0; font-size: 13px;">
-                        <span style="color: #4caf50; font-size: 16px; flex-shrink: 0;">✓</span>
+                        <svg class="w-4 h-4 sm:w-5 sm:h-5 text-green-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
                         <span>Acesso imediato - Suporte 24/7</span>
                     </div>
                     <div class="security-item" style="display: flex; align-items: center; gap: 10px; color: #cbd5e0; font-size: 13px;">
-                        <span style="color: #4caf50; font-size: 16px; flex-shrink: 0;">🔒</span>
+                        <svg class="w-4 h-4 sm:w-5 sm:h-5 text-green-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
                         <span>100% seguro</span>
                     </div>
                 </div>
 
                 <!-- Timer -->
                 <div class="timer-section" style="display: flex; align-items: center; gap: 8px; color: #f97316; font-size: 13px; margin-top: 16px; padding: 12px; background: rgba(249, 115, 22, 0.08); border-radius: 8px;">
-                    <span style="font-size: 16px; flex-shrink: 0;">⏳</span>
-                    <span>Válido por <span id="pix-timer">5:00</span></span>
+                    <svg class="w-4 h-4 sm:w-5 sm:h-5 text-yellow-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                    <span>Válido por <span id="pix-timer" style="font-weight: 600; color: #f97316;">05:00</span></span>
                 </div>
             </div>
         </div>
@@ -1586,21 +1597,26 @@ document.addEventListener('DOMContentLoaded', function(){
             font-size: 11px !important;
         }
     }
-</style>
+</style>@endif
 
+<!-- Global Scripts para PIX Modal -->
 <script>
 let pixQRTimer = 300; // 5 minutes
 
 function copyPixCode(e) {
     if (e) e.preventDefault();
     
+    console.log('🔍 copyPixCode chamado!');
+    
     const pixCodeDisplay = document.getElementById('pix-code-display');
+    console.log('pixCodeDisplay:', pixCodeDisplay);
     if (!pixCodeDisplay) {
-        console.error('Elemento pix-code-display não encontrado');
+        console.error('❌ Elemento pix-code-display não encontrado');
         return;
     }
     
     const pixCode = pixCodeDisplay.textContent.trim();
+    console.log('📋 Código PIX:', pixCode.substring(0, 20) + '...');
     
     if (!pixCode || pixCode === 'Código PIX') {
         alert('Código PIX não disponível');
@@ -1611,30 +1627,53 @@ function copyPixCode(e) {
     const text = document.getElementById('copy-text');
     const copyMessage = document.getElementById('copy-message');
     const originalText = text.textContent;
+    
+    console.log('btn:', btn);
+    console.log('text:', text);
+    console.log('copyMessage:', copyMessage);
 
     // Tentar com Clipboard API
     if (navigator.clipboard) {
         navigator.clipboard.writeText(pixCode).then(() => {
+            console.log('✅ Clipboard API sucesso!');
             updateCopyUI(text, btn, copyMessage, originalText);
         }).catch((err) => {
-            console.error('Clipboard API falhou:', err);
+            console.error('❌ Clipboard API falhou:', err);
             fallbackCopy(pixCode, text, btn, copyMessage, originalText);
         });
     } else {
-        // Fallback para navegadores antigos
+        console.log('⚠️ Clipboard API não disponível, usando fallback');
         fallbackCopy(pixCode, text, btn, copyMessage, originalText);
     }
 }
 
 function updateCopyUI(text, btn, copyMessage, originalText) {
-    text.textContent = '✓ Código copiado!';
-    if (btn) btn.style.background = 'linear-gradient(135deg, #4caf50 0%, #388e3c 100%)';
-    if (copyMessage) copyMessage.style.display = 'block';
+    // Atualizar texto do botão
+    text.textContent = 'Código copiado!';
+    if (btn) {
+        btn.style.background = 'linear-gradient(135deg, #4caf50 0%, #388e3c 100%)';
+    }
+    
+    // Mostrar mensagem de instrução
+    if (copyMessage) {
+        copyMessage.textContent = 'Código copiado com sucesso - Vá até a opção "Copiar e colar do seu banco"';
+        copyMessage.style.display = 'block';
+        copyMessage.style.visibility = 'visible';
+        copyMessage.style.opacity = '1';
+        console.log('✅ Copy message shown:', copyMessage);
+    } else {
+        console.error('❌ Copy message element not found!');
+    }
     
     setTimeout(() => {
         text.textContent = originalText;
-        if (btn) btn.style.background = 'linear-gradient(135deg, #1db854 0%, #149c3d 100%)';
-    }, 3000);
+        if (btn) {
+            btn.style.background = 'linear-gradient(135deg, #1db854 0%, #149c3d 100%)';
+        }
+        if (copyMessage) {
+            copyMessage.style.display = 'none';
+        }
+    }, 4000);
 }
 
 function fallbackCopy(pixCode, text, btn, copyMessage, originalText) {
@@ -1663,29 +1702,65 @@ function fallbackCopy(pixCode, text, btn, copyMessage, originalText) {
 }
 
 // Iniciar timer quando modal aparecer
-document.addEventListener('DOMContentLoaded', function() {
+let timerInterval = null;
+let timerStarted = false;
+
+// Observer para detectar quando o modal aparece
+const observer = new MutationObserver(function(mutations) {
+    const modalOverlay = document.getElementById('pix-modal-overlay');
     const timerEl = document.getElementById('pix-timer');
     
+    if (modalOverlay && modalOverlay.style.display !== 'none' && timerEl && !timerStarted) {
+        // Modal apareceu - iniciar timer
+        console.log('✅ Timer iniciado: 05:00');
+        timerStarted = true;
+        pixQRTimer = 300; // Reset para 5 minutos
+        startTimer(timerEl);
+    } else if (modalOverlay && (modalOverlay.style.display === 'none' || !modalOverlay.parentElement)) {
+        // Modal fechou - parar timer
+        timerStarted = false;
+        clearInterval(timerInterval);
+        timerInterval = null;
+    }
+});
+
+observer.observe(document.body, { 
+    attributes: true, 
+    childList: true, 
+    subtree: true,
+    attributeFilter: ['style']
+});
+
+function startTimer(timerEl) {
     function formatTime(seconds) {
         const mins = Math.floor(seconds / 60);
         const secs = seconds % 60;
-        return `${mins}:${secs.toString().padStart(2, '0')}`;
+        return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
     }
     
+    clearInterval(timerInterval); // Limpar interval anterior se existir
+    
     function updateTimer() {
-        if (timerEl && pixQRTimer > 0) {
-            pixQRTimer--;
+        if (timerEl && pixQRTimer >= 0) {
             timerEl.textContent = formatTime(pixQRTimer);
-            setTimeout(updateTimer, 1000);
+            
+            if (pixQRTimer === 0) {
+                timerEl.parentElement.style.color = '#ef4444';
+                console.log('⏰ PIX expirado!');
+                clearInterval(timerInterval);
+                timerInterval = null;
+            } else if (pixQRTimer <= 60) {
+                timerEl.style.color = '#ef4444';
+            }
+            
+            pixQRTimer--;
         }
     }
     
-    updateTimer();
-});
+    updateTimer(); // Executar uma vez imediatamente
+    timerInterval = setInterval(updateTimer, 1000);
+}
 </script>
-@endif
-
-<!-- Error Modal -->
 <div id="error-modal"
     class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 @if (!$showErrorModal) hidden @endif"
     x-data="{ show: @entangle('showErrorModal') }"
