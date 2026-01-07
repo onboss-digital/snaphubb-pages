@@ -99,6 +99,8 @@ class PagePay extends Component
     private $httpClient;
     private $pixService;
     public $cardValidationError = null;
+    public $fieldErrors = [];
+    
     public function __construct()
     {
         $this->httpClient = new Client([
@@ -158,8 +160,12 @@ class PagePay extends Component
             $this->debug();
         }
 
-        $this->selectedLanguage = session('locale', config('app.locale'));
+        // Detecta idioma do middleware (travado na sessão)
+        $this->selectedLanguage = session('user_language', config('app.locale', 'br'));
         app()->setLocale($this->selectedLanguage);
+
+        // Sincroniza moeda com idioma
+        $this->syncCurrencyWithLanguage();
 
         $this->testimonials = trans('checkout.testimonials') ?? [];
         
@@ -173,13 +179,31 @@ class PagePay extends Component
             Log::info('PagePay: PIX selecionado automaticamente (idioma BR)');
         }
         
-        $this->selectedCurrency = Session::get('selectedCurrency', 'BRL');
         $this->selectedPlan = Session::get('selectedPlan', 'monthly');
         $this->activityCount = rand(1, 50);
 
         // Update product details based on the selected plan
         $this->updateProductDetails();
         $this->calculateTotals();
+    }
+
+    /**
+     * Sincroniza a moeda com o idioma detectado
+     * BR → BRL | EN → USD | ES → USD
+     */
+    private function syncCurrencyWithLanguage()
+    {
+        $currencyMap = [
+            'br' => 'BRL',
+            'en' => 'USD',
+            'es' => 'USD',
+        ];
+
+        $this->selectedCurrency = $currencyMap[$this->selectedLanguage] ?? 'BRL';
+        
+        // Armazena na sessão para consistência
+        Session::put('selectedCurrency', $this->selectedCurrency);
+        Session::put('user_language', $this->selectedLanguage);
     }
 
     public function getPlans()
@@ -357,6 +381,88 @@ class PagePay extends Component
     }, $this->totals);
 }
 
+    /**
+     * Valida todos os campos do cartão de crédito
+     * Retorna true se válido, false se houver erros
+     */
+    private function validateCardFields()
+    {
+        $this->fieldErrors = [];
+        
+        // Validar nome do titular
+        if (empty($this->cardName) || strlen(trim($this->cardName)) === 0) {
+            $this->fieldErrors['cardName'] = __('payment.card_name_required');
+        }
+        
+        // Validar email
+        if (empty($this->email)) {
+            $this->fieldErrors['email'] = __('payment.email_required');
+        } elseif (!filter_var($this->email, FILTER_VALIDATE_EMAIL)) {
+            $this->fieldErrors['email'] = __('payment.email_invalid');
+        }
+        
+        // Validar telefone (OPCIONAL - valida apenas se preenchido)
+        if (!empty($this->phone)) {
+            $cleanPhone = preg_replace('/[^0-9+]/', '', $this->phone);
+            if (strlen($cleanPhone) < 10) {
+                $this->fieldErrors['phone'] = __('payment.phone_invalid');
+            }
+        }
+        
+        // Validar CPF (se BR - OPCIONAL para Stripe, OBRIGATÓRIO para outros gateways)
+        if ($this->selectedLanguage === 'br' && $this->gateway !== 'stripe') {
+            if (empty($this->cpf)) {
+                $this->fieldErrors['cpf'] = __('payment.cpf_required');
+            } else {
+                $cpfClean = preg_replace('/\D/', '', $this->cpf);
+                if (strlen($cpfClean) != 11) {
+                    $this->fieldErrors['cpf'] = __('payment.cpf_invalid');
+                }
+            }
+        }
+        
+        // Validar campos do cartão (se não for Stripe)
+        if ($this->gateway !== 'stripe') {
+            // Número do cartão
+            if (empty($this->cardNumber)) {
+                $this->fieldErrors['cardNumber'] = __('payment.card_number_required');
+            } else {
+                $cardClean = preg_replace('/\D/', '', $this->cardNumber);
+                if (strlen($cardClean) < 13 || strlen($cardClean) > 19) {
+                    $this->fieldErrors['cardNumber'] = __('payment.card_number_invalid');
+                }
+            }
+            
+            // Data de expiração
+            if (empty($this->cardExpiry)) {
+                $this->fieldErrors['cardExpiry'] = __('payment.card_expiry_required');
+            } else {
+                // Verifica formato MM/AA ou MMAA
+                if (!preg_match('/^(0[1-9]|1[0-2])\/?([0-9]{2})$/', $this->cardExpiry)) {
+                    $this->fieldErrors['cardExpiry'] = __('payment.card_expiry_invalid');
+                }
+            }
+            
+            // CVV
+            if (empty($this->cardCvv)) {
+                $this->fieldErrors['cardCvv'] = __('payment.card_cvv_required');
+            } else {
+                $cvvClean = preg_replace('/\D/', '', $this->cardCvv);
+                if (strlen($cvvClean) < 3 || strlen($cvvClean) > 4) {
+                    $this->fieldErrors['cardCvv'] = __('payment.card_cvv_invalid');
+                }
+            }
+        }
+        
+        // Se houver erros, define mensagem genérica e faz scroll
+        if (!empty($this->fieldErrors)) {
+            $this->cardValidationError = __('payment.complete_card_fields');
+            $this->dispatch('scroll-to-card-form');
+            return false;
+        }
+        
+        return true;
+    }
 
     public function startCheckout()
     {
@@ -366,27 +472,9 @@ class PagePay extends Component
         $this->cardValidationError = null;
         $this->isProcessingCard = false;
 
-        // Validação rápida antes de exibir loader: nome, e-mail e CPF (quando BR)
-        $hasErrors = false;
-        if (empty($this->cardName) || strlen(trim($this->cardName)) === 0) {
-            $hasErrors = true;
-        }
-        if (empty($this->email) || !filter_var($this->email, FILTER_VALIDATE_EMAIL)) {
-            $hasErrors = true;
-        }
-        if ($this->selectedLanguage === 'br') {
-            if (empty($this->cpf)) {
-                $hasErrors = true;
-            }
-        }
-
-        if ($hasErrors) {
-            // Mensagem genérica (traduzida) semelhante ao fluxo PIX
-            $this->cardValidationError = __('payment.complete_to_generate_pix');
-            // Disparar evento para scrollar até o formulário de cartão
-            $this->dispatch('scroll-to-card-form');
-            // Retornar imediatamente: evita execução longa e exibição de loader
-            return;
+        // ✅ Validação COMPLETA de todos os campos (ANTES de mostrar o loader)
+        if (!$this->validateCardFields()) {
+            return; // Se houver erros, retorna sem mostrar loader
         }
 
         // Proceed with credit card logic
@@ -411,24 +499,6 @@ class PagePay extends Component
             $this->loadingMessage = __('payment.processing_payment');
             $this->isProcessingCard = true;
 
-
-            // --- FLUXO CARTÃO ---
-            $rules = [
-                'cardName' => 'required|string|max:255',
-                'email' => 'required|email',
-            ];
-
-            if ($this->selectedLanguage === 'br') {
-                $rules['cpf'] = ['required', 'string', 'regex:/^\d{3}\.\d{3}\.\d{3}\-\d{2}$|^\d{11}$/'];
-            }
-
-            if ($this->gateway !== 'stripe') {
-                $rules['cardNumber'] = 'required|numeric|digits_between:13,19';
-                $rules['cardExpiry'] = ['required', 'string', 'regex:/^(0[1-9]|1[0-2])\/?([0-9]{2})$/'];
-                $rules['cardCvv'] = 'required|numeric|digits_between:3,4';
-            }
-            $this->validate($rules);
-
             // Lógica de Upsell/Downsell para cartão
             switch ($this->selectedPlan) {
                 case 'monthly':
@@ -436,22 +506,22 @@ class PagePay extends Component
                     if (isset($this->plans['semi-annual'])) {
                         $this->showUpsellModal = true;
                         $offerValue = round(
-                            $this->plans['semi-annual']['prices'][$this->selectedCurrency]['descont_price']
+                            (float)$this->plans['semi-annual']['prices'][$this->selectedCurrency]['descont_price']
                                 / $this->plans['semi-annual']['nunber_months'],
                             1
                         );
 
                         $offerDiscont = (
-                            $this->plans[$this->selectedPlan]['prices'][$this->selectedCurrency]['origin_price']
+                            (float)$this->plans[$this->selectedPlan]['prices'][$this->selectedCurrency]['origin_price']
                             * $this->plans['semi-annual']['nunber_months']
                         ) - ($offerValue * $this->plans['semi-annual']['nunber_months']);
 
                         $this->modalData = [
                             'actual_month_value'    => $this->totals['month_price_discount'],
-                            'offer_month_value'     => number_format($offerValue, 2, ',', '.'),
-                            'offer_total_discount'  => number_format($offerDiscont, 2, ',', '.'),
+                            'offer_month_value'     => number_format((float)$offerValue, 2, ',', '.'),
+                            'offer_total_discount'  => number_format((float)$offerDiscont, 2, ',', '.'),
                             'offer_total_value'     => number_format(
-                                $this->plans['semi-annual']['prices'][$this->selectedCurrency]['descont_price'],
+                                (float)$this->plans['semi-annual']['prices'][$this->selectedCurrency]['descont_price'],
                                 2,
                                 ',',
                                 '.'
@@ -482,16 +552,16 @@ class PagePay extends Component
         $this->showUpsellModal = false;
         // Logic for downsell offer (quarterly)
         if ($this->selectedPlan === 'monthly') { // Only show downsell if current plan is monthly
-            $offerValue = round($this->plans['quarterly']['prices'][$this->selectedCurrency]['descont_price'] / $this->plans['quarterly']['nunber_months'], 1);
+            $offerValue = round((float)$this->plans['quarterly']['prices'][$this->selectedCurrency]['descont_price'] / $this->plans['quarterly']['nunber_months'], 1);
             // Corrected discount calculation for downsell
-            $basePriceForDiscountCalc = $this->plans['monthly']['prices'][$this->selectedCurrency]['origin_price']; // Price of the plan they *were* on
+            $basePriceForDiscountCalc = (float)$this->plans['monthly']['prices'][$this->selectedCurrency]['origin_price']; // Price of the plan they *were* on
             $offerDiscont = ($basePriceForDiscountCalc * $this->plans['quarterly']['nunber_months']) - ($offerValue * $this->plans['quarterly']['nunber_months']);
 
             $this->modalData = [
                 'actual_month_value' => $this->totals['month_price_discount'], // This should be from the current 'monthly' plan
-                'offer_month_value' => number_format($offerValue, 2, ',', '.'),
-                'offer_total_discount' => number_format(abs($offerDiscont), 2, ',', '.'), // Ensure positive discount
-                'offer_total_value' => number_format($this->plans['quarterly']['prices'][$this->selectedCurrency]['descont_price'], 2, ',', '.'),
+                'offer_month_value' => number_format((float)$offerValue, 2, ',', '.'),
+                'offer_total_discount' => number_format(abs((float)$offerDiscont), 2, ',', '.'), // Ensure positive discount
+                'offer_total_value' => number_format((float)$this->plans['quarterly']['prices'][$this->selectedCurrency]['descont_price'], 2, ',', '.'),
             ];
             $this->showDownsellModal = true;
         } else { // If they were on quarterly and rejected upsell to semi-annual, just proceed with quarterly
@@ -903,7 +973,7 @@ class PagePay extends Component
             $this->pixTransactionId = $pixData['payment_id'] ?? null;
             $this->pixQrImage = $qrCodeBase64;
             $this->pixQrCodeText = $qrCode;
-            $this->pixAmount = $numeric_final_price;
+            $this->pixAmount = $pixData['amount'] ?? $amountInCents;
             $this->pixExpiresAt = now()->addMinutes(30); // PIX expira em 30 minutos por padrão
             $this->showPixModal = true;
 
@@ -1158,7 +1228,7 @@ class PagePay extends Component
 
     public function render()
     {
-        return view('livewire.page-pay')->layoutData([
+        return view('livewire.page-pay')->with([
             'title' => 'CHECKOUT - SNAPHUBB',
             'canonical' => url()->current(),
         ]);
@@ -1392,7 +1462,7 @@ class PagePay extends Component
                 $this->pixTransactionId = $pixData['payment_id'] ?? null;
                 $this->pixQrImage = $qrCodeBase64;
                 $this->pixQrCodeText = $qrCode;
-                $this->pixAmount = $pixData['amount'] ?? ($totalAmount / 100);
+                $this->pixAmount = $pixData['amount'] ?? 0;
                 $this->pixExpiresAt = $pixData['expiration_date'] ?? null;
                 $this->pixStatus = $pixData['status'] ?? 'pending';
                 $this->showPixModal = true;

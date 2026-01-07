@@ -29,24 +29,26 @@
         <p class="text-sm mb-2">{{ __('payment.secure_payment') }}</p>
 
         <!-- Certificação -->
-        <div class="text-sm mb-4">
-            <span>🛡️</span>
+        <div class="text-sm mb-4 flex items-center justify-center gap-2">
+            <svg class="w-4 h-4 sm:w-5 sm:h-5 text-green-500 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+            </svg>
             <span>{{ __('payment.certified_by') }}</span>
         </div>
 
         <!-- Links -->
         <div class="space-x-4 text-xs mb-4">
-            <a href="#" class="hover:text-white">{{ __('payment.terms_of_use') }}</a>
+            <a href="{{ route('terms') }}" class="hover:text-white">{{ __('payment.terms_of_use') }}</a>
             <span>|</span>
-            <a href="#" class="hover:text-white">{{ __('payment.privacy_policy') }}</a>
+            <a href="{{ route('privacy') }}" class="hover:text-white">{{ __('payment.privacy_policy') }}</a>
             <span>|</span>
-            <a href="#" class="hover:text-white">{{ __('payment.support') }}</a>
+            <a href="{{ route('support') }}" class="hover:text-white">{{ __('payment.support') }}</a>
         </div>
 
         <!-- Direitos Autorais e Aviso Legal -->
         <div class="text-xs text-gray-500">
-            <p>{{ __('payment.copyright', ['year' => date('Y')]) }}</p>
-            <p class="mt-1">{{ __('payment.legal_notice') }}</p>
+            <p>{!! __('payment.copyright') !!}</p>
+            <p class="mt-1">{!! __('payment.legal_notice') !!}</p>
         </div>
     </div>
 </footer>

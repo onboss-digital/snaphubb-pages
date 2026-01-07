@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Route;
 */
 
 // Página principal (checkout) - Livewire Component
-Route::get('/', PagePay::class);
+Route::get('/', PagePay::class)->name('home');
 
 // Upsell routes
 Route::get('/upsell/painel-das-garotas', function(){
@@ -25,6 +25,19 @@ Route::get('/upsell/thank-you', function(){
 Route::get('/upsell/thank-you-recused', function(){
     return view('upsell.thank-you-recused');
 })->name('upsell.thank_recused');
+
+// Legal pages
+Route::get('/terms-of-use', function(){
+    return view('pages.terms');
+})->name('terms');
+
+Route::get('/privacy-policy', function(){
+    return view('pages.privacy');
+})->name('privacy');
+
+Route::get('/support', function(){
+    return view('pages.support');
+})->name('support');
 
 // Debug: Rota para simular sessão de cliente (apenas para testes locais)
 Route::get('/debug/set-last-customer', function(){

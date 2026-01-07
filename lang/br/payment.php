@@ -50,10 +50,15 @@ return [
     'card_field_email_label' => 'E-mail',
     'card_field_email_hint' => 'Para receber seu acesso',
     'card_field_phone_label' => 'Telefone',
-    'card_field_phone_hint' => 'Para avisos sobre sua assinatura',
+    'card_field_phone_hint' => 'Para avisos sobre seu acesso',
     'card_field_cpf_label' => 'CPF',
     'card_field_cpf_hint' => 'Seu CPF para validação',
     'instant_confirmation' => 'Confirmação Instantânea',
+
+    // Order Bumps
+    'add_ons_title' => 'Adicione valor à sua compra',
+    'recommended' => 'Recomendado',
+    'people_bought' => 'pessoas compraram',
 
     // Order Summary
     'order_summary' => 'Resumo do pedido',
@@ -89,6 +94,19 @@ return [
     'privacy' => 'Privacidade',
     'support' => 'Suporte',
 
+    // Footer
+    'secure_payment' => 'Pagamento seguro e criptografado',
+    'certified_by' => 'Certificado por SSL e PCI DSS',
+    'terms_of_use' => 'Termos de uso',
+    'privacy_policy' => 'Política de privacidade',
+    'copyright' => '&copy; 2025-2026 SNAPHUBB. Todos os direitos reservados.',
+    'legal_notice' => 'Este site não faz parte do site do Facebook ou da Meta Platforms, Inc. Além disso, não é endossado pelo Facebook de nenhuma forma.',
+
+    // Mock Offer (Card Payment)
+    'mock_offer_title' => 'Oferta Especial Limitada!',
+    'mock_offer_subtitle' => 'Desconto exclusivo para primeiras compras',
+    'mock_savings_text' => 'Você economiza',
+
     // Upsell
     'save_more' => 'Economize mais!',
     'annual_free_months' => 'Assine o plano anual e ganhe 2 meses grátis!',
@@ -115,7 +133,7 @@ return [
     'pix_field_cpf_label' => 'CPF',
     'pix_field_cpf_hint' => '000.000.000-00',
     'pix_field_phone_label' => 'Telefone',
-    'pix_field_phone_hint' => 'Para avisos sobre sua assinatura',
+    'pix_field_phone_hint' => 'Para avisos sobre seu acesso',
     'generate_pix' => 'Gerar PIX',
     'generating_pix' => 'Gerando seu PIX...',
     'pix_subtitle' => 'Parabéns! Você ganhou um desconto especial.',
@@ -167,4 +185,66 @@ return [
     'pix_copy_success' => 'Código PIX copiado com sucesso!',
     'pix_only_portuguese' => 'PIX está disponível apenas em Português (Brasil)',
     'processing_payment' => 'Processando seu pagamento...',
+    
+    // Pages Navigation
+    'return' => 'Voltar',
+    
+    // Terms of Use Page
+    'general_terms' => 'Termos Gerais',
+    'terms_general_content' => 'Bem-vindo ao SNAPHUBB. Estes Termos de Uso regem o acesso e uso de nosso site e serviços. Ao acessar e usar o SNAPHUBB, você concorda em estar vinculado por estes termos e todas as leis e regulamentos aplicáveis.',
+    'user_responsibilities' => 'Responsabilidades do Usuário',
+    'terms_user_content' => 'Você é responsável por manter a confidencialidade de sua conta e senha. Você concorda em aceitar responsabilidade por todas as atividades que ocorrem em sua conta. Você se compromete a não usar o SNAPHUBB para nenhum propósito ilegal ou não autorizado.',
+    'payment_terms' => 'Termos de Pagamento',
+    'terms_payment_content' => 'Todos os pagamentos são processados de forma segura através de provedores de pagamento licenciados. Os valores são em reais brasileiros (BRL) ou dólares americanos (USD), conforme selecionado. Você será cobrado no final de cada ciclo de faturamento.',
+    'limitation_liability' => 'Limitação de Responsabilidade',
+    'terms_liability_content' => 'O SNAPHUBB é fornecido "conforme está". Não garantimos que o serviço será ininterrupto ou livre de erros. Na medida máxima permitida pela lei, o SNAPHUBB não será responsável por danos indiretos, incidentais ou consequentes.',
+    'modifications' => 'Modificações dos Termos',
+    'terms_modifications_content' => 'Reservamos o direito de modificar estes Termos de Uso a qualquer momento. As mudanças entram em vigor imediatamente após a postagem. Seu uso contínuo do SNAPHUBB após tal postagem constitui aceitação das alterações.',
+    'contact_us' => 'Entre em contato',
+    'terms_contact_content' => 'Se tiver dúvidas sobre estes Termos de Uso, entre em contato conosco em support@snaphubb.com.',
+    'terms_last_updated' => 'Última atualização',
+    
+    // Privacy Policy Page
+    'information_collection' => 'Coleta de Informações',
+    'privacy_collection_content' => 'Coletamos informações que você nos fornece voluntariamente, como seu nome, endereço de e-mail, número de telefone e informações de pagamento. Também coletamos automaticamente certas informações sobre seu dispositivo e como você interage com nosso site.',
+    'information_usage' => 'Uso de Informações',
+    'privacy_usage_content' => 'Usamos suas informações para fornecer, manter e melhorar nossos serviços, processar suas transações e comunicações, e cumprir obrigações legais. Não vendemos seus dados pessoais a terceiros.',
+    'data_protection' => 'Proteção de Dados',
+    'privacy_protection_content' => 'Implementamos medidas de segurança técnicas e organizacionais apropriadas para proteger suas informações contra acesso, alteração ou destruição não autorizados. Suas informações de pagamento são criptografadas usando a tecnologia SSL de 256 bits.',
+    'cookies' => 'Cookies',
+    'privacy_cookies_content' => 'Usamos cookies para melhorar sua experiência em nosso site. Você pode controlar as configurações de cookies em seu navegador. Tenga en cuenta que desativar cookies pode afetar a funcionalidade do site.',
+    'third_parties' => 'Terceiros',
+    'privacy_third_party_content' => 'Compartilhamos suas informações com terceiros apenas conforme necessário para fornecer nossos serviços, como provedores de pagamento. Esses terceiros estão comprometidos com a proteção de seus dados.',
+    'user_rights' => 'Direitos do Usuário',
+    'privacy_rights_content' => 'Você tem o direito de acessar, corrigir ou deletar suas informações pessoais a qualquer momento. Para exercer esses direitos, entre em contato conosco em support@snaphubb.com.',
+    'privacy_contact_content' => 'Se tiver dúvidas sobre nossa Política de Privacidade ou práticas de privacidade, entre em contato conosco em support@snaphubb.com.',
+    'privacy_last_updated' => 'Última atualização',
+    
+    // Support Page
+    'faq' => 'Perguntas Frequentes',
+    'faq_payment' => 'Como faço para pagar?',
+    'faq_payment_answer' => 'Você pode pagar usando cartão de crédito ou PIX (apenas Brasil). Todos os pagamentos são processados de forma segura.',
+    'faq_secure' => 'Meus dados estão seguros?',
+    'faq_secure_answer' => 'Sim! Usamos criptografia SSL de 256 bits e conformidade com PCI DSS para proteger seus dados.',
+    'faq_issue' => 'O que devo fazer se tiver um problema?',
+    'faq_issue_answer' => 'Entre em contato com nosso suporte por e-mail ou telefone. Responderemos dentro de 24 horas.',
+    'contact_support' => 'Entre em Contato',
+    'response_time' => 'Tempo de Resposta',
+    'response_time_text' => 'Respondemos a todas as solicitações de suporte dentro de 24 horas. Estamos aqui para ajudar!',
+    
+    // Validation Errors - Card Payment
+    'card_name_required' => 'Nome do titular é obrigatório',
+    'email_required' => 'E-mail é obrigatório',
+    'email_invalid' => 'E-mail deve ser válido',
+    'cpf_required' => 'CPF é obrigatório',
+    'cpf_invalid' => 'CPF deve ser válido',
+    'phone_required' => 'Telefone é obrigatório',
+    'phone_invalid' => 'Telefone deve ser válido',
+    'card_number_required' => 'Número do cartão é obrigatório',
+    'card_number_invalid' => 'Número do cartão deve ter 13-19 dígitos',
+    'card_expiry_required' => 'Data de expiração é obrigatória',
+    'card_expiry_invalid' => 'Data deve ser MM/AA',
+    'card_cvv_required' => 'Código de segurança é obrigatório',
+    'card_cvv_invalid' => 'Código de segurança deve ter 3-4 dígitos',
+    'complete_card_fields' => 'Preencha todos os campos obrigatórios',
 ];

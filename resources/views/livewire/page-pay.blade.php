@@ -206,30 +206,6 @@ document.addEventListener('DOMContentLoaded', function(){
 
 
                 <img class="img-fluid logo" src="{{ $logo }}" alt="streamit">
-
-                <!-- Language Selector -->
-                <div class="flex items-center space-x-4">
-                    <div class="relative text-sm">
-                        <form id="language-form" method="POST">
-                            @csrf
-                            <select id="language-selector" name="lang"
-                                wire:change="changeLanguage(event.target.value)"
-                                class="bg-[#1F1F1F] text-white rounded-md px-3 py-1.5 border border-gray-700 appearance-none pr-8 focus:outline-none focus:ring-1 focus:ring-[#E50914] hover:border-gray-500 transition-all">
-                                @foreach ($availableLanguages as $code => $name)
-                                <option value="{{ $code }}"
-                                    {{ app()->getLocale() == $code ? 'selected' : '' }}>
-                                    {!! $name !!}</option>
-                                @endforeach
-                            </select>
-                        </form>
-                        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-white">
-                            <svg class="w-4 h-4 fill-current" viewBox="0 0 20 20">
-                                <path d="M7 7l3-3 3 3m0 6l-3 3-3-3" stroke="currentColor" stroke-width="1.5"
-                                    stroke-linecap="round" stroke-linejoin="round" fill="none"></path>
-                            </svg>
-                        </div>
-                    </div>
-                </div>
             </div>
 
             @php
@@ -303,7 +279,7 @@ document.addEventListener('DOMContentLoaded', function(){
                     </div>
 
                     <!-- Payment Methods -->
-                    <div x-data="{ selectedPaymentMethod: 'credit_card' }" id="payment-method-section"
+                    <div x-data="{ selectedPaymentMethod: @js($selectedLanguage === 'br' ? 'pix' : 'credit_card') }" id="payment-method-section"
                         class=" bg-[#1F1F1F] rounded-xl p-6 mb-6 scroll-mt-8">
                         <h2 class="text-xl font-semibold text-white mb-4">{{ __('payment.payment_method') }}</h2>
                         <div class="space-y-4">
@@ -440,12 +416,15 @@ document.addEventListener('DOMContentLoaded', function(){
                                     @if ($gateway !== 'stripe')
                                         <div>
                                             <label
-                                                class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.card_number') }}</label>
+                                                class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.card_number') }} @if(isset($fieldErrors['cardNumber']))<span class="text-red-500">*</span>@endif</label>
                                             <input name="card_number" type="text" id="card-number"
                                                 placeholder="0000 0000 0000 0000"
-                                                wire:model.defer="cardNumber"
+                                                wire:model.live="cardNumber"
                                                 inputmode="numeric" autocomplete="cc-number" pattern="[0-9\s]{13,19}"
-                                                class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
+                                                class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 @if(isset($fieldErrors['cardNumber'])) border-2 border-red-500 @else border border-gray-700 @endif focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
+                                            @if(isset($fieldErrors['cardNumber']))
+                                                <span class="text-red-500 text-xs mt-1 block">{{ $fieldErrors['cardNumber'] }}</span>
+                                            @endif
                                             @error('cardNumber')
                                                 <span class="text-red-500 text-xs mt-1">{{ $message }}</span>
                                             @enderror
@@ -453,21 +432,27 @@ document.addEventListener('DOMContentLoaded', function(){
                                         <div class="grid grid-cols-2 gap-4">
                                             <div>
                                                 <label
-                                                    class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.expiry_date') }}</label>
+                                                    class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.expiry_date') }} @if(isset($fieldErrors['cardExpiry']))<span class="text-red-500">*</span>@endif</label>
                                                 <input name="card_expiry" type="text" id="card-expiry"
-                                                    placeholder="MM/YY" wire:model.defer="cardExpiry"
+                                                    placeholder="MM/YY" wire:model.live="cardExpiry"
                                                     inputmode="numeric" autocomplete="cc-exp" pattern="(0[1-9]|1[0-2])\/([0-9]{2})"
-                                                    class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
+                                                    class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 @if(isset($fieldErrors['cardExpiry'])) border-2 border-red-500 @else border border-gray-700 @endif focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
+                                                @if(isset($fieldErrors['cardExpiry']))
+                                                    <span class="text-red-500 text-xs mt-1 block">{{ $fieldErrors['cardExpiry'] }}</span>
+                                                @endif
                                                 @error('cardExpiry')
                                                     <span class="text-red-500 text-xs mt-1">{{ $message }}</span>
                                                 @enderror
                                             </div>
                                             <div>
                                                 <label
-                                                    class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.security_code') }}</label>
+                                                    class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.security_code') }} @if(isset($fieldErrors['cardCvv']))<span class="text-red-500">*</span>@endif</label>
                                                 <input name="card_cvv" type="text" id="card-cvv" placeholder="CVV"
-                                                    wire:model.defer="cardCvv" inputmode="numeric" autocomplete="cc-csc" pattern="[0-9]{3,4}"
-                                                    class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
+                                                    wire:model.live="cardCvv" inputmode="numeric" autocomplete="cc-csc" pattern="[0-9]{3,4}"
+                                                    class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 @if(isset($fieldErrors['cardCvv'])) border-2 border-red-500 @else border border-gray-700 @endif focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
+                                                @if(isset($fieldErrors['cardCvv']))
+                                                    <span class="text-red-500 text-xs mt-1 block">{{ $fieldErrors['cardCvv'] }}</span>
+                                                @endif
                                                 @error('cardCvv')
                                                     <span class="text-red-500 text-xs mt-1">{{ $message }}</span>
                                                 @enderror
@@ -488,33 +473,40 @@ document.addEventListener('DOMContentLoaded', function(){
 
                                     <div>
                                         <label
-                                            class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.card_name') }}</label>
+                                            class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.card_name') }} @if(isset($fieldErrors['cardName']))<span class="text-red-500">*</span>@endif</label>
                                         <input name="card_name" type="text"
-                                            placeholder="{{ __('payment.card_name') }}" wire:model.defer="cardName"
+                                            placeholder="{{ __('payment.card_name') }}" wire:model.live="cardName"
                                             autocomplete="cc-name" spellcheck="false"
-                                            class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
+                                            class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 @if(isset($fieldErrors['cardName'])) border-2 border-red-500 @else border border-gray-700 @endif focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
+                                        @if(isset($fieldErrors['cardName']))
+                                            <span class="text-red-500 text-xs mt-1 block">{{ $fieldErrors['cardName'] }}</span>
+                                        @endif
                                         @error('cardName')
                                             <span class="text-red-500 text-xs mt-1">{{ $message }}</span>
                                         @enderror
                                     </div>
 
                                     <div>
-                                        <label class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.email') }}:</label>
-                                        <input name="email" type="email" placeholder="{{ __('payment.pix_field_email_hint') }}"
+                                        <label class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.card_field_email_label') }}: @if(isset($fieldErrors['email']))<span class="text-red-500">*</span>@endif</label>
+                                        <input name="email" type="email" placeholder="{{ __('payment.card_field_email_hint') }}"
                                             wire:model.live.debounce.500ms="email"
                                             autocomplete="email" inputmode="email" spellcheck="false"
-                                            class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
-                                        <div id="email-suggestion" class="text-xs mt-1">
-                                            @if(isset($emailCheckStatus) && $emailCheckStatus === 'checking')
-                                                <span class="text-yellow-400">{{ $emailCheckMessage ?? 'Verificando...' }}</span>
-                                            @elseif(isset($emailCheckStatus) && $emailCheckStatus === 'exists')
-                                                <span class="text-red-500">{{ $emailCheckMessage ?? 'Usuário já existe' }}</span>
-                                            @elseif(isset($emailCheckStatus) && $emailCheckStatus === 'not_found')
-                                                <span class="text-green-400">{{ $emailCheckMessage ?? 'E-mail disponível' }}</span>
-                                            @elseif(isset($emailCheckStatus) && $emailCheckStatus === 'error')
-                                                <span class="text-gray-400">{{ $emailCheckMessage ?? 'Erro ao verificar e-mail' }}</span>
-                                            @endif
-                                        </div>
+                                            class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 @if(isset($fieldErrors['email'])) border-2 border-red-500 @else border border-gray-700 @endif focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
+                                        @if(isset($fieldErrors['email']))
+                                            <span class="text-red-500 text-xs mt-1 block">{{ $fieldErrors['email'] }}</span>
+                                        @else
+                                            <div id="email-suggestion" class="text-xs mt-1">
+                                                @if(isset($emailCheckStatus) && $emailCheckStatus === 'checking')
+                                                    <span class="text-yellow-400">{{ $emailCheckMessage ?? 'Verificando...' }}</span>
+                                                @elseif(isset($emailCheckStatus) && $emailCheckStatus === 'exists')
+                                                    <span class="text-red-500">{{ $emailCheckMessage ?? 'Usuário já existe' }}</span>
+                                                @elseif(isset($emailCheckStatus) && $emailCheckStatus === 'not_found')
+                                                    <span class="text-green-400">{{ $emailCheckMessage ?? 'E-mail disponível' }}</span>
+                                                @elseif(isset($emailCheckStatus) && $emailCheckStatus === 'error')
+                                                    <span class="text-gray-400">{{ $emailCheckMessage ?? 'Erro ao verificar e-mail' }}</span>
+                                                @endif
+                                            </div>
+                                        @endif
                                         @error('email')
                                             <span class="text-red-500 text-xs mt-1">{{ $message }}</span>
                                         @enderror
@@ -522,10 +514,13 @@ document.addEventListener('DOMContentLoaded', function(){
 
                                     <div>
                                         <label
-                                            class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.pix_field_phone_label') }} ({{ __('payment.optional') }}):</label>
-                                        <input name="phone" id="phone" type="tel" placeholder="{{ __('payment.pix_field_phone_hint') }}"
+                                            class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.card_field_phone_label') }} ({{ __('payment.optional') }}):</label>
+                                        <input name="phone" id="phone" type="tel" placeholder="{{ __('payment.card_field_phone_hint') }}"
                                             wire:model="phone" inputmode="tel" autocomplete="tel"
-                                            class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
+                                            class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 @if(isset($fieldErrors['phone'])) border-2 border-red-500 @else border border-gray-700 @endif focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
+                                        @if(isset($fieldErrors['phone']))
+                                            <span class="text-red-500 text-xs mt-1 block">{{ $fieldErrors['phone'] }}</span>
+                                        @endif
                                         @error('phone')
                                             <span class="text-red-500 text-xs mt-1">{{ $message }}</span>
                                         @enderror
@@ -536,8 +531,11 @@ document.addEventListener('DOMContentLoaded', function(){
                                             <label
                                                 class="block text-sm font-medium text-gray-300 mb-1">CPF</label>
                                             <input name="cpf" type="text"
-                                                placeholder="000.000.000-00" wire:model.defer="cpf" inputmode="numeric" autocomplete="off"
-                                                class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
+                                                placeholder="000.000.000-00" wire:model.live="cpf" inputmode="numeric" autocomplete="off"
+                                                class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 @if(isset($fieldErrors['cpf'])) border-2 border-red-500 @else border border-gray-700 @endif focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
+                                            @if(isset($fieldErrors['cpf']))
+                                                <span class="text-red-500 text-xs mt-1 block">{{ $fieldErrors['cpf'] }}</span>
+                                            @endif
                                             @error('cpf')
                                                 <span class="text-red-500 text-xs mt-1">{{ $message }}</span>
                                             @enderror
@@ -607,33 +605,130 @@ document.addEventListener('DOMContentLoaded', function(){
                         </div>
                     </div>
 
-                    <!-- Order Bumps - Hidden when PIX is selected -->
-                    @if (!empty($bumps) && $selectedPaymentMethod !== 'pix')
-                        <div class=" bg-[#1F1F1F] rounded-xl p-5 border border-gray-700">
+                    <!-- Order Bumps - Now available for both Card and PIX -->
+                    @if (!empty($bumps))
+                        <div class="space-y-3">
+                            <h3 class="text-white font-semibold text-sm mb-4">{{ __('payment.add_ons_title') }}</h3>
                             @foreach ($bumps as $index => $bump)
-                                <div class="flex items-start mb-4 last:mb-0">
-                                    <div class="flex items-center h-5">
-                                        <input id="order-bump-{{ $bump['id'] }}" type="checkbox"
-                                            class="w-5 h-5 text-[#E50914] bg-[#2D2D2D] border-gray-600 rounded
-                                       focus:ring-[#E50914] focus:ring-opacity-25 focus:ring-2
-                                       focus:border-[#E50914] cursor-pointer"
-                                            wire:model="bumps.{{ $index }}.active" wire:change="calculateTotals" />
-                                    </div>
-                                    <label for="order-bump-{{ $bump['id'] }}" class="ml-3 cursor-pointer">
-                                        <div class="text-white text-base font-semibold flex items-center">
-                                            <svg class="h-5 w-5 text-[#E50914] mr-1" fill="none"
-                                                viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                                <path stroke-linecap="round" stroke-linejoin="round"
-                                                    d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                                            </svg>
-                                            {{ $bump['title'] }}
+                                @php
+                                    $langCode = match($selectedLanguage) {
+                                        'en' => 'title_en',
+                                        'es' => 'title_es',
+                                        default => 'title'
+                                    };
+                                    $descLangCode = match($selectedLanguage) {
+                                        'en' => 'description_en',
+                                        'es' => 'description_es',
+                                        default => 'description'
+                                    };
+                                    $bumpTitle = $bump[$langCode] ?? $bump['title'] ?? '';
+                                    $bumpDesc = $bump[$descLangCode] ?? $bump['description'] ?? '';
+                                    $isRecommended = $bump['recommended'] ?? false;
+                                    $badge = $bump['badge'] ?? null;
+                                    $badgeColor = $bump['badge_color'] ?? 'red';
+                                    $socialProof = $bump['social_proof_count'] ?? null;
+                                    $urgencyText = $bump['urgency_text'] ?? null;
+                                    $originalPrice = $bump['original_price'] ?? null;
+                                    $discountPct = $bump['discount_percentage'] ?? null;
+                                    $price = $bump['price'] ?? 0;
+                                    $icon = $bump['icon'] ?? 'lock';
+                                @endphp
+                                
+                                <!-- Bump Card -->
+                                <div class="bump-card group relative bg-gradient-to-br from-[#2D2D2D] to-[#1F1F1F] rounded-lg p-4 border border-gray-700 hover:border-[#E50914] transition-all duration-300 cursor-pointer"
+                                    @click="document.getElementById('order-bump-{{ $bump['id'] }}').click()">
+                                    
+                                    <!-- Badge (se tiver) -->
+                                    @if($badge)
+                                        <div class="absolute -top-3 -right-3">
+                                            <span class="inline-block px-3 py-1 text-xs font-bold text-white rounded-full
+                                                @if($badgeColor === 'gold') bg-yellow-500 
+                                                @elseif($badgeColor === 'blue') bg-blue-600 
+                                                @else bg-[#E50914] @endif">
+                                                {{ $badge }}
+                                            </span>
                                         </div>
-                                        <p class="text-gray-400 text-sm mt-1">{{ $bump['description'] }}</p>
-                                        <p class="text-[#E50914] font-medium mt-2">
-                                            +{{ $currencies[$selectedCurrency]['symbol'] }}
-                                            {{ number_format($bump['price'], 2, ',', '.') }}
-                                        </p>
-                                    </label>
+                                    @endif
+
+                                    <!-- Recomendado Badge -->
+                                    @if($isRecommended)
+                                        <div class="absolute -top-3 -left-3">
+                                            <span class="inline-block px-2 py-1 text-xs font-bold text-white bg-green-600 rounded-full">
+                                                ⭐ {{ __('payment.recommended') }}
+                                            </span>
+                                        </div>
+                                    @endif
+                                    
+                                    <!-- Content -->
+                                    <div class="flex gap-4">
+                                        <!-- Checkbox -->
+                                        <div class="flex items-start pt-1">
+                                            <input id="order-bump-{{ $bump['id'] }}" type="checkbox"
+                                                class="w-5 h-5 text-[#E50914] bg-[#2D2D2D] border-gray-600 rounded
+                                                focus:ring-[#E50914] focus:ring-opacity-25 focus:ring-2
+                                                focus:border-[#E50914] cursor-pointer"
+                                                wire:model="bumps.{{ $index }}.active" wire:change="calculateTotals"
+                                                @if($isRecommended) checked @endif />
+                                        </div>
+                                        
+                                        <!-- Texto -->
+                                        <div class="flex-1 min-w-0">
+                                            <!-- Título com Ícone -->
+                                            <div class="flex items-center gap-2 mb-1">
+                                                @php
+                                                    $iconSvg = match($icon) {
+                                                        'video' => '<svg class="w-4 h-4 text-[#E50914]" fill="currentColor" viewBox="0 0 24 24"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96z"/></svg>',
+                                                        'book' => '<svg class="w-4 h-4 text-[#E50914]" fill="currentColor" viewBox="0 0 24 24"><path d="M18 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 18H6V4h12v16z"/></svg>',
+                                                        'star' => '<svg class="w-4 h-4 text-[#E50914]" fill="currentColor" viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2l-2.81 6.63L2 9.24l5.46 4.73L5.82 21z"/></svg>',
+                                                        default => '<svg class="w-4 h-4 text-[#E50914]" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>',
+                                                    };
+                                                @endphp
+                                                <div class="text-white font-semibold text-sm">{{ $bumpTitle }}</div>
+                                            </div>
+                                            
+                                            <!-- Descrição -->
+                                            <p class="text-gray-400 text-xs mb-2 line-clamp-2">{{ $bumpDesc }}</p>
+                                            
+                                            <!-- Prova Social (se tiver) -->
+                                            @if($socialProof)
+                                                <div class="text-yellow-500 text-xs font-semibold mb-2">
+                                                    ⭐⭐⭐⭐⭐ {{ number_format($socialProof, 0, ',', '.') }}+ {{ __('payment.people_bought') }}
+                                                </div>
+                                            @endif
+                                            
+                                            <!-- Urgência (se tiver) -->
+                                            @if($urgencyText)
+                                                <div class="text-red-400 text-xs font-semibold mb-2 flex items-center gap-1">
+                                                    ⚡ {{ $urgencyText }}
+                                                </div>
+                                            @endif
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Preço -->
+                                    <div class="mt-3 pt-3 border-t border-gray-700">
+                                        @if($originalPrice)
+                                            <div class="flex items-center gap-2 justify-between">
+                                                <div>
+                                                    <span class="text-gray-500 text-xs line-through">
+                                                        {{ $currencies[$selectedCurrency]['symbol'] }}{{ number_format($originalPrice, 2, ',', '.') }}
+                                                    </span>
+                                                    @if($discountPct)
+                                                        <span class="ml-2 text-green-400 text-xs font-bold">-{{ $discountPct }}%</span>
+                                                    @endif
+                                                </div>
+                                                <span class="text-[#E50914] font-bold text-sm">
+                                                    {{ $currencies[$selectedCurrency]['symbol'] }}{{ number_format($price, 2, ',', '.') }}
+                                                </span>
+                                            </div>
+                                        @else
+                                            <div class="text-right">
+                                                <span class="text-[#E50914] font-bold text-sm">
+                                                    +{{ $currencies[$selectedCurrency]['symbol'] }}{{ number_format($price, 2, ',', '.') }}
+                                                </span>
+                                            </div>
+                                        @endif
+                                    </div>
                                 </div>
                             @endforeach
                         </div>
@@ -728,10 +823,10 @@ document.addEventListener('DOMContentLoaded', function(){
                                     <p class="text-lg font-bold text-green-100">{{ __('payment.mock_offer_title') }}</p>
                                     <p class="text-sm text-green-200 mt-1">{{ __('payment.mock_offer_subtitle') }}</p>
                                     <div class="mt-3 flex items-center space-x-2">
-                                        <del class="text-green-300 opacity-75 text-sm">R$ 49,90</del>
-                                        <span class="text-2xl font-bold text-white">R$ 24,90</span>
+                                        <del class="text-green-300 opacity-75 text-sm">{{ $currencies[$selectedCurrency]['symbol'] }} {{ number_format($totals['total_price'] ?? 0, 2, ',', '.') }}</del>
+                                        <span class="text-2xl font-bold text-white">{{ $currencies[$selectedCurrency]['symbol'] }} {{ number_format($totals['final_price'] ?? 0, 2, ',', '.') }}</span>
                                     </div>
-                                    <p class="text-xs text-green-200 mt-2">{{ __('payment.mock_savings_text') }}</p>
+                                    <p class="text-xs text-green-200 mt-2">{{ $selectedLanguage === 'br' ? __('payment.mock_savings_text') : str_replace('R$', $currencies[$selectedCurrency]['symbol'], __('payment.mock_savings_text')) }} {{ $currencies[$selectedCurrency]['symbol'] }} {{ number_format($totals['total_discount'] ?? 0, 2, ',', '.') }}!</p>
                                 </div>
                             </div>
                         </div>

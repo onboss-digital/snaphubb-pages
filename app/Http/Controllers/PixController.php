@@ -41,6 +41,8 @@ class PixController extends Controller
                 'plan_key' => 'required|string',
                 'offer_hash' => 'required|string',
                 'device_id' => 'nullable|string', // Device ID do Pushing Pay
+                'bumps' => 'nullable|array', // NOVO: Order bumps selecionados
+                'bumps.*' => 'integer', // IDs dos bumps
                 'customer' => 'required|array',
                 'customer.name' => 'required|string|min:3',
                 'customer.email' => 'required|email',
@@ -123,7 +125,9 @@ class PixController extends Controller
                 'plan_key' => $validated['plan_key'] ?? null,
                 'offer_hash' => $validated['offer_hash'] ?? null,
                 'cart' => $validated['cart'] ?? [],
-                'metadata' => $validated['metadata'] ?? [],
+                'metadata' => array_merge($validated['metadata'] ?? [], [
+                    'bumps' => $validated['bumps'] ?? [],  // NOVO: Adicionar bumps à metadata
+                ]),
             ];
 
             $pixResponse = $this->pixService->createPixPayment($pixPaymentData);
