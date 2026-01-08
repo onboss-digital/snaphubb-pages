@@ -54,24 +54,7 @@ class PagePay extends Component
     ];
 
     public $bumpActive = false;
-    public $bumps = [
-        [
-            'id' => 4,
-            'title' => 'Criptografía anónima',
-            'description' => 'Acesso a conteúdos ao vivo e eventos',
-            'price' => 9.99,
-            'hash' => '3nidg2uzc0',
-            'active' => false,
-        ],
-        [
-            'id' => 5,
-            'title' => 'Guia Premium',
-            'description' => 'Acesso ao guia completo de estratégias',
-            'price' => 14.99,
-            'hash' => '7fjk3ldw0',
-            'active' => false,
-        ],
-    ];
+    public $bumps = [];
 
     public $countdownMinutes = 14;
     public $countdownSeconds = 22;
@@ -145,7 +128,7 @@ class PagePay extends Component
         $this->paymentMethodId = 'pm_1SBQpKIVhGS3bBwFk2Idz2kp'; //'pm_1S5yVwIVhGS3bBwFlcYLzD5X'; //adicione um metodo de pagamento pra testar capture no elements do stripe
     }
 
-    public function mount(PaymentGatewayInterface $paymentGateway = null) // Modified to allow injection, or resolve via factory
+    public function mount(?PaymentGatewayInterface $paymentGateway = null) // Modified to allow injection, or resolve via factory
     {
         $this->utm_source = request()->query('utm_source');
         $this->utm_medium = request()->query('utm_medium');
@@ -172,6 +155,9 @@ class PagePay extends Component
         // Sempre carregar planos da API Stripe para o cartão de crédito
         $this->plans = $this->getPlans();
         Log::info('PagePay::mount - Carregando planos da API Stripe');
+        
+        // Carregar Order Bumps da API
+        $this->loadBumps();
         
         // Se idioma for Português (BR), selecionar PIX como método padrão
         if ($this->selectedLanguage === 'br') {
@@ -204,6 +190,38 @@ class PagePay extends Component
         // Armazena na sessão para consistência
         Session::put('selectedCurrency', $this->selectedCurrency);
         Session::put('user_language', $this->selectedLanguage);
+    }
+
+    /**
+     * Carrega Order Bumps da API
+     * Busca bumps por método de pagamento
+     */
+    private function loadBumps()
+    {
+        try {
+            $response = Http::get(url('/api/bumps'), [
+                'method' => 'card', // Carregar bumps para cartão inicialmente
+            ]);
+
+            if ($response->successful()) {
+                $data = $response->json();
+                $this->bumps = $data['data'] ?? [];
+                
+                Log::info('PagePay: Order bumps carregados da API', [
+                    'count' => count($this->bumps),
+                ]);
+            } else {
+                Log::warning('PagePay: Erro ao buscar bumps da API', [
+                    'status' => $response->status(),
+                ]);
+                $this->bumps = [];
+            }
+        } catch (\Exception $e) {
+            Log::error('PagePay: Exceção ao carregar bumps', [
+                'error' => $e->getMessage(),
+            ]);
+            $this->bumps = [];
+        }
     }
 
     public function getPlans()

@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\PixController;
 use App\Http\Controllers\BannerController;
+use App\Http\Controllers\BumpController;
 use Illuminate\Support\Facades\Route;
 
 /**
@@ -25,6 +26,19 @@ Route::prefix('banners')->group(function () {
     Route::post('/upload', [BannerController::class, 'upload'])->name('banners.upload');
     Route::get('/list', [BannerController::class, 'list'])->name('banners.list');
     Route::delete('/{filename}', [BannerController::class, 'delete'])->name('banners.delete');
+});
+
+/**
+ * API Routes para Order Bumps
+ */
+Route::prefix('bumps')->group(function () {
+    // GET /api/bumps - todos os bumps ativos
+    // GET /api/bumps?method=card - bumps para cartão
+    // GET /api/bumps?method=pix - bumps para PIX
+    Route::get('/', [BumpController::class, 'list'])->name('bumps.list');
+
+    // GET /api/bumps/by-method - bumps separados por método de pagamento
+    Route::get('/by-method', [BumpController::class, 'byMethod'])->name('bumps.by_method');
 });
 
 // Pushing Pay webhook (PIX notifications)

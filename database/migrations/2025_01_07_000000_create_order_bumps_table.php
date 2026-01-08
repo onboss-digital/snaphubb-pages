@@ -25,6 +25,8 @@ return new class extends Migration
             $table->integer('social_proof_count')->nullable();
             $table->string('urgency_text')->nullable();
             $table->boolean('recommended')->default(false);
+            $table->enum('payment_method', ['card', 'pix', 'all'])->default('all');
+            $table->boolean('active')->default(true);
             $table->timestamps();
         });
     }
