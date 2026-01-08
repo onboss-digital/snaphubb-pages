@@ -13,10 +13,18 @@ return new class extends Migration
     {
         Schema::create('order_bumps', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('order_id')->constrained()->onDelete('cascade');
+            $table->foreignId('order_id')->nullable()->constrained()->onDelete('cascade');
             $table->string('plan_id')->nullable();
             $table->string('name')->nullable();
             $table->text('description')->nullable();
+            $table->decimal('original_price', 10, 2)->nullable();
+            $table->integer('discount_percentage')->nullable();
+            $table->string('icon')->nullable();
+            $table->string('badge')->nullable();
+            $table->string('badge_color')->nullable();
+            $table->integer('social_proof_count')->nullable();
+            $table->string('urgency_text')->nullable();
+            $table->boolean('recommended')->default(false);
             $table->timestamps();
         });
     }
