@@ -273,13 +273,17 @@ class PagePay extends Component
 
             // If API returned nothing, use mock as fallback
             Log::warning('PagePay: No plans available from API. Using mock as fallback.');
-            $mockPlans = $this->getPlansFromMock();
+            $mockPlansData = $this->getPlansFromMock();
             
             // ✅ Marcar como fallback já que não veio da API
             $this->dataOrigin['plans'] = 'fallback';
             $this->dataOrigin['bumps'] = 'fallback';
             
-            return $mockPlans;
+            // Format mock data same way as API
+            $this->paymentGateway = app(PaymentGatewayFactory::class)->create();
+            $formattedMock = $this->paymentGateway->formatPlans($mockPlansData, $this->selectedCurrency);
+            
+            return $formattedMock;
         } catch (\Exception $e) {
             Log::error('PagePay: Critical error in getPlans. Using mock as fallback.', [
                 'gateway' => $this->gateway,
@@ -287,11 +291,16 @@ class PagePay extends Component
             ]);
             
             // ✅ Usar mock como fallback em caso de exceção
-            $mockPlans = $this->getPlansFromMock();
+            $mockPlansData = $this->getPlansFromMock();
+            
             $this->dataOrigin['plans'] = 'fallback';
             $this->dataOrigin['bumps'] = 'fallback';
             
-            return $mockPlans;
+            // Format mock data same way as API
+            $this->paymentGateway = app(PaymentGatewayFactory::class)->create();
+            $formattedMock = $this->paymentGateway->formatPlans($mockPlansData, $this->selectedCurrency);
+            
+            return $formattedMock;
         }
     }
 
