@@ -74,3 +74,40 @@
 .payment-option p { margin: 0; }
 .payment-option .leading-tight { line-height: 1.1; }
 
+/* ============================================
+   DATA ORIGIN INDICATOR COLORS
+   ============================================ */
+
+/* Fallback data (API não respondeu - dados provisórios) */
+.text-data-fallback,
+.price-fallback {
+    color: #00f5d4 !important;
+}
+
+/* Backend data (dados corretos da API) */
+.text-data-backend,
+.price-backend {
+    color: #0ead69 !important;
+}
+
+/* Para backgrounds/borders de fallback */
+.bg-data-fallback {
+    background-color: rgba(0, 245, 212, 0.1) !important;
+    border-color: #00f5d4 !important;
+}
+
+/* Para backgrounds/borders de backend */
+.bg-data-backend {
+    background-color: rgba(14, 173, 105, 0.1) !important;
+    border-color: #0ead69 !important;
+}
+
+/* Efeito de pulse para dados em fallback (opcional, para ênfase) */
+@keyframes pulse-fallback {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
+.animate-fallback-pulse {
+    animation: pulse-fallback 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}

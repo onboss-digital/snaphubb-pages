@@ -605,10 +605,15 @@ document.addEventListener('DOMContentLoaded', function(){
                         </div>
                     </div>
 
-                    <!-- Order Bumps - Now available for both Card and PIX -->
+                    <!-- Order Bumps - Design diferente para Card vs PIX -->
                     @if (!empty($bumps))
                         <div class="space-y-3">
-                            <h3 class="text-white font-semibold text-sm mb-4">{{ __('payment.add_ons_title') }}</h3>
+                            @if($selectedPaymentMethod === 'pix')
+                                <h3 class="text-white font-semibold text-sm mb-4">✨ {{ __('payment.add_ons_title') }}</h3>
+                            @else
+                                <h3 class="text-white font-semibold text-sm mb-4">{{ __('payment.add_ons_title') }}</h3>
+                            @endif
+                            
                             @foreach ($bumps as $index => $bump)
                                 @php
                                     $langCode = match($selectedLanguage) {
@@ -634,9 +639,42 @@ document.addEventListener('DOMContentLoaded', function(){
                                     $icon = $bump['icon'] ?? 'lock';
                                 @endphp
                                 
-                                <!-- Bump Card -->
-                                <div class="bump-card group relative bg-gradient-to-br from-[#2D2D2D] to-[#1F1F1F] rounded-lg p-4 border border-gray-700 hover:border-[#E50914] transition-all duration-300 cursor-pointer"
-                                    @click="document.getElementById('order-bump-{{ $bump['id'] }}').click()">
+                                @if($selectedPaymentMethod === 'pix')
+                                    <!-- PIX Design: Minimalista e compacto -->
+                                    <div class="bump-card-pix relative bg-gradient-to-r from-blue-600/20 to-blue-500/10 rounded-lg p-3 border border-blue-500/30 hover:border-blue-400/60 transition-all duration-300 cursor-pointer flex items-center justify-between"
+                                        @click="document.getElementById('order-bump-{{ $bump['id'] }}').click()">
+                                        
+                                        <div class="flex items-center gap-3 flex-1">
+                                            <input id="order-bump-{{ $bump['id'] }}" type="checkbox"
+                                                class="w-5 h-5 text-blue-500 bg-blue-900/30 border-blue-400 rounded
+                                                focus:ring-blue-500 focus:ring-opacity-25 focus:ring-2
+                                                focus:border-blue-500 cursor-pointer flex-shrink-0"
+                                                wire:model="bumps.{{ $index }}.active" wire:change="calculateTotals" />
+                                            
+                                            <div class="flex-1 min-w-0">
+                                                <div class="flex items-center gap-2">
+                                                    <span class="text-blue-300 font-semibold text-sm truncate">{{ $bumpTitle }}</span>
+                                                    @if($badge)
+                                                        <span class="text-xs px-2 py-0.5 bg-blue-500 text-white rounded whitespace-nowrap">{{ $badge }}</span>
+                                                    @endif
+                                                </div>
+                                                <p class="text-gray-400 text-xs truncate">{{ $bumpDesc }}</p>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="text-right ml-2 flex-shrink-0">
+                                            @if($discountPct)
+                                                <div class="text-green-400 text-xs font-bold mb-1">-{{ $discountPct }}%</div>
+                                            @endif
+                                            <span class="font-bold text-sm {{ isset($dataOrigin) && $dataOrigin['bumps'] === 'backend' ? 'price-backend' : (isset($dataOrigin) ? 'price-fallback' : 'text-blue-400') }}">
+                                                +{{ $currencies[$selectedCurrency]['symbol'] }}{{ number_format($price, 2, ',', '.') }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                @else
+                                    <!-- Card Design: Completo e detalhado -->
+                                    <div class="bump-card group relative bg-gradient-to-br from-[#2D2D2D] to-[#1F1F1F] rounded-lg p-4 border border-gray-700 hover:border-[#E50914] transition-all duration-300 cursor-pointer"
+                                        @click="document.getElementById('order-bump-{{ $bump['id'] }}').click()">
                                     
                                     <!-- Badge (se tiver) -->
                                     @if($badge)
@@ -717,19 +755,20 @@ document.addEventListener('DOMContentLoaded', function(){
                                                         <span class="ml-2 text-green-400 text-xs font-bold">-{{ $discountPct }}%</span>
                                                     @endif
                                                 </div>
-                                                <span class="text-[#E50914] font-bold text-sm">
+                                                <span class="font-bold text-sm {{ isset($dataOrigin) && $dataOrigin['bumps'] === 'backend' ? 'price-backend' : (isset($dataOrigin) ? 'price-fallback' : 'text-[#E50914]') }}">
                                                     {{ $currencies[$selectedCurrency]['symbol'] }}{{ number_format($price, 2, ',', '.') }}
                                                 </span>
                                             </div>
                                         @else
                                             <div class="text-right">
-                                                <span class="text-[#E50914] font-bold text-sm">
+                                                <span class="font-bold text-sm {{ isset($dataOrigin) && $dataOrigin['bumps'] === 'backend' ? 'price-backend' : (isset($dataOrigin) ? 'price-fallback' : 'text-[#E50914]') }}">
                                                     +{{ $currencies[$selectedCurrency]['symbol'] }}{{ number_format($price, 2, ',', '.') }}
                                                 </span>
                                             </div>
                                         @endif
                                     </div>
-                                </div>
+                                    </div>
+                                @endif
                             @endforeach
                         </div>
                     @endif
@@ -955,7 +994,9 @@ document.addEventListener('DOMContentLoaded', function(){
                                 </div>
                                 <div class="border-t border-gray-700 pt-3 flex justify-between items-center">
                                     <span class="text-white font-bold text-base">Total a Pagar:</span>
-                                    <span class="text-green-400 font-bold text-2xl">{{ $currencies[$selectedCurrency]['symbol'] }} {{ $totals['final_price'] ?? '24,90' }}</span>
+                                    <span class="font-bold text-2xl {{ isset($dataOrigin) && $dataOrigin['totals'] === 'backend' ? 'price-backend' : (isset($dataOrigin) ? 'price-fallback animate-fallback-pulse' : 'text-green-400') }}">
+                                        {{ $currencies[$selectedCurrency]['symbol'] }} {{ $totals['final_price'] ?? '24,90' }}
+                                    </span>
                                 </div>
                                 <div class="bg-green-500/10 border border-green-500/40 rounded p-2 flex items-center gap-2">
                                     <svg class="w-4 h-4 text-green-400 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></path></svg>

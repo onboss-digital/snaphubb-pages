@@ -64,6 +64,15 @@ class PagePay extends Component
 
     private $lastBumpsState = [];
 
+    // ==========================================
+    // DATA ORIGIN TRACKING (Fallback vs Backend)
+    // ==========================================
+    public $dataOrigin = [
+        'plans' => 'fallback',      // 'fallback' ou 'backend'
+        'bumps' => 'fallback',      // 'fallback' ou 'backend'
+        'totals' => 'fallback',     // 'fallback' ou 'backend'
+    ];
+
     private PaymentGatewayInterface $paymentGateway; // Added
 
     public $gateway;
@@ -193,29 +202,18 @@ class PagePay extends Component
     }
 
     /**
-     * Carrega Order Bumps da API
+     * Carrega Order Bumps do banco de dados
      * Busca bumps por método de pagamento
      */
     private function loadBumps()
     {
         try {
-            $response = Http::get(url('/api/bumps'), [
-                'method' => 'card', // Carregar bumps para cartão inicialmente
+            // Usar Model ao invés de HTTP request para evitar timeout
+            $this->bumps = \App\Models\OrderBump::getByPaymentMethod('card');
+            
+            Log::info('PagePay: Order bumps carregados do banco', [
+                'count' => count($this->bumps),
             ]);
-
-            if ($response->successful()) {
-                $data = $response->json();
-                $this->bumps = $data['data'] ?? [];
-                
-                Log::info('PagePay: Order bumps carregados da API', [
-                    'count' => count($this->bumps),
-                ]);
-            } else {
-                Log::warning('PagePay: Erro ao buscar bumps da API', [
-                    'status' => $response->status(),
-                ]);
-                $this->bumps = [];
-            }
         } catch (\Exception $e) {
             Log::error('PagePay: Exceção ao carregar bumps', [
                 'error' => $e->getMessage(),
@@ -258,8 +256,13 @@ class PagePay extends Component
                     $this->paymentGateway = app(PaymentGatewayFactory::class)->create();
                     $result = $this->paymentGateway->formatPlans($dataResponse, $this->selectedCurrency);
 
+                    // ✅ Marcar como dados do backend
+                    $this->dataOrigin['plans'] = 'backend';
+
                     if (isset($result[$this->selectedPlan]['order_bumps'])) {
                         $this->bumps = $result[$this->selectedPlan]['order_bumps'];
+                        // ✅ Se bumps vêm da API, também marcar como backend
+                        $this->dataOrigin['bumps'] = 'backend';
                     } else {
                         $this->bumps = [];
                     }
@@ -397,6 +400,9 @@ class PagePay extends Component
     $this->totals = array_map(function ($value) {
         return number_format(round($value, 2), 2, ',', '.');
     }, $this->totals);
+
+    // ✅ Se chegou aqui, totals foram calculados com dados válidos
+    $this->dataOrigin['totals'] = $this->dataOrigin['plans'];
 }
 
     /**
@@ -1262,25 +1268,40 @@ class PagePay extends Component
     public function updatedSelectedPaymentMethod($value)
     {
         if ($value === 'pix') {
-            // Salvar o estado atual dos bumps antes de desativá-los
+            // Salvar o estado atual dos bumps de cartão
             $this->lastBumpsState = collect($this->bumps)->pluck('active', 'id')->all();
 
-            foreach ($this->bumps as $index => $bump) {
-                $this->bumps[$index]['active'] = false;
-            }
+            // Carregar bumps específicos para PIX
+            $this->loadBumpsByMethod('pix');
             $this->calculateTotals();
         } else {
-            // Se voltar para cartão de crédito, restaurar o estado anterior dos bumps
-            if (!empty($this->lastBumpsState)) {
-                foreach ($this->bumps as $index => $bump) {
-                    if (isset($this->lastBumpsState[$bump['id']])) {
-                        $this->bumps[$index]['active'] = $this->lastBumpsState[$bump['id']];
-                    }
-                }
-                $this->calculateTotals();
-                // Limpar o estado salvo
-                $this->lastBumpsState = [];
-            }
+            // Se voltar para cartão de crédito, carregar bumps de cartão
+            $this->loadBumpsByMethod('card');
+            $this->calculateTotals();
+            // Limpar o estado salvo
+            $this->lastBumpsState = [];
+        }
+    }
+
+    /**
+     * Carrega bumps por método de pagamento
+     */
+    public function loadBumpsByMethod($method = 'card')
+    {
+        try {
+            // Usar Model ao invés de HTTP request para evitar timeout
+            $this->bumps = \App\Models\OrderBump::getByPaymentMethod($method);
+            
+            Log::info('PagePay: Order bumps carregados para método', [
+                'method' => $method,
+                'count' => count($this->bumps),
+            ]);
+        } catch (\Exception $e) {
+            Log::error('PagePay: Exceção ao carregar bumps por método', [
+                'method' => $method,
+                'error' => $e->getMessage(),
+            ]);
+            $this->bumps = [];
         }
     }
 
