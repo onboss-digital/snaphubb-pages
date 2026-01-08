@@ -292,8 +292,6 @@ class PagePay extends Component
             $this->dataOrigin['bumps'] = 'fallback';
             
             return $mockPlans;
-            ]);
-            return [];
         }
     }
 
