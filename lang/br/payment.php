@@ -56,7 +56,7 @@ return [
     'instant_confirmation' => 'Confirmação Instantânea',
 
     // Order Bumps
-    'add_ons_title' => 'Adicione valor à sua compra',
+    'add_ons_title' => '🚀 ACELERE SEUS RESULTADOS - Desbloqueie Bônus Exclusivos',
     'recommended' => 'Recomendado',
     'people_bought' => 'pessoas compraram',
 
@@ -126,8 +126,8 @@ return [
     // PIX Payment Method
     'pix_title' => 'PIX',
     'pix_description' => 'Transferência instantânea • Sem taxa',
-    'pix_field_name_label' => 'Nome completo',
-    'pix_field_name_hint' => 'Como aparece no seu banco',
+    'pix_field_name_label' => 'Crie seu nome de usuário',
+    'pix_field_name_hint' => 'Insira seu nome',
     'pix_field_email_label' => 'E-mail',
     'pix_field_email_hint' => 'Para receber seu acesso',
     'pix_field_cpf_label' => 'CPF',

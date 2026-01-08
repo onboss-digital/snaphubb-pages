@@ -226,12 +226,30 @@
                         </div>
                     </div>
 
-                    <!-- Urgency -->
-                    <div class="bg-red-600/10 border border-red-600/30 rounded-lg p-4 mb-8 flex items-center gap-3">
-                        <svg class="w-5 h-5 text-red-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
-                        <div>
-                            <p class="text-red-500 font-semibold text-sm">⏰ Oferta válida por apenas 10 minutos</p>
-                            <p class="text-gray-400 text-xs">Aproveite este desconto exclusivo agora</p>
+                    <!-- Urgency + Social Proof -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+                        <!-- Urgência -->
+                        <div class="bg-red-600/10 border border-red-600/30 rounded-lg p-4 flex items-center gap-3">
+                            <svg class="w-5 h-5 text-red-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                            <div>
+                                <p class="text-red-500 font-semibold text-sm">⏰ OFERTA LIMITADA</p>
+                                <p class="text-gray-300 text-xs mt-1"><strong class="text-red-400">Apenas para quem compra agora</strong><br>Bônus válido por 30 dias</p>
+                            </div>
+                        </div>
+
+                        <!-- Prova Social - Avaliações -->
+                        <div class="bg-yellow-600/10 border border-yellow-600/30 rounded-lg p-4 flex items-center gap-3">
+                            <div class="flex flex-col items-center gap-1">
+                                <svg class="w-5 h-5 text-yellow-500" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                                <span class="text-yellow-400 font-bold text-sm">4.9/5</span>
+                            </div>
+                            <div>
+                                <p class="text-yellow-400 font-semibold text-sm">MELHOR AVALIADO</p>
+                                <p class="text-gray-300 text-xs mt-1">
+                                    <svg class="w-3 h-3 inline text-green-500 mr-1" fill="currentColor" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></svg>
+                                    1.200+ pessoas adicionaram
+                                </p>
+                            </div>
                         </div>
                     </div>
 
