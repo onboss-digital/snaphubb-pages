@@ -271,13 +271,27 @@ class PagePay extends Component
                 }
             }
 
-            // If API returned nothing, return empty list
-            Log::warning('PagePay: No plans available from API. Returning empty list.');
-            return [];
+            // If API returned nothing, use mock as fallback
+            Log::warning('PagePay: No plans available from API. Using mock as fallback.');
+            $mockPlans = $this->getPlansFromMock();
+            
+            // ✅ Marcar como fallback já que não veio da API
+            $this->dataOrigin['plans'] = 'fallback';
+            $this->dataOrigin['bumps'] = 'fallback';
+            
+            return $mockPlans;
         } catch (\Exception $e) {
-            Log::error('PagePay: Critical error in getPlans.', [
+            Log::error('PagePay: Critical error in getPlans. Using mock as fallback.', [
                 'gateway' => $this->gateway,
                 'error' => $e->getMessage(),
+            ]);
+            
+            // ✅ Usar mock como fallback em caso de exceção
+            $mockPlans = $this->getPlansFromMock();
+            $this->dataOrigin['plans'] = 'fallback';
+            $this->dataOrigin['bumps'] = 'fallback';
+            
+            return $mockPlans;
             ]);
             return [];
         }
