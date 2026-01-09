@@ -116,6 +116,23 @@ $gateway = config('services.default_payment_gateway', 'stripe');
 
 @push('scripts')
 <script>
+    window.APP_DEBUG = @json(config('app.debug'));
+    if (!window.APP_DEBUG) {
+        (function(){
+            var noop = function(){};
+            try {
+                console.log = noop;
+                console.info = noop;
+                console.warn = noop;
+                console.error = noop;
+                console.debug = noop;
+            } catch (e) {
+                // ignore
+            }
+        })();
+    }
+</script>
+<script>
 document.addEventListener('DOMContentLoaded', function(){
     try{
         // Build checkout data from server variables

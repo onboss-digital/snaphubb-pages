@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Legacy;
+namespace App\Http\Controllers\Webhook;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
@@ -104,12 +104,6 @@ class AbacatePayWebhookController extends Controller
         return hash_equals($expectedSignature, $signature);
     }
 
-    /**
-     * Handle successful payment
-     *
-     * @param array $data
-     * @return void
-     */
     private function handlePaymentSuccess(array $data): void
     {
         $billingId = $data['id'] ?? null;
@@ -121,29 +115,8 @@ class AbacatePayWebhookController extends Controller
             'status' => $status,
             'customer_email' => $customerEmail,
         ]);
-
-        // TODO: Implementar lógica de negócio
-        // 1. Atualizar status da transação no banco de dados
-        // 2. Ativar assinatura do usuário
-        // 3. Enviar email de confirmação
-        // 4. Registrar no sistema de analytics
-        
-        // Exemplo:
-        // $transaction = Transaction::where('pix_id', $billingId)->first();
-        // if ($transaction) {
-        //     $transaction->update(['status' => 'PAID']);
-        //     $user = $transaction->user;
-        //     $user->activateSubscription();
-        //     Mail::to($user->email)->send(new PaymentConfirmed($transaction));
-        // }
     }
 
-    /**
-     * Handle expired payment
-     *
-     * @param array $data
-     * @return void
-     */
     private function handlePaymentExpired(array $data): void
     {
         $billingId = $data['id'] ?? null;
@@ -153,25 +126,8 @@ class AbacatePayWebhookController extends Controller
             'billing_id' => $billingId,
             'status' => $status,
         ]);
-
-        // TODO: Implementar lógica de negócio
-        // 1. Atualizar status da transação no banco de dados
-        // 2. Enviar email notificando expiração
-        // 3. Registrar no sistema de analytics
-        
-        // Exemplo:
-        // $transaction = Transaction::where('pix_id', $billingId)->first();
-        // if ($transaction) {
-        //     $transaction->update(['status' => 'EXPIRED']);
-        // }
     }
 
-    /**
-     * Handle failed payment
-     *
-     * @param array $data
-     * @return void
-     */
     private function handlePaymentFailed(array $data): void
     {
         $billingId = $data['id'] ?? null;
@@ -181,17 +137,5 @@ class AbacatePayWebhookController extends Controller
             'billing_id' => $billingId,
             'status' => $status,
         ]);
-
-        // TODO: Implementar lógica de negócio
-        // 1. Atualizar status da transação no banco de dados
-        // 2. Enviar email notificando falha
-        // 3. Registrar no sistema de analytics
-        
-        // Exemplo:
-        // $transaction = Transaction::where('pix_id', $billingId)->first();
-        // if ($transaction) {
-        //     $transaction->update(['status' => 'FAILED']);
-        // }
     }
 }
-

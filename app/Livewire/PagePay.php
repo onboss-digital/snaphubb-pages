@@ -26,33 +26,80 @@ class PagePay extends Component
         $usingPixMock = true;  // MODO TESTE ATIVADO
 
     public $selectedPaymentMethod = 'credit_card';
-
-    // Modais
-    public $showSuccessModal = false;
-    public $showErrorModal = false;
-    public $errorMessage = '';
-    public $showSecure = false;
-    public $showDownsellModal = false;
-    public $showUpsellModal = false;
-    public $showProcessingModal = false;
-    public $showUserExistsModal = false;
-    public $loadingMessage = '';
-
-    public $selectedCurrency = 'BRL';
     public $selectedLanguage = 'br';
+    public $selectedCurrency = 'BRL';
     public $selectedPlan = 'monthly';
+
+    // Available languages shown in the UI
     public $availableLanguages = [
-        'br' => '🇧🇷 Português',
-        'en' => '🇺🇸 English',
-        'es' => '🇪🇸 Español',
+        'br' => "🇧🇷 Português",
+        'en' => "🇺🇸 English",
+        'es' => "🇪🇸 Español",
     ];
 
+    // Currency metadata used by the blade views
     public $currencies = [
-        'BRL' => ['symbol' => 'R$', 'name' => 'Real Brasileiro', 'code' => 'BRL', 'label' => "payment.brl"],
-        'USD' => ['symbol' => '$', 'name' => 'Dólar Americano', 'code' => 'USD', 'label' => "payment.usd"],
-        'EUR' => ['symbol' => '€', 'name' => 'Euro', 'code' => 'EUR', 'label' => "payment.eur"],
+        'BRL' => [
+            'symbol' => 'R$',
+            'name' => 'Real Brasileiro',
+            'code' => 'BRL',
+            'label' => 'BRL',
+        ],
+        'USD' => [
+            'symbol' => '$',
+            'name' => 'US Dollar',
+            'code' => 'USD',
+            'label' => 'USD',
+        ],
+        'EUR' => [
+            'symbol' => '€',
+            'name' => 'Euro',
+            'code' => 'EUR',
+            'label' => 'EUR',
+        ],
     ];
 
+    /**
+     * Ao mudar o método de pagamento: valida suporte, atualiza bumps e recalcula totals
+     */
+    public function updatedSelectedPaymentMethod($value)
+    {
+        Log::info("updatedSelectedPaymentMethod: Método alterado para '{$value}'");
+
+        // Validar se plano selecionado suporta este método
+        if (!$this->planSupportsPaymentMethod($this->selectedPlan, $value)) {
+            $this->addError(
+                'payment_method',
+                "O plano selecionado não suporta pagamento via " . ($value === 'pix' ? 'PIX' : 'Cartão')
+            );
+            Log::warning("updatedSelectedPaymentMethod: Plano não suporta método", [
+                'plan' => $this->selectedPlan,
+                'method' => $value,
+            ]);
+            return;
+        }
+
+        // Limpar erros se o método é válido
+        $this->resetErrorBag();
+
+        // Gerenciar order bumps e estado ao alternar métodos
+        if ($value === 'pix') {
+            // Salvar o estado atual dos bumps de cartão
+            $this->lastBumpsState = collect($this->bumps)->pluck('active', 'id')->all();
+
+            // Carregar bumps específicos para PIX
+            $this->loadBumpsByMethod('pix');
+            $this->calculateTotals();
+        } else {
+            // Se voltar para cartão de crédito, carregar bumps de cartão
+            $this->loadBumpsByMethod('card');
+            $this->calculateTotals();
+            // Limpar o estado salvo
+            $this->lastBumpsState = [];
+        }
+
+        Log::info("updatedSelectedPaymentMethod: Método '{$value}' é suportado e estado atualizado");
+    }
     public $bumpActive = false;
     public $bumps = [];
 
@@ -87,6 +134,17 @@ class PagePay extends Component
     public $pixError = null;
     public $pixValidationError = null;
     public $isProcessingCard = false;
+    // Modal / UI flags used by the blade views
+    public $showUpsellModal = false;
+    public $showDownsellModal = false;
+    public $showProcessingModal = false;
+    public $showSuccessModal = false;
+    public $showErrorModal = false;
+    public $showSecure = false;
+    public $loadingMessage = null;
+    public $errorMessage = null;
+    // Legacy/typo alias observed in debug data
+    public $showLodingModal = false;
     protected $apiUrl;
     private $httpClient;
     private $pixService;
@@ -232,29 +290,7 @@ class PagePay extends Component
     /**
      * ✅ NOVO: Ao mudar o método de pagamento, valida se plano suporta
      */
-    public function updatedSelectedPaymentMethod($method)
-    {
-        Log::info("updatedSelectedPaymentMethod: Método alterado para '{$method}'");
-
-        // Validar se plano selecionado suporta este método
-        if (!$this->planSupportsPaymentMethod($this->selectedPlan, $method)) {
-            $this->addError(
-                'payment_method',
-                "O plano selecionado não suporta pagamento via " . 
-                ($method === 'pix' ? 'PIX' : 'Cartão')
-            );
-            Log::warning("updatedSelectedPaymentMethod: Plano não suporta método", [
-                'plan' => $this->selectedPlan,
-                'method' => $method,
-            ]);
-            return;
-        }
-
-        // Limpar erros se o método é válido
-        $this->resetErrorBag();
-
-        Log::info("updatedSelectedPaymentMethod: Método '{$method}' é suportado");
-    }
+    // Duplicate removed: consolidated implementation is the single definition
 
     /**
      * ✅ NOVO: Retorna o Product ID do gateway para o plano selecionado
@@ -1380,24 +1416,7 @@ class PagePay extends Component
         // Keeping method intentionally empty so Livewire updates don't trigger external calls
         return;
     }
-
-    public function updatedSelectedPaymentMethod($value)
-    {
-        if ($value === 'pix') {
-            // Salvar o estado atual dos bumps de cartão
-            $this->lastBumpsState = collect($this->bumps)->pluck('active', 'id')->all();
-
-            // Carregar bumps específicos para PIX
-            $this->loadBumpsByMethod('pix');
-            $this->calculateTotals();
-        } else {
-            // Se voltar para cartão de crédito, carregar bumps de cartão
-            $this->loadBumpsByMethod('card');
-            $this->calculateTotals();
-            // Limpar o estado salvo
-            $this->lastBumpsState = [];
-        }
-    }
+    // Duplicate removed: consolidated implementation is the single definition
 
     /**
      * Carrega bumps por método de pagamento
