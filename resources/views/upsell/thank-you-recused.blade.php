@@ -165,6 +165,11 @@
   <script>
     (function(){
       try {
+        // Ensure PageView is fired first (for Pixel Helper detection)
+        if (typeof fbq === 'function') {
+          fbq('track', 'PageView');
+        }
+        
         var lastOrderTx = "{{ session('last_order_transaction') ?? '' }}";
         var lastOrderAmount = "{{ session('last_order_amount') ?? '' }}";
         if (lastOrderTx) {

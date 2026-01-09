@@ -135,18 +135,112 @@ document.addEventListener('DOMContentLoaded', function(){
             });
         }
 
-        // Minimal Facebook Pixel on homepage: init + InitiateCheckout only
+        // Facebook Pixel: Load and initialize with PageView event
+        window.fbPixelId = '{{ config("analytics.fb_pixel_ids")[0] ?? "" }}' || '{{ env("FB_PIXEL_ID") }}';
+        window.fbPixelDebug = {
+            pixelId: window.fbPixelId,
+            initialized: false,
+            trackReady: false,
+            errors: []
+        };
+        
         (function(){
-            var fbPixelId = '{{ env("FB_PIXEL_ID") }}';
             try {
-                if (fbPixelId && fbPixelId !== 'YOUR_FACEBOOK_PIXEL_ID') {
-                    !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod? n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window, document,'script','https://connect.facebook.net/en_US/fbevents.js');
-                    try { fbq('init', fbPixelId); fbq('track', 'InitiateCheckout', { value: window.checkoutData.value || 0, currency: window.checkoutData.currency || 'BRL' }); } catch(e){}
+                if (!window.fbPixelId || window.fbPixelId === 'YOUR_FACEBOOK_PIXEL_ID') {
+                    console.warn('⚠️ Facebook Pixel ID not configured or invalid');
+                    window.fbPixelDebug.errors.push('Pixel ID not configured');
+                    return;
                 }
-            } catch(e){}
+                
+                console.log('📍 Starting Facebook Pixel initialization for ID:', window.fbPixelId);
+                
+                // Step 1: Inject base fbq snippet (creates queue)
+                !function(f,b,e,v,n,t,s){
+                    if(f.fbq) {
+                        console.log('✓ fbq already exists, skipping re-initialization');
+                        return;
+                    }
+                    
+                    console.log('📝 Creating fbq queue function...');
+                    n=f.fbq=function(){
+                        n.callMethod ? n.callMethod.apply(n,arguments) : n.queue.push(arguments);
+                    };
+                    if(!f._fbq)f._fbq=n;
+                    n.push=n;
+                    n.loaded=!0;
+                    n.version='2.0';
+                    n.queue=[];
+                    
+                    console.log('🔧 Creating and injecting fbevents.js script tag...');
+                    t=b.createElement(e);
+                    t.async=!0;
+                    t.src=v;
+                    
+                    t.onload=function(){
+                        console.log('✅ fbevents.js LOADED successfully');
+                        window.fbPixelDebug.loaded = true;
+                    };
+                    
+                    t.onerror=function(err){
+                        console.error('❌ fbevents.js FAILED to load:', err);
+                        window.fbPixelDebug.errors.push('Script load error: ' + (err ? err.message : 'unknown'));
+                    };
+                    
+                    s=b.getElementsByTagName(e)[0];
+                    s.parentNode.insertBefore(t,s);
+                    console.log('📌 fbevents.js script injected into DOM');
+                }(window, document,'script','https://connect.facebook.net/en_US/fbevents.js');
+                
+                // Step 2: Queue init + PageView (will execute when fbevents.js loads)
+                console.log('📤 Queueing fbq commands...');
+                fbq('init', window.fbPixelId);
+                fbq('track', 'PageView');
+                fbq('track', 'InitiateCheckout', { 
+                    value: window.checkoutData.value || 0, 
+                    currency: window.checkoutData.currency || 'BRL' 
+                });
+                
+                window.fbPixelDebug.initialized = true;
+                console.log('✓ Facebook Pixel queued commands for ID:', window.fbPixelId);
+            } catch(e){
+                console.error('❌ Facebook Pixel setup error:', e);
+                window.fbPixelDebug.errors.push(e.message);
+            }
         })();
 
-        // Listen for payment method changes to fire add_payment_info (GA4)
+        // DIAGNOSTIC: Check when fbq.track becomes available (detailed logging)
+        (function() {
+            var attempts = 0;
+            var maxAttempts = 50; // 5 seconds total (50 * 100ms)
+            var checkInterval = setInterval(function() {
+                attempts++;
+                var fbqType = typeof window.fbq;
+                var fbqTrackType = (fbqType === 'function' && typeof window.fbq.track === 'function') ? 'function' : 'undefined';
+                
+                if (fbqTrackType === 'function') {
+                    window.fbPixelDebug.trackReady = true;
+                    console.log('✅ fbq.track is READY after ' + (attempts * 100) + 'ms');
+                    clearInterval(checkInterval);
+                } else if (attempts === 1 || attempts === 10 || attempts === 25 || attempts === maxAttempts) {
+                    // Log at key intervals to avoid spam
+                    console.log('⏳ Attempt ' + attempts + '/' + maxAttempts + ' - fbq type: ' + fbqType + ', fbq.track type: ' + fbqTrackType);
+                }
+                
+                if (attempts >= maxAttempts) {
+                    if (fbqType === 'undefined') {
+                        console.error('❌ CRITICAL: window.fbq is still UNDEFINED after 5 seconds');
+                        console.error('This means fbevents.js script either:');
+                        console.error('  1. Failed to load (network error, CSP blocked, etc)');
+                        console.error('  2. Did not execute/initialize properly');
+                        console.error('  3. Script URL is wrong or unreachable');
+                    } else {
+                        console.warn('⚠️ fbq.track not ready, but fbq exists. Still loading...');
+                    }
+                    console.log('📊 Debug info:', window.fbPixelDebug);
+                    clearInterval(checkInterval);
+                }
+            }, 100);
+        })();
         var paymentInputs = document.querySelectorAll('input[name="payment_method"]');
         paymentInputs.forEach(function(inp){
             inp.addEventListener('change', function(e){
