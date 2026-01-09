@@ -202,6 +202,85 @@ class PagePay extends Component
     }
 
     /**
+     * ✅ NOVO: Valida se o plano suporta o método de pagamento selecionado
+     */
+    private function planSupportsPaymentMethod($planKey, $paymentMethod)
+    {
+        $plan = $this->plans[$planKey] ?? null;
+        
+        if (!$plan) {
+            Log::warning("planSupportsPaymentMethod: Plano não encontrado", ['planKey' => $planKey]);
+            return false;
+        }
+
+        // Determinar qual gateway o método de pagamento usa
+        $gateway = $paymentMethod === 'pix' ? 'pushinpay' : 'stripe';
+
+        // Verificar se o plano tem o produto registrado para este gateway
+        $supported = $plan['gateways'][$gateway]['supported'] ?? false;
+
+        Log::info("planSupportsPaymentMethod: Validando suporte", [
+            'plan' => $planKey,
+            'method' => $paymentMethod,
+            'gateway' => $gateway,
+            'supported' => $supported,
+        ]);
+
+        return $supported;
+    }
+
+    /**
+     * ✅ NOVO: Ao mudar o método de pagamento, valida se plano suporta
+     */
+    public function updatedSelectedPaymentMethod($method)
+    {
+        Log::info("updatedSelectedPaymentMethod: Método alterado para '{$method}'");
+
+        // Validar se plano selecionado suporta este método
+        if (!$this->planSupportsPaymentMethod($this->selectedPlan, $method)) {
+            $this->addError(
+                'payment_method',
+                "O plano selecionado não suporta pagamento via " . 
+                ($method === 'pix' ? 'PIX' : 'Cartão')
+            );
+            Log::warning("updatedSelectedPaymentMethod: Plano não suporta método", [
+                'plan' => $this->selectedPlan,
+                'method' => $method,
+            ]);
+            return;
+        }
+
+        // Limpar erros se o método é válido
+        $this->resetErrorBag();
+
+        Log::info("updatedSelectedPaymentMethod: Método '{$method}' é suportado");
+    }
+
+    /**
+     * ✅ NOVO: Retorna o Product ID do gateway para o plano selecionado
+     */
+    private function getGatewayProductId($planKey, $paymentMethod)
+    {
+        $plan = $this->plans[$planKey] ?? null;
+        
+        if (!$plan) {
+            Log::error("getGatewayProductId: Plano não encontrado", ['planKey' => $planKey]);
+            return null;
+        }
+
+        $gateway = $paymentMethod === 'pix' ? 'pushinpay' : 'stripe';
+        $productId = $plan['gateways'][$gateway]['product_id'] ?? null;
+
+        Log::info("getGatewayProductId: Retornando ID", [
+            'plan' => $planKey,
+            'gateway' => $gateway,
+            'product_id' => $productId,
+        ]);
+
+        return $productId;
+    }
+
+    /**
      * Carrega Order Bumps do banco de dados
      * Busca bumps por método de pagamento
      */
@@ -629,7 +708,23 @@ class PagePay extends Component
         $this->loadingMessage = __('payment.processing_payment');
 
         $checkoutData = $this->prepareCheckoutData();
-        $this->paymentGateway = app(PaymentGatewayFactory::class)->create();
+        
+        // ✅ NOVO: Determinar qual gateway usar baseado no método de pagamento
+        // Se PIX, usar Push in Pay; se cartão, usar Stripe
+        $gatewayType = $this->selectedPaymentMethod === 'pix' ? 'pushinpay' : 'stripe';
+        
+        // ✅ NOVO: Adicionar o Product ID do gateway aos dados de checkout
+        $productId = $this->getGatewayProductId($this->selectedPlan, $this->selectedPaymentMethod);
+        if ($productId) {
+            $checkoutData['product_id'] = $productId;
+            Log::info("sendCheckout: Usando Product ID do gateway", [
+                'gateway' => $gatewayType,
+                'product_id' => $productId,
+                'payment_method' => $this->selectedPaymentMethod,
+            ]);
+        }
+        
+        $this->paymentGateway = app(PaymentGatewayFactory::class)->create($gatewayType);
         $response = $this->paymentGateway->processPayment($checkoutData);
 
         if ($response['status'] === 'success') {
