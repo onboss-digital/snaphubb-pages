@@ -26,6 +26,35 @@ Route::get('/upsell/thank-you-recused', function(){
     return view('upsell.thank-you-recused');
 })->name('upsell.thank_recused');
 
+// Card-specific routes (kept for backward compatibility and used by card flows)
+Route::get('/upsell/painel-das-garotas-card', function(){
+	return view('upsell.painel');
+})->name('upsell.painel_card');
+
+Route::get('/upsell/thank-you-card', function(){
+	return view('upsell.thank');
+})->name('upsell.thank_card');
+
+Route::get('/upsell/thank-you-recused-card', function(){
+	return view('upsell.thank-you-recused');
+})->name('upsell.thank_recused_card');
+
+// Note: Only '-card' variants are enabled for card flows; do not accept '/card' variants.
+
+// QR-specific upsell pages (for PIX flows)
+Route::get('/upsell/painel-das-garotas-qr', function(){
+	return view('upsell.painel-qr');
+})->name('upsell.painel_qr');
+
+Route::get('/upsell/thank-you-qr', function(){
+	return view('upsell.thank-qr');
+})->name('upsell.thank_qr');
+
+// Página quando o usuário recusa o upsell (PIX)
+Route::get('/upsell/thank-you-recused-qr', function(){
+	return view('upsell.thank-you-recused-qr');
+})->name('upsell.thank_recused_qr');
+
 // Legal pages
 Route::get('/terms-of-use', function(){
     return view('pages.terms');

@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Controller para gerenciar pagamentos PIX
@@ -100,9 +101,39 @@ class PixController extends Controller
                 $validated['customer']['name']
             );
 
-            // 5. CHAMAR SERVIÇO PIX PARA GERAR PAGAMENTO
+            // 5. CALCULAR PREÇO BASE DO BACKEND (PLANO + BUMPS) ANTES DE MONTAR O PAYLOAD
+            $planBase = $this->getPlanBaseAmountCents($validated['plan_key']);
+            $bumpsTotal = 0;
+            foreach (($validated['cart'] ?? []) as $item) {
+                if (($item['operation_type'] ?? 0) === 2) {
+                    $bumpsTotal += (int) ($item['price'] ?? 0);
+                }
+            }
+
+            // Se o backend fornece o preço do plano, usamos exclusivamente ele + bumps.
+            // Em local/debug o comportamento anterior de permitir bypass permanece.
+            $calculatedExpected = null;
+            if (isset($planBase['base_cents'])) {
+                $calculatedExpected = $planBase['base_cents'] + $bumpsTotal;
+            }
+
+            // Se temos valor calculado pelo backend, forçamos o amount para esse valor.
+            $pixAmount = $calculatedExpected ?? (int) $validated['amount'];
+
+            // DEBUG: log de auditoria antes do envio
+            Log::info('PixController::create - Debug before sending to PixService', [
+                'plan_key' => $validated['plan_key'],
+                'provided_amount' => $validated['amount'],
+                'plan_base_cents' => $planBase['base_cents'] ?? null,
+                'plan_base_source' => $planBase['source'] ?? null,
+                'bumps_total_cents' => $bumpsTotal,
+                'calculated_expected_total_cents' => $calculatedExpected,
+                'amount_to_send_cents' => $pixAmount,
+            ]);
+
+            // 6. CHAMAR SERVIÇO PIX PARA GERAR PAGAMENTO
             $pixPaymentData = [
-                'amount' => (int) $validated['amount'],
+                'amount' => (int) $pixAmount,
                 'currency' => $validated['currency_code'] ?? 'BRL',
                 'currency_code' => $validated['currency_code'] ?? 'BRL',
                 'description' => $description,
@@ -126,7 +157,11 @@ class PixController extends Controller
                 'offer_hash' => $validated['offer_hash'] ?? null,
                 'cart' => $validated['cart'] ?? [],
                 'metadata' => array_merge($validated['metadata'] ?? [], [
-                    'bumps' => $validated['bumps'] ?? [],  // NOVO: Adicionar bumps à metadata
+                    'bumps' => $validated['bumps'] ?? [],
+                    'plan_base_cents' => $planBase['base_cents'] ?? null,
+                    'plan_base_source' => $planBase['source'] ?? null,
+                    'bumps_total_cents' => $bumpsTotal,
+                    'calculated_expected_total_cents' => $calculatedExpected,
                 ]),
             ];
 
@@ -229,58 +264,62 @@ class PixController extends Controller
     ): bool
     {
         try {
-            // SEMPRE USAR MOCK PARA PIX
-            $mockPath = resource_path('mock/get-plans.json');
-            $plansData = null;
+            // 1) Tentar buscar o plano no banco (Modules\Subscriptions\Models\Plan ou tabela `plan`)
+            $expectedAmount = null;
 
-            if (file_exists($mockPath)) {
-                $mockJson = file_get_contents($mockPath);
-                $mockData = json_decode($mockJson, true);
-                // Converter formato do mock para formato esperado
-                if (is_array($mockData)) {
-                    $plansData = [];
-                    foreach ($mockData as $key => $plan) {
-                        $plansData[] = [
-                            'key' => $key,
-                            'prices' => $plan['prices'] ?? [],
-                        ];
+            try {
+                $planRecord = null;
+
+                if (class_exists('\\Modules\\Subscriptions\\Models\\Plan')) {
+                    if (is_numeric($planKey)) {
+                        $planRecord = \Modules\Subscriptions\Models\Plan::find((int) $planKey);
+                    } else {
+                        $planRecord = \Modules\Subscriptions\Models\Plan::where('identifier', $planKey)->first();
+                    }
+                } else {
+                    // Tentar consulta direta na tabela `plan` como fallback
+                    if (is_numeric($planKey)) {
+                        $planRecord = DB::table('plan')->where('id', (int) $planKey)->first();
+                    } else {
+                        $planRecord = DB::table('plan')->where('identifier', $planKey)->first();
                     }
                 }
+
+                if ($planRecord) {
+                    $pushEnabled = isset($planRecord->pushinpay_enabled) ? (bool) $planRecord->pushinpay_enabled : (bool) ($planRecord['pushinpay_enabled'] ?? false);
+                    $pushAmount = isset($planRecord->pushinpay_amount_override) ? $planRecord->pushinpay_amount_override : ($planRecord['pushinpay_amount_override'] ?? null);
+
+                    if ($pushEnabled && !is_null($pushAmount) && $pushAmount != '') {
+                        $expectedAmount = (int) round(floatval($pushAmount) * 100);
+                    } else {
+                        // fallback to plan price fields
+                        $basePrice = $planRecord->pushinpay_amount_override ?? $planRecord->price ?? $planRecord->total_price ?? ($planRecord['price'] ?? null);
+                        if (!is_null($basePrice) && $basePrice !== '') {
+                            $expectedAmount = (int) round(floatval($basePrice) * 100);
+                        }
+                    }
+                }
+            } catch (\Throwable $e) {
+                Log::warning('Erro ao buscar plano no DB para validação PIX, fallback para mock', ['error' => $e->getMessage(), 'plan_key' => $planKey]);
+                $expectedAmount = null;
             }
 
-            if (empty($plansData)) {
-                Log::warning('Nenhuma fonte de planos disponível', [
+            // 2) Se não conseguimos determinar pelo DB, NÃO USAR MOCKS/hardcode para PIX.
+            // Rejeitar a transação a menos que estejamos em ambiente local/debug.
+            if (is_null($expectedAmount)) {
+                Log::warning('Nenhuma fonte de planos no DB para validação PIX — recusando uso de mock', [
                     'plan_key' => $planKey,
                 ]);
+
+                if (app()->environment('local') || config('app.debug') === true) {
+                    Log::info('Ambiente local/debug: permitindo bypass temporário da validação de plano (apenas para testes)', ['plan_key' => $planKey]);
+                    return true;
+                }
+
                 return false;
             }
 
-            // 3. Encontrar o plano solicitado
-            $planFound = false;
-            $expectedAmount = 0;
-
-            foreach ($plansData as $plan) {
-                if ($plan['key'] === $planKey) {
-                    $planFound = true;
-
-                    // Encontrar preço na moeda solicitada
-                    if (isset($plan['prices'][$currencyCode])) {
-                        $priceData = $plan['prices'][$currencyCode];
-                        $basePrice = floatval($priceData['descont_price'] ?? $priceData['price'] ?? 0);
-                        $expectedAmount = (int)round($basePrice * 100);
-                    }
-                    break;
-                }
-            }
-
-            if (!$planFound) {
-                Log::warning('Plano não encontrado para validação', [
-                    'plan_key' => $planKey,
-                ]);
-                return false;
-            }
-
-            // 4. Somar valores dos bumps (order bumps)
+            // 3) Somar valores dos bumps (order bumps)
             $bumpsTotal = 0;
             foreach ($cart as $item) {
                 if (($item['operation_type'] ?? 0) === 2) { // operation_type 2 = bump
@@ -290,9 +329,9 @@ class PixController extends Controller
 
             $totalExpected = $expectedAmount + $bumpsTotal;
 
-            // 4. VALIDAR: O amount recebido deve ser igual ao total esperado
+            // 4) VALIDAR: O amount recebido deve ser igual ao total esperado
             // Tolerância: 5% para erros de conversão de moedas
-            $tolerance = (int)round($totalExpected * 0.05);
+            $tolerance = (int) round($totalExpected * 0.05);
             $isValid = abs($amount - $totalExpected) <= $tolerance;
 
             if (!$isValid) {
@@ -313,6 +352,52 @@ class PixController extends Controller
             ]);
             // Por segurança, rejeitar se não conseguir validar
             return false;
+        }
+    }
+
+    /**
+     * Retorna o valor base do plano em centavos e a origem (db) ou null se não encontrado.
+     * Não faz fallback para mocks — isso é intencional para evitar usar hardcoded values.
+     */
+    private function getPlanBaseAmountCents(string $planKey): ?array
+    {
+        try {
+            $planRecord = null;
+
+            if (class_exists('\Modules\Subscriptions\Models\Plan')) {
+                if (is_numeric($planKey)) {
+                    $planRecord = \Modules\Subscriptions\Models\Plan::find((int) $planKey);
+                } else {
+                    $planRecord = \Modules\Subscriptions\Models\Plan::where('identifier', $planKey)->first();
+                }
+            } else {
+                if (is_numeric($planKey)) {
+                    $planRecord = DB::table('plan')->where('id', (int) $planKey)->first();
+                } else {
+                    $planRecord = DB::table('plan')->where('identifier', $planKey)->first();
+                }
+            }
+
+            if (!$planRecord) {
+                return null;
+            }
+
+            $pushEnabled = isset($planRecord->pushinpay_enabled) ? (bool) $planRecord->pushinpay_enabled : (bool) ($planRecord['pushinpay_enabled'] ?? false);
+            $pushAmount = isset($planRecord->pushinpay_amount_override) ? $planRecord->pushinpay_amount_override : ($planRecord['pushinpay_amount_override'] ?? null);
+
+            if ($pushEnabled && !is_null($pushAmount) && $pushAmount !== '') {
+                return ['base_cents' => (int) round(floatval($pushAmount) * 100), 'source' => 'pushinpay_override'];
+            }
+
+            $basePrice = $planRecord->price ?? $planRecord->total_price ?? ($planRecord['price'] ?? null);
+            if (!is_null($basePrice) && $basePrice !== '') {
+                return ['base_cents' => (int) round(floatval($basePrice) * 100), 'source' => 'plan_price'];
+            }
+
+            return null;
+        } catch (\Throwable $e) {
+            Log::warning('getPlanBaseAmountCents: erro ao buscar plano', ['plan_key' => $planKey, 'error' => $e->getMessage()]);
+            return null;
         }
     }
 
@@ -357,7 +442,7 @@ class PixController extends Controller
         if (intval($cpf[10]) !== $secondVerifier) {
             return false;
         }
-
+        
         return true;
     }
 

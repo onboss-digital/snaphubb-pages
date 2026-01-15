@@ -90,12 +90,25 @@ class PushingPayPixService
                         'payment_id' => $mockId,
                         'qr_code_base64' => base64_encode('SIMULATED_QR_' . $mockId),
                         'qr_code' => '00020126360014BR.GOV.BCB.PIX0114SIMULATED' . $mockId,
-                        'expiration_date' => now()->addMinutes(30)->toIso8601String(),
+                        // Default de expiração para 5 minutos em ambiente de simulação
+                        'expiration_date' => now()->addMinutes(5)->toIso8601String(),
                         'amount' => ($value / 100),
                         'status' => 'pending',
                     ],
                 ];
             }
+
+            $payload = [
+                'value' => $value,
+                'webhook_url' => $webhookUrl,
+            ];
+
+            // Log payload + any metadata provided by caller (origin, bumps, etc.)
+            Log::info('PushingPayPixService: Enviando payload para PushinPay', [
+                'payload' => $payload,
+                'metadata' => $data['metadata'] ?? null,
+                'simulate' => $this->simulate,
+            ]);
 
             $response = Http::withHeaders([
                 'Authorization' => 'Bearer ' . $this->accessToken,
@@ -128,13 +141,28 @@ class PushingPayPixService
                     ?? $responseData['qr_code'] 
                     ?? null;
 
+                // Determinar expiração com prioridade para o valor retornado pela API
+                $expiration = null;
+                if (!empty($responseData['expiration_date'])) {
+                    $expiration = $responseData['expiration_date'];
+                } elseif (!empty($responseData['expires_at'])) {
+                    $expiration = $responseData['expires_at'];
+                } elseif (!empty($responseData['valid_until'])) {
+                    $expiration = $responseData['valid_until'];
+                }
+
+                if (empty($expiration)) {
+                    // Default para 5 minutos se a API não fornecer
+                    $expiration = now()->addMinutes(5)->toIso8601String();
+                }
+
                 return [
                     'status' => 'success',
                     'data' => [
                         'payment_id' => $paymentId,
                         'qr_code_base64' => $qrCodeBase64,
                         'qr_code' => $qrCode,
-                        'expiration_date' => now()->addMinutes(30)->toIso8601String(), 
+                        'expiration_date' => $expiration,
                         'amount' => ($value / 100),
                         'status' => $this->mapStatus($responseData['status'] ?? 'created'),
                     ]

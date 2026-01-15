@@ -38,13 +38,30 @@ class OrderBump extends Model
      */
     public static function getByPaymentMethod($method = 'card')
     {
-        return self::where('active', true)
+        $items = self::where('active', true)
             ->where(function ($query) use ($method) {
                 $query->where('payment_method', $method)
                     ->orWhere('payment_method', 'all');
             })
-            ->get()
-            ->toArray();
+            ->get();
+
+        return $items->map(function ($b) {
+            $arr = $b->toArray();
+
+            return [
+                'id' => $arr['id'] ?? null,
+                'hash' => $arr['external_id'] ?? $arr['hash'] ?? null,
+                'title' => $arr['title'] ?? $arr['name'] ?? null,
+                'price' => isset($arr['price']) ? floatval($arr['price']) : (isset($arr['original_price']) ? floatval($arr['original_price']) : 0.0),
+                'original_price' => isset($arr['original_price']) ? floatval($arr['original_price']) : (isset($arr['price']) ? floatval($arr['price']) : 0.0),
+                'price_id' => $arr['price_id'] ?? null,
+                'recurring' => $arr['recurring'] ?? null,
+                'active' => isset($arr['active']) ? (bool)$arr['active'] : true,
+                'recommended' => isset($arr['recommended']) ? (bool)$arr['recommended'] : false,
+                'description' => $arr['description'] ?? null,
+                'payment_method' => $arr['payment_method'] ?? 'card',
+            ];
+        })->toArray();
     }
 
     /**
@@ -52,6 +69,24 @@ class OrderBump extends Model
      */
     public static function getAllActive()
     {
-        return self::where('active', true)->get()->toArray();
+        $items = self::where('active', true)->get();
+
+        return $items->map(function ($b) {
+            $arr = $b->toArray();
+
+            return [
+                'id' => $arr['id'] ?? null,
+                'hash' => $arr['external_id'] ?? $arr['hash'] ?? null,
+                'title' => $arr['title'] ?? $arr['name'] ?? null,
+                'price' => isset($arr['price']) ? floatval($arr['price']) : (isset($arr['original_price']) ? floatval($arr['original_price']) : 0.0),
+                'original_price' => isset($arr['original_price']) ? floatval($arr['original_price']) : (isset($arr['price']) ? floatval($arr['price']) : 0.0),
+                'price_id' => $arr['price_id'] ?? null,
+                'recurring' => $arr['recurring'] ?? null,
+                'active' => isset($arr['active']) ? (bool)$arr['active'] : true,
+                'recommended' => isset($arr['recommended']) ? (bool)$arr['recommended'] : false,
+                'description' => $arr['description'] ?? null,
+                'payment_method' => $arr['payment_method'] ?? 'card',
+            ];
+        })->toArray();
     }
 }

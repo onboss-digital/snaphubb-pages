@@ -10,6 +10,10 @@ class UpsellOffer extends Component
 {
     public $product;
     public $usingMock = true;
+    // Loader / UI flags (to mirror PagePay)
+    public $showProcessingModal = false;
+    public $isProcessingCard = false;
+    public $loadingMessage = null;
 
     // PIX properties
     public $pixTransactionId;
@@ -49,6 +53,28 @@ class UpsellOffer extends Component
                 Log::error('UpsellOffer: failed to read mock', ['error' => $e->getMessage()]);
             }
         }
+
+        // If a customerId was provided in the query string (redirect from checkout),
+        // try to resolve the customer via Stripe and populate session so getCustomerData()
+        // can find the info even if the original session was lost.
+        try {
+            $customerId = request()->query('customerId');
+            if (!empty($customerId)) {
+                $gateway = app(\App\Services\PaymentGateways\StripeGateway::class);
+                $cust = $gateway->getCustomerById($customerId);
+                if (!empty($cust['id'])) {
+                    $sess = session('last_order_customer', []);
+                    $sess['email'] = $cust['email'] ?? $sess['email'] ?? null;
+                    $sess['name'] = $cust['name'] ?? $sess['name'] ?? null;
+                    $sess['phone'] = $cust['phone'] ?? $sess['phone'] ?? null;
+                    // Store stripe customer id to allow card upsell off-session
+                    $sess['stripe_customer_id'] = $cust['id'];
+                    session(['last_order_customer' => $sess]);
+                }
+            }
+        } catch (\Throwable $e) {
+            Log::warning('UpsellOffer: could not resolve customerId from query', ['error' => $e->getMessage()]);
+        }
     }
 
     public function render()
@@ -58,8 +84,250 @@ class UpsellOffer extends Component
 
     public function aproveOffer()
     {
-        // Create PIX for this upsell using existing backend controller flow
+            // Create PIX for this upsell using existing backend controller flow
         try {
+            // show loader in UI
+            $this->loadingMessage = __('payment.processing_payment');
+            $this->isProcessingCard = true;
+            $this->showProcessingModal = true;
+            // Prefer off-session card charge when we have a Stripe customer id
+            $sessionCustomer = session('last_order_customer', []);
+            $stripeCustomerId = $sessionCustomer['stripe_customer_id'] ?? null;
+            // Try to obtain the upsell product external id from backend first
+            $upsellProductId = null;
+            try {
+                $apiUrl = env('STREAMIT_API_URL') ?? 'http://127.0.0.1:8000/api';
+                $client = new \GuzzleHttp\Client();
+
+                // First, prefer an explicit query param if it carries a Stripe product id
+                $qpUpsell = request()->query('upsell_productId') ?? request()->query('upsell_product_id') ?? null;
+                if (!empty($qpUpsell) && preg_match('/^prod_/', (string)$qpUpsell)) {
+                    $upsellProductId = $qpUpsell;
+                    try {
+                        \Illuminate\Support\Facades\Log::channel('payment_checkout')->info('UpsellOffer: using upsell_productId from query param', ['upsellProductId' => $upsellProductId]);
+                    } catch (\Throwable $_) {}
+                }
+
+                // First try the lightweight lookup endpoint to resolve the plan by upsell URL
+                $foundPlan = null;
+                try {
+                    // Prefer using the Referer header when the current request is a Livewire internal endpoint
+                    $currentFull = url()->full();
+                    $currentPath = parse_url($currentFull, PHP_URL_PATH) ?: $currentFull;
+                    if (str_starts_with($currentPath, '/livewire')) {
+                        $referer = request()->server('HTTP_REFERER') ?: request()->headers->get('referer');
+                        $useUrl = $referer ?: url()->current();
+                    } else {
+                        $useUrl = url()->current();
+                    }
+                    $lookupUrl = rtrim($apiUrl, '/') . '/get-plan-by-upsell?url=' . urlencode($useUrl);
+                    $respSingle = $client->request('GET', $lookupUrl, [
+                        'headers' => ['Accept' => 'application/json'],
+                        'timeout' => 2,
+                    ]);
+                    $singleRaw = json_decode($respSingle->getBody()->getContents(), true);
+                    if (!empty($singleRaw['status']) && !empty($singleRaw['data'])) {
+                        $foundPlan = $singleRaw['data'];
+                        try {
+                            \Illuminate\Support\Facades\Log::channel('payment_checkout')->info('UpsellOffer: plan resolved via get-plan-by-upsell', [
+                                'lookupUrl' => $lookupUrl,
+                                'pages_upsell_product_external_id' => $foundPlan['pages_upsell_product_external_id'] ?? null,
+                            ]);
+                        } catch (\Throwable $_) {}
+                    }
+                } catch (\Throwable $e) {
+                    // ignore and fallback to full plans list
+                }
+
+                // If the lightweight lookup didn't find a plan, fall back to fetching all plans
+                if (!$foundPlan) {
+                    $resp = $client->request('GET', rtrim($apiUrl, '/') . '/get-plans?lang=' . (app()->getLocale() ?? 'br'), [
+                        'headers' => ['Accept' => 'application/json'],
+                        'timeout' => 3,
+                    ]);
+                    $raw = json_decode($resp->getBody()->getContents(), true);
+                    // backend may return data under 'data' or as associative map
+                    $plansList = $raw['data'] ?? $raw;
+                } else {
+                    $plansList = [];
+                }
+                // Diagnostic: log a short fingerprint of backend response to help debug
+                try {
+                    \Illuminate\Support\Facades\Log::channel('payment_checkout')->info('UpsellOffer: fetched plans from backend', [
+                        'api' => rtrim($apiUrl, '/') . '/get-plans',
+                        'plans_count' => is_array($plansList) ? count($plansList) : 0,
+                        'sample' => is_array($plansList) && count($plansList) ? array_slice($plansList, 0, 3) : null,
+                    ]);
+                } catch (\Throwable $_) {
+                    // ignore logging failures
+                }
+                if (is_array($plansList)) {
+                    // Prefer to find the plan that has an upsell URL matching this page
+                    $currentUrl = url()->current();
+                    $currentPath = parse_url($currentUrl, PHP_URL_PATH) ?: $currentUrl;
+                    foreach ($plansList as $p) {
+                        if (!is_array($p)) continue;
+                        // If the plan declares the upsell URL and it matches current page, pick it
+                        if (!empty($p['pages_upsell_url'])) {
+                            $planPath = parse_url($p['pages_upsell_url'], PHP_URL_PATH) ?: $p['pages_upsell_url'];
+                            // Normalize and compare paths (handles host/port differences)
+                            $normCurrent = rtrim($currentPath, '/');
+                            $normPlan = rtrim($planPath, '/');
+                            if ($normCurrent === $normPlan || str_ends_with($normCurrent, $normPlan) || str_ends_with($normPlan, $normCurrent)) {
+                                $foundPlan = $p;
+                                break;
+                            }
+                        }
+                    }
+
+                    // Fallback: if not found by upsell URL, try known identifiers (hash/identifier/external_id)
+                    if (!$foundPlan) {
+                        foreach ($plansList as $p) {
+                            if (!is_array($p)) continue;
+                            if ((isset($p['hash']) && $p['hash'] == ($this->product['hash'] ?? null))
+                                || (isset($p['identifier']) && $p['identifier'] == ($this->product['hash'] ?? null))
+                                || (isset($p['external_id']) && $p['external_id'] == ($this->product['hash'] ?? null))
+                            ) {
+                                $foundPlan = $p;
+                                break;
+                            }
+                        }
+                    }
+                }
+                if ($foundPlan) {
+                    $upsellProductId = $foundPlan['pages_upsell_product_external_id'] ?? $foundPlan['pages_upsell_product_external'] ?? null;
+                    try {
+                        \Illuminate\Support\Facades\Log::channel('payment_checkout')->info('UpsellOffer: found plan for upsell', [
+                            'found_hash' => $foundPlan['hash'] ?? $foundPlan['identifier'] ?? null,
+                            'pages_upsell_product_external_id' => $foundPlan['pages_upsell_product_external_id'] ?? null,
+                            'pages_upsell_url' => $foundPlan['pages_upsell_url'] ?? null,
+                        ]);
+                    } catch (\Throwable $_) {
+                        // ignore
+                    }
+                }
+            } catch (\Throwable $e) {
+                // ignore and fallback to query param / product hash
+            }
+
+            // Fallbacks: prefer explicit query param, then product hash
+            if (empty($upsellProductId)) {
+                $upsellProductId = request()->query('upsell_productId') ?? ($this->product['hash'] ?? null);
+                try {
+                    \Illuminate\Support\Facades\Log::channel('payment_checkout')->warning('UpsellOffer: upsellProductId fallback to hash or query param', [
+                        'upsellProductId' => $upsellProductId,
+                        'currentUrl' => url()->current(),
+                    ]);
+                } catch (\Throwable $_) {
+                    // ignore
+                }
+            }
+
+                if (!empty($stripeCustomerId) && !empty($upsellProductId)) {
+                    // Safety guard: if upsellProductId looks like a local hash (not a Stripe product id),
+                    // do not attempt a Stripe off-session charge to avoid wrong amounts.
+                    if (!preg_match('/^prod_/', $upsellProductId)) {
+                        try {
+                            \Illuminate\Support\Facades\Log::channel('payment_checkout')->warning('UpsellOffer: resolved upsellProductId appears to be local hash; aborting card charge', [
+                                'upsellProductId' => $upsellProductId,
+                                'currentUrl' => url()->current(),
+                            ]);
+                        } catch (\Throwable $_) {
+                            // ignore
+                        }
+                        $this->errorMessage = 'Não foi possível resolver o produto de upsell para cobrança com cartão. Tente novamente ou use PIX.';
+                        return;
+                    }
+                // Try to charge the customer's default card via StripeGateway
+                $gateway = app(\App\Services\PaymentGateways\StripeGateway::class);
+
+                // Resolve price/price_id for the upsell product
+                $productResp = $gateway->getProductWithPrices($upsellProductId);
+                $cartItem = [
+                    'title' => $this->product['label'] ?? 'Upsell',
+                    'product_hash' => $upsellProductId,
+                    'quantity' => 1,
+                ];
+
+                if (($productResp['status'] ?? null) === 'success' && !empty($productResp['prices'])) {
+                    $found = null;
+                    foreach ($productResp['prices'] as $p) {
+                        if (strtoupper($p['currency'] ?? '') === strtoupper($this->product['currency'] ?? 'BRL') || empty($found)) {
+                            $found = $p;
+                            if (strtoupper($p['currency'] ?? '') === strtoupper($this->product['currency'] ?? 'BRL')) break;
+                        }
+                    }
+                    if (!empty($found) && !empty($found['id'])) {
+                        $cartItem['price_id'] = $found['id'];
+                        $cartItem['price'] = $found['unit_amount'] ?? null;
+                        $cartItem['currency'] = strtoupper($found['currency'] ?? ($this->product['currency'] ?? 'BRL'));
+                    }
+                }
+
+                if (empty($cartItem['price_id']) && empty($cartItem['price'])) {
+                    // Fallback to product price in component (cents)
+                    $cartItem['price'] = $this->product['price'] ?? null;
+                    $cartItem['currency'] = strtoupper($this->product['currency'] ?? 'BRL');
+                }
+
+                $idempotency = md5($upsellProductId . '|' . $stripeCustomerId . '|' . now()->timestamp);
+
+                $paymentPayload = [
+                    'customer' => [
+                        'id' => $stripeCustomerId,
+                        'email' => $sessionCustomer['email'] ?? null,
+                        'name' => $sessionCustomer['name'] ?? null,
+                    ],
+                    'cart' => [ $cartItem ],
+                    'metadata' => [ 'is_upsell' => true, 'offer_hash' => $upsellProductId, 'product_external_id' => $upsellProductId ],
+                    'upsell_success_url' => request()->query('upsell_success_url') ?? null,
+                    'upsell_failed_url' => request()->query('upsell_failed_url') ?? null,
+                ];
+
+                $res = $gateway->processPayment($paymentPayload, $idempotency);
+                \Illuminate\Support\Facades\Log::channel('payment_checkout')->info('UpsellOffer: calling StripeGateway::processPayment', [
+                    'stripe_customer_id' => $stripeCustomerId,
+                    'upsellProductId' => $upsellProductId,
+                    'cartItem' => $cartItem,
+                    'paymentPayload_meta' => $paymentPayload['metadata'] ?? null,
+                ]);
+
+                if (($res['status'] ?? '') === 'success') {
+                    $redirect = $res['data']['redirect_url'] ?? ($paymentPayload['upsell_success_url'] ?? url('/upsell/thank-you-card'));
+                    // Emit Livewire/browser events instead of redirecting immediately so client
+                    // can show the loader for a minimum duration before navigating.
+                    $purchaseData = [
+                        'transaction_id' => $res['data']['transaction_id'] ?? null,
+                        'value' => ($cartItem['price'] ?? null) ? (($cartItem['price'] / 100) ?? null) : null,
+                        'currency' => $cartItem['currency'] ?? null,
+                        'content_ids' => [$cartItem['product_hash'] ?? null],
+                    ];
+
+                    $payload = ['redirect_url' => $redirect, 'purchaseData' => $purchaseData];
+                    try {
+                        $this->dispatch('checkout-success', $payload);
+                        $this->dispatchBrowserEvent('checkout-success', $payload);
+                    } catch (\Throwable $_) {
+                        // ignore
+                    }
+
+                    // Keep modal visible until client handles redirect
+                    return;
+                }
+
+                // If not success, show error and fallthrough to PIX fallback
+                $this->errorMessage = $res['message'] ?? ($res['errors'][0] ?? 'Erro ao realizar cobrança do upsell.');
+                try {
+                    $this->dispatch('checkout-failed', ['message' => $this->errorMessage]);
+                    $this->dispatchBrowserEvent('checkout-failed', ['message' => $this->errorMessage]);
+                } catch (\Throwable $_) {}
+                // ensure loader hidden
+                $this->isProcessingCard = false;
+                $this->showProcessingModal = false;
+                return;
+            }
+
+            // Fallback PIX flow (original behavior)
             $customer = $this->getCustomerData();
             if (!$customer || empty($customer['email'])) {
                 $this->errorMessage = 'Dados do cliente não disponíveis. Faça login ou use o mesmo navegador da compra.';
