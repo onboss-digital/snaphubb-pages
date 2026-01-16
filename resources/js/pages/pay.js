@@ -131,5 +131,19 @@ document.addEventListener('livewire:init', () => {
         
         // O modal agora é renderizado pelo Livewire @if($showPixModal)
         // Não precisa de refresh forçado - o renderizado já ocorreu
+        try {
+            // Se a função startTimer e o elemento #pix-timer existirem, (re)inicia o timer
+            if (typeof window.startTimer === 'function') {
+                const timerEl = document.getElementById('pix-timer');
+                if (timerEl) {
+                    // reset global seconds to 300 (5 minutes) to match server behavior
+                    if (typeof window.pixQRTimer !== 'undefined') window.pixQRTimer = 300;
+                    window.startTimer(timerEl);
+                    console.log('[JS] startTimer called from pix-ready listener');
+                }
+            }
+        } catch (err) {
+            console.warn('[JS] pix-ready: could not start timer', err);
+        }
     });
 });

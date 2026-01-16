@@ -49,3 +49,9 @@ Route::post('/webhook/stripe', [\App\Http\Controllers\StripeWebhookController::c
 
 // Analytics helper: clear last-order session after client fires Purchase
 Route::post('/analytics/clear-last-order', [\App\Http\Controllers\AnalyticsController::class, 'clearLastOrder'])->name('analytics.clear_last_order');
+
+// Lookup Stripe price by Product External Id (used by frontend to resolve price/price_id)
+Route::get('/stripe/resolve-price', [\App\Http\Controllers\StripeLookupController::class, 'resolve'])->name('stripe.resolve_price');
+
+// Upsell off-session charge (uses saved card / payment method)
+Route::post('/upsell/charge', [\App\Http\Controllers\UpsellController::class, 'charge'])->name('upsell.charge');

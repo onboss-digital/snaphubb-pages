@@ -11,13 +11,16 @@ class StripeGateway implements PaymentGatewayInterface
 {
     private string $apiKey;
     private string $baseUrl;
-    private string $redirectURL = "https://web.snaphubb.online/obg/";
+    private string $redirectURL;
     private Client $client;
 
     public function __construct(Client $client = null)
     {
         $this->apiKey = config('services.stripe.api_secret_key');
         $this->baseUrl = config('services.stripe.api_url');
+
+        // Default redirect URL after successful payments. Prefer env override, then app.url
+        $this->redirectURL = env('THANKS_URL', rtrim(config('app.url') ?? '', '/') . '/upsell/thank-you-card');
 
         $this->client = $client ?: new Client([
             'base_uri' => $this->baseUrl,
@@ -29,7 +32,7 @@ class StripeGateway implements PaymentGatewayInterface
         ]);
     }
 
-    private function request(string $method, string $endpoint, array $params = [])
+    private function request(string $method, string $endpoint, array $params = [], array $extraHeaders = [])
     {
         try {
             $options = [];
@@ -38,6 +41,10 @@ class StripeGateway implements PaymentGatewayInterface
                 $options['form_params'] = $params; // Stripe espera x-www-form-urlencoded
             } elseif (!empty($params)) {
                 $options['query'] = $params; // GET com query string
+            }
+
+            if (!empty($extraHeaders)) {
+                $options['headers'] = $extraHeaders;
             }
 
             $response = $this->client->request(strtoupper($method), $this->baseUrl . $endpoint, $options);
@@ -57,12 +64,48 @@ class StripeGateway implements PaymentGatewayInterface
         ];
     }
 
-    public function processPayment(array $paymentData): array
+    public function processPayment(array $paymentData, string $idempotencyKey = null): array
     {
         try {
+            try {
+                \Illuminate\Support\Facades\Log::channel('payment_checkout')->info('StripeGateway::processPayment - incoming payload', [
+                    'metadata' => $paymentData['metadata'] ?? null,
+                    'cart' => $paymentData['cart'] ?? null,
+                    'upsell_success_url' => $paymentData['upsell_success_url'] ?? null,
+                ]);
+            } catch (\Throwable $_) {
+                // ignore logging errors
+            }
             $paymentMethodId = $paymentData['payment_method_id'] ?? null;
             if (!$paymentMethodId) {
-                return ['status' => 'error', 'message' => 'Missing payment method ID'];
+                // Try to resolve a default payment method from provided customer id
+                $custId = $paymentData['customer']['id'] ?? $paymentData['customer_id'] ?? $paymentData['customer']['stripe_id'] ?? null;
+                if (!empty($custId)) {
+                    try {
+                        $cust = $this->request('get', "/customers/{$custId}");
+                        // Try invoice_settings.default_payment_method
+                        $pm = $cust['invoice_settings']['default_payment_method'] ?? null;
+                        if (!empty($pm)) {
+                            $paymentMethodId = $pm;
+                        } else {
+                            // Fallback: list payment methods for customer and pick first
+                            $list = $this->request('get', '/payment_methods', [
+                                'customer' => $custId,
+                                'type' => 'card',
+                                'limit' => 1,
+                            ]);
+                            if (!empty($list['data'][0]['id'])) {
+                                $paymentMethodId = $list['data'][0]['id'];
+                            }
+                        }
+                    } catch (\Throwable $e) {
+                        Log::channel('payment_checkout')->warning('StripeGateway: could not resolve default payment method', ['customer_id' => $custId, 'error' => $e->getMessage()]);
+                    }
+                }
+
+                if (empty($paymentMethodId)) {
+                    return ['status' => 'error', 'message' => 'Missing payment method ID and no default card found for customer'];
+                }
             }
 
             $email = $paymentData['customer']['email'] ?? null;
@@ -112,12 +155,24 @@ class StripeGateway implements PaymentGatewayInterface
                     'enabled' => 'true',
                     'allow_redirects' => 'never' // 🔹 bloqueia redirect
                 ]
-            ]);
+            ], $idempotencyKey ? ['Idempotency-Key' => $idempotencyKey . '-setup'] : []);
 
-            if ($setupIntent['status'] !== 'succeeded') {
+            // If setup intent requires action (SCA), return structured response so frontend can handle
+            if (($setupIntent['status'] ?? null) !== 'succeeded') {
+                $status = $setupIntent['status'] ?? 'unknown';
+                if (in_array($status, ['requires_action', 'requires_confirmation', 'requires_payment_method']) && !empty($setupIntent['client_secret'])) {
+                    return [
+                        'status' => 'requires_action',
+                        'action' => 'setup_intent',
+                        'client_secret' => $setupIntent['client_secret'] ?? null,
+                        'setup_intent' => $setupIntent,
+                    ];
+                }
+
                 return [
                     'status' => 'error',
-                    'errors' => ["Falha ao validar método de pagamento ({$setupIntent['status']})"]
+                    'errors' => ["Falha ao validar método de pagamento ({$status})"],
+                    'setup_intent' => $setupIntent,
                 ];
             }
 
@@ -143,28 +198,96 @@ class StripeGateway implements PaymentGatewayInterface
                         ])
                     ];
 
-                    $sub = $this->request('post', '/subscriptions', $subscriptionData);
+
+                    $sub = $this->request('post', '/subscriptions', $subscriptionData, $idempotencyKey ? ['Idempotency-Key' => $idempotencyKey . '-sub'] : []);
 
                     // ⚡ Confirmar pagamento da primeira fatura
                     if (!empty($sub['latest_invoice']['payment_intent'])) {
                         $pi = $sub['latest_invoice']['payment_intent'];
-                        if ($pi['status'] === 'requires_payment_method') {
+                        $piStatus = $pi['status'] ?? null;
+                        if (in_array($piStatus, ['requires_action','requires_confirmation','requires_payment_method']) && !empty($pi['client_secret'])) {
+                            return [
+                                'status' => 'requires_action',
+                                'action' => 'payment_intent',
+                                'client_secret' => $pi['client_secret'] ?? null,
+                                'payment_intent' => $pi,
+                                'subscription' => $sub,
+                            ];
+                        }
+
+                        if ($piStatus === 'requires_payment_method') {
                             $piConfirmed = $this->request('post', "/payment_intents/{$pi['id']}/confirm", [
                                 'payment_method' => $paymentMethodId
-                            ]);
+                            ], $idempotencyKey ? ['Idempotency-Key' => $idempotencyKey . '-pi-confirm'] : []);
                             $results[] = $piConfirmed;
                         }
                     }
                     $results[] = $sub;
                 } else {
                     // Produto avulso -> pode criar PaymentIntent normalmente
-                    $price = $this->request('get', "/prices/{$product['price_id']}");
+                    // Se não houver `price_id` (ex: backend fallback), não chamar /prices/ sem id
+                    if (!empty($product['price_id'])) {
+                        $price = $this->request('get', "/prices/{$product['price_id']}");
+                        $unitAmount = $price['unit_amount'] ?? null;
+                        $currency = $price['currency'] ?? ($product['currency'] ?? 'brl');
+                        $metaProductId = $price['product'] ?? ($product['product_hash'] ?? null);
+                    } else {
+                        // Try to resolve price from provided product external id in metadata
+                        $resolvedUnit = null;
+                        $resolvedCurrency = null;
+                        $metaProduct = $paymentData['metadata']['product_external_id'] ?? $product['product_hash'] ?? null;
+                        if (!empty($metaProduct)) {
+                            try {
+                                $prodResp = $this->getProductWithPrices($metaProduct);
+                                if (($prodResp['status'] ?? null) === 'success' && !empty($prodResp['prices'])) {
+                                    // pick first matching currency
+                                    $found = null;
+                                    foreach ($prodResp['prices'] as $p) {
+                                        if (strtoupper($p['currency'] ?? '') === strtoupper($product['currency'] ?? 'BRL') || empty($found)) {
+                                            $found = $p;
+                                            if (strtoupper($p['currency'] ?? '') === strtoupper($product['currency'] ?? 'BRL')) break;
+                                        }
+                                    }
+                                    if (!empty($found)) {
+                                        $resolvedUnit = $found['unit_amount'] ?? null;
+                                        $resolvedCurrency = $found['currency'] ?? ($product['currency'] ?? 'brl');
+                                        $metaProductId = $metaProduct;
+                                    }
+                                }
+                            } catch (\Throwable $e) {
+                                Log::channel('payment_checkout')->warning('StripeGateway: could not resolve product prices from metadata', ['product' => $metaProduct, 'error' => $e->getMessage()]);
+                            }
+                        }
+
+                        if ($resolvedUnit !== null) {
+                            $unitAmount = $resolvedUnit;
+                            $currency = $resolvedCurrency;
+                        } else {
+                            // Fallback: usar valor enviado pelo backend. O `price` no frontend geralmente
+                            // já vem em centavos (ex: 2790). Detectamos se o valor parece já estar em
+                            // centavos para evitar multiplicação dupla.
+                            $fallback = $product['price'] ?? $product['amount'] ?? null;
+                            if ($fallback === null) {
+                                throw new \Exception('Missing price_id and fallback amount for product');
+                            }
+                            $fallbackFloat = (float) $fallback;
+                            if ($fallbackFloat >= 1000) {
+                                // valor provavelmente já em centavos (ex: 2790 -> R$27.90)
+                                $unitAmount = (int) round($fallbackFloat);
+                            } else {
+                                // valor provavelmente em unidades (ex: 27.9) -> converter para centavos
+                                $unitAmount = (int) round($fallbackFloat * 100);
+                            }
+                            $currency = strtolower($product['currency'] ?? 'brl');
+                            $metaProductId = $product['product_hash'] ?? null;
+                        }
+                    }
 
                     $intent = $this->request('post', '/payment_intents', [
                         'customer' => $customer['id'],
                         'payment_method' => $paymentMethodId,
-                        'amount' => $price['unit_amount'],
-                        'currency' => $price['currency'],
+                        'amount' => $unitAmount,
+                        'currency' => $currency,
                         'confirm' => 'true',
                         'capture_method' => 'automatic', // 🔹 agora pode cobrar direto
                         'description' => "Pagamento {$product['title']}",
@@ -173,31 +296,48 @@ class StripeGateway implements PaymentGatewayInterface
                             'allow_redirects' => 'never'
                         ],
                         'metadata' => [
-                            'price_id' => $product['price_id'],
-                            'product_id' => $price['product'],
+                            'price_id' => $product['price_id'] ?? null,
+                            'product_id' => $metaProductId,
                             'title' => $product['title']
                         ]
-                    ]);
+                    ], $idempotencyKey ? ['Idempotency-Key' => $idempotencyKey . '-pi'] : []);
+
+                    // If PaymentIntent requires action (SCA), return structured response so frontend can handle
+                    if (in_array($intent['status'] ?? '', ['requires_action','requires_confirmation']) && !empty($intent['client_secret'])) {
+                        return [
+                            'status' => 'requires_action',
+                            'action' => 'payment_intent',
+                            'client_secret' => $intent['client_secret'] ?? null,
+                            'payment_intent' => $intent,
+                        ];
+                    }
 
                     $results[] = $intent;
                 }
             }
+            $redirect = $paymentData['upsell_success_url'] ?? $paymentData['upsell_url'] ?? (env('THANKS_URL', rtrim(config('app.url') ?? '', '/') . '/upsell/thank-you-card'));
+
+            $offerId = $paymentData['offer_hash'] ?? $paymentData['product_id'] ?? $paymentData['metadata']['product_external_id'] ?? $paymentData['metadata']['offer_hash'] ?? null;
+
             return [
                 'status' => 'success',
                 'data' => [
                     'customerId' => $customer['id'],
-                    'upsell_productId' => $paymentData['offer_hash'],
-                    'redirect_url' => $paymentData['upsell_url']
+                    'upsell_productId' => $offerId,
+                    'redirect_url' => $redirect
                 ]
             ];
         } catch (\Exception $e) {
             Log::channel('payment_checkout')->error('StripeGateway: API Error', [
                 'message' => $e->getMessage(),
             ]);
-            return [
+            $failRedirect = $paymentData['upsell_failed_url'] ?? $paymentData['upsell_url'] ?? null;
+            $ret = [
                 'status' => 'error',
                 'message' => $e->getMessage(),
             ];
+            if (!empty($failRedirect)) $ret['redirect_url'] = $failRedirect;
+            return $ret;
         }
     }
     public function handleResponse(array $responseData): array
@@ -216,6 +356,19 @@ class StripeGateway implements PaymentGatewayInterface
             'message' => $responseData['last_payment_error']['message'] ?? 'Payment failed.',
             'data' => $responseData,
         ];
+    }
+
+    public function getCustomerById(string $customerId): array
+    {
+        try {
+            return $this->request('get', "/customers/{$customerId}");
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::channel('payment_checkout')->error('StripeGateway: getCustomerById Error', [
+                'message' => $e->getMessage(),
+                'customer_id' => $customerId,
+            ]);
+            return ['status' => 'error', 'message' => $e->getMessage()];
+        }
     }
 
     public function getProductWithPrices(string $productId): array
@@ -267,6 +420,31 @@ class StripeGateway implements PaymentGatewayInterface
 
     public function formatPlans(mixed $data, string $selectedCurrency): array
     {
+        // If data already looks like the formatted mock (keys are plan slugs and values contain 'prices'),
+        // return it after ensuring minimal gateway defaults so the frontend can rely on consistent shape.
+        if (is_array($data) && !isset($data['data'])) {
+            $normalized = [];
+            foreach ($data as $key => $plan) {
+                // ensure prices currencies are uppercased
+                if (isset($plan['prices']) && is_array($plan['prices'])) {
+                    $prices = [];
+                    foreach ($plan['prices'] as $cur => $p) {
+                        $prices[strtoupper($cur)] = $p;
+                    }
+                    $plan['prices'] = $prices;
+                }
+
+                // ensure gateways default structure
+                $plan['gateways'] = $plan['gateways'] ?? [
+                    'stripe' => ['product_id' => null, 'supported' => false],
+                    'pushinpay' => ['reference' => $plan['hash'] ?? null, 'supported' => false, 'amount_override' => null],
+                ];
+
+                $normalized[$key] = $plan;
+            }
+
+            return $normalized;
+        }
         $normalizeAmount = static function ($amount): ?float {
             if ($amount === null) return null;
             if (is_numeric($amount)) return round((float)$amount / (ctype_digit((string)$amount) ? 100 : 1), 2);
@@ -276,8 +454,27 @@ class StripeGateway implements PaymentGatewayInterface
         $result = [];
 
         foreach ($data['data'] ?? [] as $plan) {
-            if (empty($plan['pages_product_external_id'])) {
-                continue;
+            // Diagnostic: log which external id fields the backend returned for this plan
+            try {
+                \Illuminate\Support\Facades\Log::info('StripeGateway::formatPlans - plan external id candidates', [
+                    'pages_product_external_id' => $plan['pages_product_external_id'] ?? null,
+                    'product_external_id' => $plan['product_external_id'] ?? null,
+                    'external_id' => $plan['external_id'] ?? null,
+                    'identifier' => $plan['identifier'] ?? null,
+                    'hash' => $plan['hash'] ?? null,
+                    'name' => $plan['name'] ?? null,
+                ]);
+            } catch (\Throwable $_) {
+                // ignore logging failures
+            }
+            // Accept multiple possible external id fields from backend.
+            // IMPORTANT: prefer the explicit `product_external_id` (main product) coming from backend
+            $externalId = $plan['product_external_id'] ?? $plan['external_product_id'] ?? $plan['external_id'] ?? $plan['identifier'] ?? null;
+
+            // If there's no external id, still continue but we'll rely on backend price fallback later
+            if (empty($externalId)) {
+                // allow processing so fallback to backend price can happen
+                $externalId = null;
             }
 
             // 🔹 Definição da chave do plano
@@ -296,7 +493,13 @@ class StripeGateway implements PaymentGatewayInterface
             $bumps = array_values(array_filter(array_map(function ($order_bump) use ($selectedCurrency, $normalizeAmount) {
                 if (empty($order_bump['external_id'])) return null;
 
+                // Diagnostic log for bump price resolution
+                \Illuminate\Support\Facades\Log::info('StripeGateway::formatPlans - fetching bump prices', ['bump_external_id' => $order_bump['external_id'], 'selected_currency' => $selectedCurrency]);
+
                 $response = $this->getProductWithPrices($order_bump['external_id']);
+
+                \Illuminate\Support\Facades\Log::info('StripeGateway::formatPlans - bump fetch result', ['bump_external_id' => $order_bump['external_id'], 'status' => $response['status'] ?? 'unknown', 'prices_count' => count($response['prices'] ?? [])]);
+
                 if (($response['status'] ?? 'error') !== 'success') return null;
 
                 $prices = [];
@@ -328,32 +531,87 @@ class StripeGateway implements PaymentGatewayInterface
                 ] : null;
             }, $plan['order_bumps'] ?? [])));
 
-            // 🔹 Buscar preços do produto principal
-            $gatewayResponse = $this->getProductWithPrices($plan['pages_product_external_id']);
+            // 🔹 Buscar preços do produto principal (use fallback externalId)
+            $gatewayResponse = $externalId ? $this->getProductWithPrices($externalId) : ['status' => 'error', 'prices' => []];
             $prices = [];
+
+            // Diagnostic logging: show gateway response status and available currencies
+            try {
+                $foundCurrencies = array_map(fn($p) => strtoupper($p['currency'] ?? ''), $gatewayResponse['prices'] ?? []);
+            } catch (\Throwable $e) {
+                $foundCurrencies = [];
+            }
+            \Illuminate\Support\Facades\Log::info('StripeGateway::formatPlans - product prices fetched', [
+                'product_id' => $externalId,
+                'status' => $gatewayResponse['status'] ?? 'unknown',
+                'currencies' => $foundCurrencies,
+                'selected_currency' => $selectedCurrency,
+            ]);
 
             foreach (($gatewayResponse['prices'] ?? []) as $p) {
                 $currency = strtoupper($p['currency'] ?? '');
                 if ($currency === '') continue;
 
                 $amount = $normalizeAmount($p['unit_amount'] ?? $p['amount'] ?? null);
-                if ($amount === null) continue;
+                if ($amount === null) {
+                    \Illuminate\Support\Facades\Log::warning('StripeGateway::formatPlans - price amount null', [
+                        'product' => $plan['pages_product_external_id'] ?? null,
+                        'price_id' => $p['id'] ?? null,
+                        'unit_amount' => $p['unit_amount'] ?? null,
+                    ]);
+                    continue;
+                }
 
-                $prices[$currency] = [
-                    'id'            => $p['id'],
-                    'origin_price'  => $plan['price'],
-                    'descont_price' => $amount,
-                    'recurring'     => $p['recurring'] ?? null,
-                ];
+                    $prices[$currency] = [
+                        'id'            => $p['id'],
+                        'origin_price'  => $plan['price'],
+                        'descont_price' => $amount,
+                        'recurring'     => $p['recurring'] ?? null,
+                    ];
+            }
+
+            // Fallback: se não houve preços válidos vindos do Stripe, usa o preço fornecido
+            // pelo backend (campo `price`/`total_price`) para evitar plans vazios.
+            if (empty($prices)) {
+                $fallbackAmount = $normalizeAmount($plan['price'] ?? $plan['total_price'] ?? null);
+                if ($fallbackAmount !== null) {
+                    $prices[strtoupper($selectedCurrency)] = [
+                        'id' => null,
+                        'origin_price' => $plan['price'] ?? $plan['total_price'] ?? null,
+                        'descont_price' => $fallbackAmount,
+                        'recurring' => $plan['recurring'] ?? null,
+                    ];
+                    \Illuminate\Support\Facades\Log::info('StripeGateway::formatPlans - fallback to backend price used', [
+                        'product_id' => $plan['pages_product_external_id'] ?? null,
+                        'selected_currency' => $selectedCurrency,
+                        'fallback_amount' => $fallbackAmount,
+                    ]);
+                }
             }
 
             $result[$key] = [
-                'hash'          => $plan['pages_product_external_id'],
-                'label'         => ucfirst($plan['name']) . " - {$plan['duration_value']}/{$plan['duration']}",
-                'nunber_months' => $plan['duration_value'],
+                'hash'          => $externalId ?? ($plan['identifier'] ?? ($plan['plan_id'] ?? null)),
+                'product_external_id' => $externalId ?? null,
+                'pages_product_external_id' => $plan['pages_product_external_id'] ?? null,
+                'pages_upsell_product_external_id' => $plan['pages_upsell_product_external_id'] ?? null,
+                'label'         => (isset($plan['name']) ? ucfirst($plan['name']) : 'Plano') . ' - ' . ($plan['duration_value'] ?? $plan['duration_value'] ?? 1) . '/' . ($plan['duration'] ?? 'period'),
+                'nunber_months' => $plan['duration_value'] ?? 1,
                 'prices'        => $prices,
-                'upsell_url' => $plan['pages_upsell_url'],
+                'gateways'      => (function() use ($plan, $normalizeAmount) {
+                    $gw = $plan['gateways'] ?? [];
+                    if (!empty($gw['pushinpay']['amount_override'])) {
+                        $gw['pushinpay']['amount_override'] = $normalizeAmount($gw['pushinpay']['amount_override']);
+                    }
+                    if (isset($gw['pushinpay']['supported'])) {
+                        $gw['pushinpay']['supported'] = (bool) $gw['pushinpay']['supported'];
+                    }
+                    return $gw;
+                })(),
+                'upsell_url' => $plan['pages_upsell_url'] ?? null,
                 'order_bumps'   => $bumps,
+                'pages_upsell_succes_url' => $plan['pages_upsell_succes_url'] ?? null,
+                'pages_upsell_fail_url' => $plan['pages_upsell_fail_url'] ?? null,
+                'pages_downsell_url' => $plan['pages_downsell_url'] ?? null,
             ];
         }
         return $result;

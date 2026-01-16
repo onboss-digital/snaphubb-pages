@@ -22,8 +22,7 @@ class PagePay extends Component
         
         
         $plans, $modalData, $product, $testimonials = [],
-        $utm_source, $utm_medium, $utm_campaign, $utm_id, $utm_term, $utm_content, $src, $sck,
-        $usingPixMock = true;  // MODO TESTE ATIVADO
+        $utm_source, $utm_medium, $utm_campaign, $utm_id, $utm_term, $utm_content, $src, $sck;
 
     public $selectedPaymentMethod = 'credit_card';
     public $selectedLanguage = 'br';
@@ -66,6 +65,18 @@ class PagePay extends Component
     {
         Log::info("updatedSelectedPaymentMethod: Método alterado para '{$value}'");
 
+        // Garantir que temos planos carregados e que o selectedPlan existe
+        if (empty($this->plans)) {
+            $this->plans = $this->getPlans();
+        }
+        if (!isset($this->plans[$this->selectedPlan]) && !empty($this->plans)) {
+            $first = array_key_first($this->plans);
+            if ($first) {
+                $this->selectedPlan = $first;
+                Log::info('updatedSelectedPaymentMethod: selectedPlan ajustado para primeira opção disponível', ['selectedPlan' => $this->selectedPlan]);
+            }
+        }
+
         // Validar se plano selecionado suporta este método
         if (!$this->planSupportsPaymentMethod($this->selectedPlan, $value)) {
             $this->addError(
@@ -76,6 +87,30 @@ class PagePay extends Component
                 'plan' => $this->selectedPlan,
                 'method' => $value,
             ]);
+
+            // If PIX is not supported, force-switch back to credit card and recalc totals
+            if ($value === 'pix') {
+                Log::info('updatedSelectedPaymentMethod: PIX não suportado, revertendo para credit_card', ['plan' => $this->selectedPlan]);
+                $this->selectedPaymentMethod = 'credit_card';
+                try {
+                    $this->loadBumpsByMethod('card');
+                } catch (\Throwable $e) {
+                    Log::warning('updatedSelectedPaymentMethod: falha ao carregar bumps de card fallback', ['error' => $e->getMessage()]);
+                }
+                $this->setCardTotals($this->selectedPlan);
+            } else {
+                // Mesmo que o backend marque o plano como não suportando cartão,
+                // atualizamos os totals exibidos para evitar que a UI continue
+                // mostrando o preço do PushinPay quando o usuário seleciona 'cartão'.
+                try {
+                    $this->loadBumpsByMethod('card');
+                } catch (\Throwable $e) {
+                    Log::warning('updatedSelectedPaymentMethod: falha ao carregar bumps de card fallback', ['error' => $e->getMessage()]);
+                }
+
+                $this->setCardTotals($this->selectedPlan);
+            }
+
             return;
         }
 
@@ -93,7 +128,8 @@ class PagePay extends Component
         } else {
             // Se voltar para cartão de crédito, carregar bumps de cartão
             $this->loadBumpsByMethod('card');
-            $this->calculateTotals();
+            // Force totals to use admin 'price' for card flows
+            $this->setCardTotals($this->selectedPlan);
             // Limpar o estado salvo
             $this->lastBumpsState = [];
         }
@@ -210,8 +246,22 @@ class PagePay extends Component
             $this->debug();
         }
 
-        // Detecta idioma do middleware (travado na sessão)
-        $this->selectedLanguage = session('user_language', config('app.locale', 'br'));
+        // Detecta idioma: preferir valor em sessão, senão usar Accept-Language do request
+        $sessionLang = session('user_language', null);
+        if ($sessionLang) {
+            $this->selectedLanguage = $sessionLang;
+        } else {
+            $preferred = request()->getPreferredLanguage(['br', 'en', 'es']);
+            $code = strtolower(substr((string)$preferred, 0, 2));
+            $map = [
+                'pt' => 'br',
+                'br' => 'br',
+                'es' => 'es',
+                'en' => 'en',
+            ];
+            $this->selectedLanguage = $map[$code] ?? config('app.locale', 'br');
+            session()->put('user_language', $this->selectedLanguage);
+        }
         app()->setLocale($this->selectedLanguage);
 
         // Sincroniza moeda com idioma
@@ -220,24 +270,162 @@ class PagePay extends Component
         $this->testimonials = trans('checkout.testimonials') ?? [];
         
         // Sempre carregar planos da API Stripe para o cartão de crédito
-        $this->plans = $this->getPlans();
+            $this->plans = $this->getPlans(); // Always load plans from the API for credit card
+
+            // Recalcular totals com os planos recarregados para garantir parity entre UI e payload
+            try {
+                $this->calculateTotals();
+                Log::info('PagePay::mount: totals recalculados após reload de planos', ['totals' => $this->totals]);
+            } catch (\Exception $e) {
+                Log::warning('PagePay::mount: falha ao recalcular totals', ['error' => $e->getMessage()]);
+            }
+
+        // Log available plan keys for debugging missing-plan issues
+        try {
+            Log::info('PagePay::mount - available plan keys', ['keys' => is_array($this->plans) ? array_keys($this->plans) : []]);
+        } catch (\Throwable $e) {
+            Log::warning('PagePay::mount - failed to log plan keys', ['error' => $e->getMessage()]);
+        }
+
+        // Se o plano selecionado padrão não existir no conjunto retornado,
+        // usar a primeira chave disponível para evitar valores vazios na UI.
+        if (!isset($this->plans[$this->selectedPlan]) && !empty($this->plans)) {
+            $first = array_key_first($this->plans);
+            if ($first) {
+                $this->selectedPlan = $first;
+                Log::info('PagePay::mount - selectedPlan ajustado para primeira opção disponível', ['selectedPlan' => $this->selectedPlan]);
+            }
+        }
         Log::info('PagePay::mount - Carregando planos da API Stripe');
-        
-        // Carregar Order Bumps da API
-        $this->loadBumps();
-        
+
         // Se idioma for Português (BR), selecionar PIX como método padrão
         if ($this->selectedLanguage === 'br') {
             $this->selectedPaymentMethod = 'pix';
             Log::info('PagePay: PIX selecionado automaticamente (idioma BR)');
         }
+
+        // Carregar order bumps do backend para o método atualmente selecionado
+        $this->loadBumpsByMethod($this->selectedPaymentMethod);
+
+        // Defensive: sempre garantir que bumps não venham pré-selecionados ao montar
+        if (is_array($this->bumps) && count($this->bumps) > 0) {
+            $onlyForPix = ($this->selectedPaymentMethod === 'pix');
+            $this->bumps = $this->sanitizeBumps($this->bumps, $onlyForPix);
+            $this->dataOrigin['bumps'] = $this->dataOrigin['bumps'] ?? 'db';
+        }
         
+        // Recuperar preferência do usuário, se existir
         $this->selectedPlan = Session::get('selectedPlan', 'monthly');
+
+        // Se o plano da sessão não existir entre os planos carregados, usar a primeira opção disponível
+        if (!isset($this->plans[$this->selectedPlan]) && !empty($this->plans)) {
+            $first = array_key_first($this->plans);
+            if ($first) {
+                $this->selectedPlan = $first;
+                Log::info('PagePay::mount - session selectedPlan not found, adjusted to first available', ['selectedPlan' => $this->selectedPlan]);
+            }
+        }
         $this->activityCount = rand(1, 50);
 
         // Update product details based on the selected plan
         $this->updateProductDetails();
-        $this->calculateTotals();
+        // If default method is credit_card, ensure totals reflect plan 'price' (Preço*)
+        if ($this->selectedPaymentMethod !== 'pix') {
+            $this->setCardTotals($this->selectedPlan);
+        } else {
+            $this->calculateTotals();
+        }
+    }
+
+    /**
+     * Force totals to use plan 'price' for card flows (Preço*)
+     */
+    private function setCardTotals(string $planKey)
+    {
+        $plan = $this->plans[$planKey] ?? null;
+        if (!$plan) {
+            Log::warning('setCardTotals: plan not found', ['plan' => $planKey]);
+            $this->totals = [];
+            return;
+        }
+
+        // Prefer explicit 'price' field (admin Preço*). Fallback to prices structure.
+        $currency = $this->selectedCurrency ?? 'BRL';
+        $base = 0.0;
+
+        // Primeiro, tentar resolver via Product External Id (unificação com upsell behavior)
+        $productExternalId = $plan['product_external_id'] ?? $plan['gateways']['stripe']['product_id'] ?? null;
+        if (!empty($productExternalId)) {
+            try {
+                $resolver = app(\App\Services\StripeProductResolver::class);
+                $resolved = $resolver->resolvePriceForProduct($productExternalId, $currency);
+                if (is_array($resolved) && isset($resolved['amount_cents'])) {
+                    $base = floatval($resolved['amount_cents']) / 100.0;
+                    Log::info('setCardTotals: using Stripe product lookup', ['product' => $productExternalId, 'amount' => $base, 'price_id' => $resolved['price_id'] ?? null]);
+                }
+            } catch (\Throwable $e) {
+                Log::warning('setCardTotals: stripe product lookup failed', ['error' => $e->getMessage(), 'product' => $productExternalId]);
+            }
+        }
+
+        // Se não obteve um valor via product lookup, usar campos locais do plano
+        if (empty($base) || $base == 0.0) {
+            if (isset($plan['price']) && $plan['price'] !== null && $plan['price'] !== '') {
+                // plan['price'] may come formatted (e.g., "24,90"), normalize
+                $base = floatval(str_replace(',', '.', str_replace('.', '', (string)$plan['price'])));
+            } elseif (isset($plan['prices'][$currency]['origin_price'])) {
+                $base = floatval($plan['prices'][$currency]['origin_price']);
+            } elseif (isset($plan['prices'][$currency]['descont_price'])) {
+                $base = floatval($plan['prices'][$currency]['descont_price']);
+            }
+        }
+
+
+        // Use numeric floats here; formatting happens in the Blade view
+        $months = intval($plan['nunber_months'] ?? 1) ?: 1;
+
+        // Start from base plan price
+        $finalPrice = round($base, 2);
+
+        // Add active bumps (support multiple shapes: 'price', 'original_price', 'amount')
+        foreach ($this->bumps as $bump) {
+            $isActive = false;
+            if (is_array($bump)) {
+                $isActive = !empty($bump['active']) || (isset($bump['active']) && $bump['active'] === true);
+            } else {
+                $isActive = (bool)$bump;
+            }
+
+            if ($isActive) {
+                $bumpPrice = 0.0;
+                if (is_array($bump)) {
+                    if (isset($bump['price'])) {
+                        $bumpPrice = floatval($bump['price']);
+                    } elseif (isset($bump['original_price'])) {
+                        $bumpPrice = floatval($bump['original_price']);
+                    } elseif (isset($bump['amount'])) {
+                        $bumpPrice = floatval($bump['amount']);
+                    }
+                } else {
+                    $bumpPrice = floatval($bump);
+                }
+
+                $finalPrice += $bumpPrice;
+            }
+        }
+
+        $month_price = round($finalPrice / $months, 2);
+
+        $this->totals = [
+            'month_price' => $month_price,
+            'month_price_discount' => $month_price,
+            'total_price' => round($finalPrice, 2),
+            'final_price' => round($finalPrice, 2),
+            'total_discount' => 0.0,
+        ];
+
+        $this->dataOrigin['totals'] = 'backend';
+        Log::info('setCardTotals: totals set from plan price', ['plan' => $planKey, 'price' => $base]);
     }
 
     /**
@@ -265,10 +453,23 @@ class PagePay extends Component
     private function planSupportsPaymentMethod($planKey, $paymentMethod)
     {
         $plan = $this->plans[$planKey] ?? null;
-        
+
         if (!$plan) {
             Log::warning("planSupportsPaymentMethod: Plano não encontrado", ['planKey' => $planKey]);
-            return false;
+
+            // Se houver planos carregados, ajusta selectedPlan para a primeira opção disponível
+            if (!empty($this->plans)) {
+                $first = array_key_first($this->plans);
+                if ($first) {
+                    $this->selectedPlan = $first;
+                    $plan = $this->plans[$first] ?? null;
+                    Log::info('planSupportsPaymentMethod: selectedPlan ajustado para primeira opção disponível', ['selectedPlan' => $this->selectedPlan]);
+                }
+            }
+
+            if (!$plan) {
+                return false;
+            }
         }
 
         // Determinar qual gateway o método de pagamento usa
@@ -324,8 +525,14 @@ class PagePay extends Component
     {
         try {
             // Usar Model ao invés de HTTP request para evitar timeout
+            // Se os bumps já vieram da API do backend, não sobrescreve-los
+            if (($this->dataOrigin['bumps'] ?? null) === 'backend' && !empty($this->bumps)) {
+                Log::info('PagePay: loadBumps - bumps já provenientes do backend, mantendo os existentes', ['count' => count($this->bumps)]);
+                return;
+            }
+
             $this->bumps = \App\Models\OrderBump::getByPaymentMethod('card');
-            
+
             Log::info('PagePay: Order bumps carregados do banco', [
                 'count' => count($this->bumps),
             ]);
@@ -333,7 +540,11 @@ class PagePay extends Component
             Log::error('PagePay: Exceção ao carregar bumps', [
                 'error' => $e->getMessage(),
             ]);
-            $this->bumps = [];
+            // Não sobrescrever bumps já carregados pelo backend; se não houver nenhum, usar array vazio
+            if (empty($this->bumps)) {
+                $this->bumps = [];
+                $this->dataOrigin['bumps'] = 'fallback';
+            }
         }
     }
 
@@ -345,9 +556,10 @@ class PagePay extends Component
                 'Content-Type' => 'application/json'
             ];
 
+            $query = http_build_query(['lang' => $this->selectedLanguage]);
             $request = new Request(
                 'GET',
-                rtrim($this->apiUrl, '/') . '/get-plans',
+                rtrim($this->apiUrl, '/') . '/get-plans' . (!empty($query) ? "?{$query}" : ''),
                 $headers,
             );
 
@@ -366,7 +578,9 @@ class PagePay extends Component
 
             if ($response instanceof \Psr\Http\Message\ResponseInterface) {
                 $responseBody = $response->getBody()->getContents();
+                Log::info('PagePay::getPlans - raw response received', ['length' => strlen($responseBody)]);
                 $dataResponse = json_decode($responseBody, true);
+                Log::info('PagePay::getPlans - decoded response keys', ['is_array' => is_array($dataResponse), 'keys' => is_array($dataResponse) ? array_keys($dataResponse) : null]);
                 if (is_array($dataResponse) && !empty($dataResponse)) {
                     $this->paymentGateway = app(PaymentGatewayFactory::class)->create();
                     $result = $this->paymentGateway->formatPlans($dataResponse, $this->selectedCurrency);
@@ -376,8 +590,33 @@ class PagePay extends Component
 
                     if (isset($result[$this->selectedPlan]['order_bumps'])) {
                         $this->bumps = $result[$this->selectedPlan]['order_bumps'];
+                        // Only sanitize (prevent preselection) when current method is PIX
+                        $this->bumps = $this->sanitizeBumps($this->bumps, ($this->selectedPaymentMethod === 'pix'));
                         // ✅ Se bumps vêm da API, também marcar como backend
                         $this->dataOrigin['bumps'] = 'backend';
+
+                        // Filtrar bumps com preço inválido/zero para fluxos de cartão
+                        try {
+                            if (($this->selectedPaymentMethod ?? 'credit_card') !== 'pix' && is_array($this->bumps)) {
+                                $this->bumps = array_values(array_filter($this->bumps, function ($b) {
+                                    $price = 0.0;
+                                    if (is_array($b)) {
+                                        if (isset($b['price'])) {
+                                            $price = floatval($b['price']);
+                                        } elseif (isset($b['original_price'])) {
+                                            $price = floatval($b['original_price']);
+                                        } elseif (isset($b['amount'])) {
+                                            $price = floatval($b['amount']);
+                                        }
+                                    } else {
+                                        $price = floatval($b);
+                                    }
+                                    return $price > 0.0;
+                                }));
+                            }
+                        } catch (\Throwable $e) {
+                            Log::warning('PagePay: Falha ao filtrar bumps do backend', ['error' => $e->getMessage()]);
+                        }
                     } else {
                         $this->bumps = [];
                     }
@@ -386,74 +625,26 @@ class PagePay extends Component
                 }
             }
 
-            // If API returned nothing, use mock as fallback
-            Log::warning('PagePay: No plans available from API. Using mock as fallback.');
-            $mockPlansData = $this->getPlansFromMock();
-            
-            // ✅ Marcar como fallback já que não veio da API
+            // If API returned nothing, log and return empty plans (do NOT use local hardcoded mock)
+            Log::warning('PagePay: No plans available from API. Returning empty plans (mock disabled).');
             $this->dataOrigin['plans'] = 'fallback';
             $this->dataOrigin['bumps'] = 'fallback';
-            
-            // Format mock data same way as API
-            $this->paymentGateway = app(PaymentGatewayFactory::class)->create();
-            $formattedMock = $this->paymentGateway->formatPlans($mockPlansData, $this->selectedCurrency);
-            
-            return $formattedMock;
+            return [];
         } catch (\Exception $e) {
             Log::error('PagePay: Critical error in getPlans. Using mock as fallback.', [
                 'gateway' => $this->gateway,
                 'error' => $e->getMessage(),
             ]);
             
-            // ✅ Usar mock como fallback em caso de exceção
-            $mockPlansData = $this->getPlansFromMock();
-            
+            // On exception, do not load local mock data. Return empty plans instead.
+            Log::warning('PagePay: Exception while fetching plans, returning empty plans (mock disabled).');
             $this->dataOrigin['plans'] = 'fallback';
             $this->dataOrigin['bumps'] = 'fallback';
-            
-            // Format mock data same way as API
-            $this->paymentGateway = app(PaymentGatewayFactory::class)->create();
-            $formattedMock = $this->paymentGateway->formatPlans($mockPlansData, $this->selectedCurrency);
-            
-            return $formattedMock;
-        }
-    }
-
-    /**
-     * Carrega planos APENAS do arquivo MOCK para PIX
-     * PIX nunca deve chamar a API de planos - usa MOCK local
-     */
-    public function getPlansFromMock(): array
-    {
-        try {
-            $mockPath = resource_path('mock/get-plans.json');
-            
-            if (!file_exists($mockPath)) {
-                Log::error('PagePay: Mock file não encontrado', ['path' => $mockPath]);
-                return [];
-            }
-            
-            $mockJson = file_get_contents($mockPath);
-            $plansData = json_decode($mockJson, true);
-            
-            if (!is_array($plansData) || empty($plansData)) {
-                Log::error('PagePay: Mock file vazio ou inválido', ['path' => $mockPath]);
-                return [];
-            }
-            
-            Log::info('PagePay: Planos carregados do MOCK com sucesso', [
-                'count' => count($plansData),
-                'plans' => implode(', ', array_keys($plansData))
-            ]);
-            
-            return $plansData;
-        } catch (\Exception $e) {
-            Log::error('PagePay: Erro ao carregar MOCK', [
-                'error' => $e->getMessage()
-            ]);
             return [];
         }
     }
+
+    // getPlansFromMock removed — PIX flows use backend-only
 
     // calculateTotals, startCheckout, rejectUpsell, acceptUpsell remain largely the same
     // but sendCheckout and prepareCheckoutData will be modified.
@@ -474,16 +665,29 @@ class PagePay extends Component
         
         // 1. Verificamos se o plano selecionado realmente existe
         if (!isset($this->plans[$this->selectedPlan])) {
-            Log::error('Plano selecionado não encontrado.', [
-                'selected_plan' => $this->selectedPlan,
-                'available_plans' => implode(', ', array_keys($this->plans))
-            ]);
-            return;
+            // Tentativa de fallback para a primeira opção disponível
+            if (!empty($this->plans)) {
+                $first = array_key_first($this->plans);
+                Log::warning('calculateTotals: selectedPlan not found, switching to first available', ['requested' => $this->selectedPlan, 'switched_to' => $first]);
+                $this->selectedPlan = $first;
+            } else {
+                Log::error('Plano selecionado não encontrado e não há planos disponíveis.', [
+                    'selected_plan' => $this->selectedPlan,
+                    'available_plans' => implode(', ', array_keys($this->plans))
+                ]);
+                return;
+            }
         }
         $plan = $this->plans[$this->selectedPlan];
 
         // 2. Verificamos se existe um array de preços para o plano
-        if (!isset($plan['prices']) || !is_array($plan['prices'])) {
+            // If the selected method is NOT PIX (i.e., card), always force totals from plan (admin Preço*)
+            if ($this->selectedPaymentMethod !== 'pix') {
+                $this->setCardTotals($this->selectedPlan);
+                return;
+            }
+
+            if (!isset($plan['prices']) || !is_array($plan['prices'])) {
             Log::error('Array de preços não encontrado para o plano.', [
                 'plan' => $this->selectedPlan
             ]);
@@ -515,6 +719,67 @@ class PagePay extends Component
     $this->selectedCurrency = $availableCurrency;
     $prices = $plan['prices'][$this->selectedCurrency];
 
+    // Se o método selecionado for PIX e existe amount_override no gateway PushinPay,
+    // priorizamos esse valor como preço base do plano (single source for PIX).
+    $pushAmount = $plan['gateways']['pushinpay']['amount_override'] ?? null;
+    $pushSupported = (bool)($plan['gateways']['pushinpay']['supported'] ?? false);
+
+    // Diagnóstico: logar situação atual de seleção e presença de amount_override
+    Log::info('calculateTotals: diagnostic', [
+        'selectedPaymentMethod' => $this->selectedPaymentMethod,
+        'pushAmount' => $pushAmount,
+        'pushSupported' => $pushSupported,
+        'selectedCurrency' => $this->selectedCurrency,
+        'available_prices' => array_keys($plan['prices'] ?? []),
+    ]);
+
+    if ($this->selectedPaymentMethod === 'pix' && $pushAmount !== null && $pushSupported === true) {
+        $pushAmount = floatval($pushAmount);
+
+        $this->totals = [
+            'month_price' => $pushAmount / ($plan['nunber_months'] ?? 1),
+            'month_price_discount' => $pushAmount / ($plan['nunber_months'] ?? 1),
+            'total_price' => $pushAmount,
+            'total_discount' => 0,
+        ];
+
+        $finalPrice = $pushAmount;
+
+        foreach ($this->bumps as $bump) {
+            $isActive = false;
+            if (is_array($bump)) {
+                $isActive = !empty($bump['active']) || (isset($bump['active']) && $bump['active'] === true);
+            } else {
+                $isActive = (bool)$bump;
+            }
+
+            if ($isActive) {
+                $bumpPrice = null;
+                if (is_array($bump)) {
+                    if (isset($bump['price'])) {
+                        $bumpPrice = $bump['price'];
+                    } elseif (isset($bump['original_price'])) {
+                        $bumpPrice = $bump['original_price'];
+                    } elseif (isset($bump['amount'])) {
+                        $bumpPrice = $bump['amount'];
+                    }
+                } else {
+                    $bumpPrice = floatval($bump);
+                }
+
+                $finalPrice += floatval($bumpPrice ?? 0);
+            }
+        }
+
+        $this->totals['final_price'] = round(floatval($finalPrice), 2);
+        $this->totals = array_map(function ($value) {
+            return round(floatval($value), 2);
+        }, $this->totals);
+
+        $this->dataOrigin['totals'] = $this->dataOrigin['plans'];
+        return;
+    }
+
     // Daqui para baixo, o código original continua, pois agora temos certeza que a variável $prices existe
     $this->totals = [
         'month_price' => $prices['origin_price'] / $plan['nunber_months'],
@@ -526,15 +791,37 @@ class PagePay extends Component
     $finalPrice = $prices['descont_price'];
 
     foreach ($this->bumps as $bump) {
-        if (!empty($bump['active'])) {
-            $finalPrice += floatval($bump['price']);
+        $isActive = false;
+        if (is_array($bump)) {
+            $isActive = !empty($bump['active']) || (isset($bump['active']) && $bump['active'] === true);
+        } else {
+            $isActive = (bool)$bump;
+        }
+
+        if ($isActive) {
+            // Support multiple bump price shapes: 'price' (from gateway), 'original_price' (from DB), or fallback to 0
+            $bumpPrice = null;
+            if (is_array($bump)) {
+                if (isset($bump['price'])) {
+                    $bumpPrice = $bump['price'];
+                } elseif (isset($bump['original_price'])) {
+                    $bumpPrice = $bump['original_price'];
+                } elseif (isset($bump['amount'])) {
+                    $bumpPrice = $bump['amount'];
+                }
+            } else {
+                $bumpPrice = floatval($bump);
+            }
+
+            $finalPrice += floatval($bumpPrice ?? 0);
         }
     }
 
     $this->totals['final_price'] = $finalPrice;
 
+    // Keep numeric totals (float) for safe further processing and formatting in the view
     $this->totals = array_map(function ($value) {
-        return number_format(round($value, 2), 2, ',', '.');
+        return round(floatval($value), 2);
     }, $this->totals);
 
     // ✅ Se chegou aqui, totals foram calculados com dados válidos
@@ -637,7 +924,10 @@ class PagePay extends Component
             return; // Se houver erros, retorna sem mostrar loader
         }
 
-        // Proceed with credit card logic
+        // Proceed with credit card logic, ensuring totals are up-to-date
+
+        // Recalcular totals antes de iniciar o checkout
+        $this->calculateTotals();
         if ($this->cardNumber) {
             $this->cardNumber = preg_replace('/\D/', '', $this->cardNumber);
         }
@@ -830,23 +1120,62 @@ class PagePay extends Component
                 Log::warning('Could not dispatch browser event checkout-success: ' . $e->getMessage());
             }
 
-            if (isset($response['data']['redirect_url']) && !empty($response['data']['redirect_url'])) {
+                // Preferir URL de sucesso configurada no plano quando disponível
+                $plan = $this->plans[$this->selectedPlan] ?? null;
+                // Preferir a URL de upsell configurada diretamente no plano
+                // (campo `pages_upsell_url`) para redirecionamento após
+                // compra do produto principal. Em seguida, considerar outras
+                // variantes históricas/alternativas.
+                $possibleKeys = [
+                    'pages_upsell_url',
+                    'upsell_url',
+                    'pages_upsell_succes_url', // historical typo
+                    'pages_upsell_success_url', // alternative
+                    'pages_upsell_succes',
+                    'pages_upsell_success',
+                    'upsell_success_url',
+                ];
+
+                $planRedirect = null;
+                $chosenKey = null;
+                if ($plan && is_array($plan)) {
+                    foreach ($possibleKeys as $k) {
+                        if (!empty($plan[$k])) {
+                            $planRedirect = $plan[$k];
+                            $chosenKey = $k;
+                            break;
+                        }
+                    }
+                }
+
                 $customerId = $response['data']['customerId'] ?? null;
-                $upsell_productId = $response['data']['upsell_productId'] ?? null;
-                $redirectUrl = $response['data']['redirect_url'];
+                // Prefer plan-defined pages_upsell_product_external_id to ensure redirect carries the Stripe product id
+                $upsell_productId = $plan['pages_upsell_product_external_id'] ?? ($response['data']['upsell_productId'] ?? null);
 
-                // Construir a URL de redirecionamento com os parâmetros, se existirem
-                $queryParams = http_build_query(array_filter([
-                    'customerId' => $customerId,
-                    'upsell_productId' => $upsell_productId,
-                ]));
+                if (!empty($planRedirect)) {
+                    Log::info('sendCheckout: usando URL de sucesso do plano para redirecionamento', ['plan' => $this->selectedPlan, 'url' => $planRedirect, 'field' => $chosenKey]);
+                    $queryParams = http_build_query(array_filter([
+                        'customerId' => $customerId,
+                        'upsell_productId' => $upsell_productId,
+                    ]));
+                    return redirect()->to($planRedirect . (empty($queryParams) ? '' : '?' . $queryParams));
+                }
 
-                return redirect()->to($redirectUrl . '?' . $queryParams);
-            } else {
-                // Fallback para o caso de a URL de redirecionamento não estar no data
-                $redirectUrl = $response['redirect_url'] ?? "https://web.snaphubb.online/obg/";
+                // Caso não haja URL no plano, usar a URL retornada pelo gateway (se houver)
+                if (isset($response['data']['redirect_url']) && !empty($response['data']['redirect_url'])) {
+                    $redirectUrl = $response['data']['redirect_url'];
+                    Log::info('sendCheckout: nenhum URL do plano encontrado; usando redirect_url do gateway', ['redirect_url' => $redirectUrl]);
+                    $queryParams = http_build_query(array_filter([
+                        'customerId' => $customerId,
+                        'upsell_productId' => $upsell_productId,
+                    ]));
+                    return redirect()->to($redirectUrl . (empty($queryParams) ? '' : '?' . $queryParams));
+                }
+
+                // Último fallback: rota local padrão
+                $redirectUrl = $response['redirect_url'] ?? rtrim(config('app.url') ?? '', '/') . '/upsell/painel-das-garotas-card';
+                Log::warning('sendCheckout: nenhum redirect_url disponível; usando fallback local', ['fallback' => $redirectUrl]);
                 return redirect()->to($redirectUrl);
-            }
         } else {
             Log::error('PagePay: Payment failed via gateway.', [
                 'gateway' => get_class($this->paymentGateway),
@@ -856,6 +1185,15 @@ class PagePay extends Component
             if (!empty($response['errors'])) {
                 $errorMessage .= ' Details: ' . implode(', ', (array)$response['errors']);
             }
+
+            // Emit a Livewire event so the frontend can show a localized loader/failure message
+            try {
+                $redirect = $response['redirect_url'] ?? null;
+                $this->dispatch('checkout-failed', message: $errorMessage, redirect_url: $redirect);
+            } catch (\Throwable $_) {
+                // ignore
+            }
+
             $this->addError('payment', $errorMessage);
             // Potentially show a generic error modal or message on the page
             $this->showErrorModal = true;
@@ -932,6 +1270,10 @@ class PagePay extends Component
             'currency_code' => $this->selectedCurrency,
             'offer_hash' => $currentPlanDetails['hash'],
             'upsell_url' => $currentPlanDetails['upsell_url'] ?? null,
+            // Explicit plan URLs for success/failure (used by backend to redirect)
+            'upsell_success_url' => $currentPlanDetails['pages_upsell_succes_url'] ?? $currentPlanDetails['upsell_url'] ?? null,
+            'upsell_failed_url' => $currentPlanDetails['pages_upsell_fail_url'] ?? null,
+            'upsell_offer_refused_url' => $currentPlanDetails['pages_downsell_url'] ?? null,
             'payment_method' => $this->selectedPaymentMethod,
             'customer' => $customerData,
             'cart' => $cartItems,
@@ -951,6 +1293,26 @@ class PagePay extends Component
                 'sck' => $this->sck,
             ]
         ];
+
+        // Ensure we send the gateway product external id so server/gateway can resolve Stripe Price
+        $productExternal = $currentPlanDetails['product_external_id'] ?? $currentPlanDetails['gateways']['stripe']['product_id'] ?? null;
+        if (!empty($productExternal)) {
+            $baseData['metadata']['product_external_id'] = $productExternal;
+            Log::info('prepareCheckoutData: attaching product_external_id to metadata', ['product_external_id' => $productExternal]);
+        } else {
+            Log::warning('prepareCheckoutData: product_external_id not found in plan; gateway price resolution may fallback', ['plan' => $this->selectedPlan]);
+        }
+
+        // Attach upsell product external id when available so backend/gateway can
+        // resolve the correct Stripe product for upsell flows.
+        $upsellExternal = $currentPlanDetails['pages_upsell_product_external_id']
+            ?? $currentPlanDetails['pages_upsell_product_external']
+            ?? $currentPlanDetails['gateways']['stripe']['upsell_product_id']
+            ?? null;
+        if (!empty($upsellExternal)) {
+            $baseData['metadata']['upsell_product_external_id'] = $upsellExternal;
+            Log::info('prepareCheckoutData: attaching upsell_product_external_id to metadata', ['upsell_product_external_id' => $upsellExternal]);
+        }
 
         $baseData['payment_method_id'] = $this->paymentMethodId;
         $baseData['card'] = $cardDetails;
@@ -1018,47 +1380,39 @@ class PagePay extends Component
             return;
         }
 
-        // Validação de dados obrigatórios
-        $this->validate([
-            'email' => 'required|email',
-            'cardName' => 'required|string|max:255',
-        ], [
-            'email.required' => __('payment.email_required'),
-            'email.email' => __('payment.email_invalid'),
-            'cardName.required' => __('payment.card_name_required'),
-        ]);
+            // Validação de dados obrigatórios
+            // Permitir que o usuário preencha os campos do modal PIX (`pixEmail`, `pixName`)
+            // e mapear para os campos principais esperados pela lógica do checkout.
+            if (empty($this->email) && !empty($this->pixEmail)) {
+                $this->email = $this->pixEmail;
+            }
+            if (empty($this->cardName) && !empty($this->pixName)) {
+                $this->cardName = $this->pixName;
+            }
+
+            $this->validate([
+                'email' => 'required|email',
+                'cardName' => 'required|string|max:255',
+            ], [
+                'email.required' => __('payment.email_required'),
+                'email.email' => __('payment.email_invalid'),
+                'cardName.required' => __('payment.card_name_required'),
+            ]);
 
         try {
             // Limpa erros anteriores
             $this->pixError = null;
             $this->pixStatus = 'pending';
 
-            // Carregar dados do MOCK para calcular o preço do PIX
-            $mockPath = resource_path('mock/get-plans.json');
-            if (!file_exists($mockPath)) {
-                Log::error('generatePix: Mock não encontrado em ' . $mockPath);
-                $this->errorMessage = __('payment.plan_not_loaded') ?? 'Plano não disponível no momento. Tente novamente mais tarde.';
-                $this->showErrorModal = true;
-                $this->showProcessingModal = false;
-                return;
+            // Carregar planos do backend (sem utilizar mock local)
+            if (empty($this->plans) || !isset($this->plans[$this->selectedPlan])) {
+                $this->plans = $this->getPlans();
             }
 
-            $mockJson = file_get_contents($mockPath);
-            $mockData = json_decode($mockJson, true);
-            
-            if (!is_array($mockData) || empty($mockData)) {
-                Log::error('generatePix: Mock inválido (parse falhou ou vazio)');
-                $this->errorMessage = __('payment.plan_not_loaded') ?? 'Plano não disponível no momento. Tente novamente mais tarde.';
-                $this->showErrorModal = true;
-                $this->showProcessingModal = false;
-                return;
-            }
-
-            // Verificar se o plano selecionado existe no mock
-            if (!isset($mockData[$this->selectedPlan])) {
-                Log::error('generatePix: Plano não encontrado no mock', [
+            if (!isset($this->plans[$this->selectedPlan])) {
+                Log::error('generatePix: Plano não encontrado (backend)', [
                     'selectedPlan' => $this->selectedPlan,
-                    'available_plans' => array_keys($mockData)
+                    'available_plans' => array_keys($this->plans ?? [])
                 ]);
                 $this->errorMessage = __('payment.plan_not_loaded') ?? 'Plano não disponível no momento. Tente novamente mais tarde.';
                 $this->showErrorModal = true;
@@ -1066,10 +1420,9 @@ class PagePay extends Component
                 return;
             }
 
-            // Extrair dados do plano do mock
-            $plan = $mockData[$this->selectedPlan];
-            
-            // Procurar a moeda com preço disponível (prioridade: selecionada > BRL > USD)
+            $plan = $this->plans[$this->selectedPlan];
+
+            // Determinar moeda disponível
             $availableCurrency = null;
             if (isset($plan['prices'][$this->selectedCurrency])) {
                 $availableCurrency = $this->selectedCurrency;
@@ -1080,7 +1433,7 @@ class PagePay extends Component
             }
 
             if (!$availableCurrency) {
-                Log::error('generatePix: Nenhuma moeda válida encontrada no mock', [
+                Log::error('generatePix: Nenhuma moeda válida encontrada (backend)', [
                     'selectedPlan' => $this->selectedPlan,
                     'available_currencies' => array_keys($plan['prices'] ?? [])
                 ]);
@@ -1090,19 +1443,73 @@ class PagePay extends Component
                 return;
             }
 
-            // Calcular preço final
-            $prices = $plan['prices'][$availableCurrency];
-            $finalPrice = $prices['descont_price'];
+            // Always compute PIX amount from backend authoritative values:
+            // base = PushinPay amount_override (if supported) OR plan backend price
+            $pushAmount = $plan['gateways']['pushinpay']['amount_override'] ?? null;
+            $pushSupported = (bool)($plan['gateways']['pushinpay']['supported'] ?? false);
 
-            // Adicionar bumps se ativos
+            if ($pushAmount !== null && $pushSupported === true) {
+                $basePrice = floatval($pushAmount);
+            } else {
+                $prices = $plan['prices'][$availableCurrency];
+                $basePrice = floatval($prices['descont_price'] ?? $prices['origin_price'] ?? 0);
+            }
+
+            // Sum active bumps coming from backend for PIX flow
+            $bumpsTotal = 0.0;
             foreach ($this->bumps as $bump) {
-                if (!empty($bump['active'])) {
-                    $finalPrice += floatval($bump['price']);
+                $isActive = false;
+                if (is_array($bump)) {
+                    $isActive = !empty($bump['active']) || (isset($bump['active']) && $bump['active'] === true);
+                } else {
+                    $isActive = (bool)$bump;
+                }
+
+                if ($isActive) {
+                    // Only include bumps intended for PIX if a payment_method is present
+                    if (is_array($bump) && isset($bump['payment_method']) && $bump['payment_method'] !== 'pix') {
+                        continue;
+                    }
+
+                    $bumpPrice = 0.0;
+                    if (is_array($bump)) {
+                        if (isset($bump['price'])) {
+                            $bumpPrice = floatval($bump['price']);
+                        } elseif (isset($bump['original_price'])) {
+                            $bumpPrice = floatval($bump['original_price']);
+                        } elseif (isset($bump['amount'])) {
+                            $bumpPrice = floatval($bump['amount']);
+                        } elseif (isset($bump['value'])) {
+                            $bumpPrice = floatval($bump['value']);
+                        }
+                    } else {
+                        $bumpPrice = floatval($bump);
+                    }
+
+                    $bumpsTotal += $bumpPrice;
                 }
             }
 
-            // Calcula o valor final em centavos
-            $amountInCents = (int)round($finalPrice * 100);
+            $finalPrice = round($basePrice + $bumpsTotal, 2);
+
+            Log::info('generatePix: Valor calculado a partir do BACKEND (PushinPay + bumps)', [
+                'plan' => $this->selectedPlan,
+                'currency' => $availableCurrency,
+                'base_price' => $basePrice,
+                'bumps_total' => $bumpsTotal,
+                'final_price' => $finalPrice,
+            ]);
+
+            // Calcula o valor final em centavos (usar como fonte única antes de enviar)
+            $amountInCents = (int)round(floatval($finalPrice) * 100);
+
+            Log::info('generatePix: finalPrice resolved for PushinPay', [
+                'finalPrice' => $finalPrice,
+                'amountInCents' => $amountInCents,
+                'selectedPlan' => $this->selectedPlan,
+                'totals_final_price' => $this->totals['final_price'] ?? null,
+                'pushAmount' => $pushAmount,
+            ]);
 
             Log::channel('payment_checkout')->info('PagePay: Iniciando geração de PIX', [
                 'email' => $this->email,
@@ -1186,11 +1593,48 @@ class PagePay extends Component
             return;
         }
 
-        // Para Pushing Pay, confiamos no webhook para notificar o status
-        // Não há rota pública para consultar status individual
-        Log::debug('PagePay: Aguardando notificação via webhook do PIX', [
-            'payment_id' => $this->pixTransactionId,
-        ]);
+        try {
+            // Prefer server-side pix service to retrieve authoritative status
+            $result = null;
+
+            try {
+                $result = $this->pixService->getPaymentStatus($this->pixTransactionId);
+            } catch (\Throwable $e) {
+                Log::warning('PagePay: falha ao consultar PixService para status', ['error' => $e->getMessage(), 'payment_id' => $this->pixTransactionId]);
+            }
+
+            if (empty($result) || !is_array($result) || empty($result['data'])) {
+                Log::debug('PagePay: getPaymentStatus retornou sem dado útil', ['payment_id' => $this->pixTransactionId, 'result' => $result]);
+                return;
+            }
+
+            $status = strtolower($result['data']['status'] ?? ($result['data']['payment_status'] ?? ''));
+            Log::info('PagePay: checkPixPaymentStatus fetched status', ['payment_id' => $this->pixTransactionId, 'status' => $status]);
+
+            if (in_array($status, ['approved', 'paid', 'confirmed'], true)) {
+                $this->pixStatus = 'approved';
+                $this->handlePixApproved();
+                return;
+            }
+
+            if (in_array($status, ['declined', 'refused'], true)) {
+                $this->pixStatus = 'rejected';
+                $this->handlePixRejected();
+                return;
+            }
+
+            if (in_array($status, ['expired', 'expired_payment'], true)) {
+                $this->pixStatus = 'expired';
+                $this->handlePixExpired();
+                return;
+            }
+
+            // otherwise keep waiting
+            Log::debug('PagePay: checkPixPaymentStatus - status not terminal, keep waiting', ['payment_id' => $this->pixTransactionId, 'status' => $status]);
+
+        } catch (\Exception $e) {
+            Log::error('PagePay: Erro em checkPixPaymentStatus', ['error' => $e->getMessage(), 'payment_id' => $this->pixTransactionId]);
+        }
     }
 
     
@@ -1266,23 +1710,34 @@ class PagePay extends Component
 
         // **REDIRECIONAMENTO - CRITICAL SECTION**
         try {
-            $redirectUrl = url('/upsell/painel-das-garotas');
-            Log::info('PagePay: DISPATCHING REDIRECT', [
-                'url' => $redirectUrl,
-                'payment_id' => $this->pixTransactionId,
-            ]);
-            
-            $this->dispatch('redirect-success', url: $redirectUrl);
-            
-            Log::info('PagePay: REDIRECT DISPATCH SUCCESSFUL', [
-                'url' => $redirectUrl,
-            ]);
+            // Prefer plan-level upsell success URL when available
+            $redirectUrl = null;
+            $plan = $this->plans[$this->selectedPlan] ?? null;
+            if ($plan) {
+                $redirectUrl = $plan['pages_upsell_succes_url'] ?? $plan['upsell_success_url'] ?? $plan['upsell_url'] ?? null;
+            }
+
+            // For PIX flows we must NOT redirect to card-only upsell pages.
+            // Only redirect if the plan provides an explicit upsell/thank-you URL.
+            if (!empty($redirectUrl)) {
+                Log::info('PagePay: DISPATCHING REDIRECT (PIX)', [
+                    'url' => $redirectUrl,
+                    'payment_id' => $this->pixTransactionId,
+                ]);
+
+                $this->dispatch('redirect-success', url: $redirectUrl);
+
+                Log::info('PagePay: REDIRECT DISPATCH SUCCESSFUL (PIX)', [
+                    'url' => $redirectUrl,
+                ]);
+            } else {
+                Log::info('PagePay: No plan-level upsell URL for PIX; skipping redirect (card-only upsell pages are not used for PIX)');
+            }
         } catch (\Throwable $e) {
             Log::error('PagePay: REDIRECT DISPATCH FAILED', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
-            // Fallback: Try redirect via HTTP instead of Livewire
             throw $e;
         }
     }
@@ -1360,12 +1815,16 @@ class PagePay extends Component
     public function changeLanguage($lang)
     {
         if (array_key_exists($lang, $this->availableLanguages)) {
-            session(['locale' => $lang]);
+            // Persistir preferência do usuário e aplicar imediatamente
+            Session::put('user_language', $lang);
             app()->setLocale($lang);
             $this->selectedLanguage = $lang;
             $this->selectedCurrency = $lang === 'br' ? 'BRL'
                 : ($lang === 'en' ? 'USD'
                     : ($lang === 'es' ? 'EUR' : 'BRL'));
+
+            // Atualizar currency/session helper
+            $this->syncCurrencyWithLanguage();
             
             // Sempre carregar planos da API Stripe para o cartão
             $this->plans = $this->getPlans();
@@ -1404,6 +1863,54 @@ class PagePay extends Component
 
     public function render()
     {
+        // Diagnostic: log bumps state before rendering to help identify unexpected items
+        try {
+            Log::info('PagePay: rendering view - diagnostic bumps snapshot', [
+                'selectedPaymentMethod' => $this->selectedPaymentMethod ?? null,
+                'selectedPlan' => $this->selectedPlan ?? null,
+                'plans_loaded' => is_array($this->plans) ? array_keys($this->plans) : null,
+                'bumps_count' => is_array($this->bumps) ? count($this->bumps) : 0,
+                'bumps_sample' => array_slice(is_array($this->bumps) ? $this->bumps : [], 0, 5),
+            ]);
+            // Extra diagnostic: write full bumps state to payment_checkout log for reproduction
+            try {
+                Log::channel('payment_checkout')->info('PagePay: render - full bumps state', [
+                    'selectedPaymentMethod' => $this->selectedPaymentMethod ?? null,
+                    'selectedPlan' => $this->selectedPlan ?? null,
+                    'bumps' => is_array($this->bumps) ? $this->bumps : [],
+                ]);
+            } catch (\Throwable $_) {
+                // non-fatal if channel not configured
+            }
+        } catch (\Throwable $e) {
+            // non-fatal
+            Log::warning('PagePay: failed to log bumps diagnostic', ['error' => $e->getMessage()]);
+        }
+
+        // Safety: if PIX selected but PushinPay is not supported for this plan, hide bumps
+        try {
+            if (($this->selectedPaymentMethod ?? '') === 'pix') {
+                $supports = (bool) ($this->plans[$this->selectedPlan]['gateways']['pushinpay']['supported'] ?? false);
+                if ($supports === false) {
+                    $this->bumps = [];
+                    $this->dataOrigin['bumps'] = 'filtered';
+                    Log::info('PagePay: Hiding PIX bumps at render because PushinPay not supported for plan', ['selectedPlan' => $this->selectedPlan]);
+                }
+            }
+        } catch (\Throwable $e) {
+            Log::warning('PagePay: error checking pushinpay support at render', ['error' => $e->getMessage()]);
+        }
+
+        // Defensive: normalize bumps again at render time to avoid preselected UI state
+        try {
+            if (is_array($this->bumps) && count($this->bumps) > 0) {
+                $onlyForPix = ($this->selectedPaymentMethod === 'pix');
+                $this->bumps = $this->sanitizeBumps($this->bumps, $onlyForPix);
+            }
+        } catch (\Throwable $_) {
+            // non-fatal
+        }
+
         return view('livewire.page-pay')->with([
             'title' => 'CHECKOUT - SNAPHUBB',
             'canonical' => url()->current(),
@@ -1424,12 +1931,79 @@ class PagePay extends Component
     public function loadBumpsByMethod($method = 'card')
     {
         try {
-            // Usar Model ao invés de HTTP request para evitar timeout
-            $this->bumps = \App\Models\OrderBump::getByPaymentMethod($method);
+            // Preferir bumps vindos da API (quando o backend forneceu 'order_bumps' para o plano)
+            // Isso evita sobrescrever bumps ricos da API com registros locais possivelmente incompletos.
+            $usedSource = 'db';
+            if (($this->dataOrigin['plans'] ?? null) === 'backend'
+                && !empty($this->plans)
+                && isset($this->plans[$this->selectedPlan]['order_bumps'])
+                && $method !== 'pix') {
+                $this->bumps = $this->plans[$this->selectedPlan]['order_bumps'];
+                // Normalize to avoid preselected bumps from backend only when loading for PIX
+                $this->bumps = $this->sanitizeBumps($this->bumps, ($method === 'pix' || ($this->selectedPaymentMethod === 'pix')));
+                $this->dataOrigin['bumps'] = 'backend';
+                $usedSource = 'backend';
+            } else {
+                // Usar Model ao invés de HTTP request para evitar timeout
+                $this->bumps = \App\Models\OrderBump::getByPaymentMethod($method);
+                $this->dataOrigin['bumps'] = 'db';
+            }
+
+            // Filtrar bumps sem preço válido para fluxos de cartão (evita mostrar bump R$0,00)
+            try {
+                if ($method !== 'pix' && is_array($this->bumps)) {
+                    $this->bumps = array_values(array_filter($this->bumps, function ($b) {
+                        $price = 0.0;
+                        if (is_array($b)) {
+                            if (isset($b['price'])) {
+                                $price = floatval($b['price']);
+                            } elseif (isset($b['original_price'])) {
+                                $price = floatval($b['original_price']);
+                            } elseif (isset($b['amount'])) {
+                                $price = floatval($b['amount']);
+                            }
+                        } else {
+                            $price = floatval($b);
+                        }
+
+                        // If bumps come from backend API, allow zero-priced bumps if they explicitly exist (the API may intend them)
+                        if (($this->dataOrigin['bumps'] ?? null) === 'backend') {
+                            return true;
+                        }
+
+                        return $price > 0.0;
+                    }));
+                }
+            } catch (\Throwable $e) {
+                Log::warning('PagePay: Falha ao filtrar bumps por método', ['method' => $method, 'error' => $e->getMessage()]);
+            }
+
+            // Se for PIX, verificar se o plano selecionado suporta PushinPay (evita mostrar bump quando backend desativou)
+            if ($method === 'pix') {
+                try {
+                    $supports = null;
+                    if (!empty($this->plans) && isset($this->plans[$this->selectedPlan])) {
+                        $supports = (bool) ($this->plans[$this->selectedPlan]['gateways']['pushinpay']['supported'] ?? false);
+                    } else {
+                        // Tentar recarregar planos uma vez para checar suporte
+                        $this->plans = $this->getPlans();
+                        $supports = (bool) ($this->plans[$this->selectedPlan]['gateways']['pushinpay']['supported'] ?? false);
+                    }
+
+                    if ($supports === false) {
+                        Log::info('PagePay: PushinPay não suportado para o plano selecionado — ocultando bumps de PIX', ['selectedPlan' => $this->selectedPlan]);
+                        $this->bumps = [];
+                        $this->dataOrigin['bumps'] = 'filtered';
+                    }
+                } catch (\Throwable $e) {
+                    Log::warning('PagePay: Erro ao validar suporte PushinPay para bumps PIX', ['error' => $e->getMessage()]);
+                }
+            }
             
             Log::info('PagePay: Order bumps carregados para método', [
                 'method' => $method,
                 'count' => count($this->bumps),
+                'source' => $usedSource,
             ]);
         } catch (\Exception $e) {
             Log::error('PagePay: Exceção ao carregar bumps por método', [
@@ -1442,6 +2016,15 @@ class PagePay extends Component
 
     private function updateProductDetails()
     {
+        // Ensure selectedPlan exists in loaded plans; otherwise pick the first available
+        if (!empty($this->plans) && !isset($this->plans[$this->selectedPlan])) {
+            $first = array_key_first($this->plans);
+            if ($first) {
+                Log::warning('updateProductDetails: selectedPlan not found, switching to first available', ['requested' => $this->selectedPlan, 'switched_to' => $first]);
+                $this->selectedPlan = $first;
+            }
+        }
+
         if (isset($this->plans[$this->selectedPlan])) {
             $title = $this->plans[$this->selectedPlan]['label'] ?? '';
             $title = str_ireplace(['1/month', '1 mês', '1/mes'], '1x/mês', $title);
@@ -1466,6 +2049,45 @@ class PagePay extends Component
     }
 
     /**
+     * Normaliza a lista de bumps para evitar que venham pré-selecionados do backend.
+     * Sempre garante que o campo 'active' esteja definido como boolean false por padrão.
+     */
+    private function sanitizeBumps(array $bumps, bool $onlyForPix = false): array
+    {
+        return array_values(array_map(function ($b) use ($onlyForPix) {
+            if (!is_array($b)) {
+                return [
+                    'title' => (string)$b,
+                    'price' => 0.0,
+                    'active' => false,
+                ];
+            }
+
+            // Ensure other common keys exist to avoid undefined index issues in the view
+            if (!isset($b['price'])) $b['price'] = isset($b['original_price']) ? $b['original_price'] : 0.0;
+            if (!isset($b['title'])) $b['title'] = $b['name'] ?? '';
+            if (!isset($b['id'])) $b['id'] = $b['id'] ?? null;
+
+            // If caller requested sanitize only for PIX, then only force active=false
+            // for bumps that target PIX; otherwise preserve existing 'active' value.
+            if ($onlyForPix) {
+                $paymentMethod = $b['payment_method'] ?? 'card';
+                if (strtolower($paymentMethod) === 'pix') {
+                    $b['active'] = false;
+                } else {
+                    // keep whatever server or DB intended for non-pix bumps
+                    $b['active'] = isset($b['active']) ? (bool)$b['active'] : false;
+                }
+            } else {
+                // Default behaviour: do not alter 'active' state except ensure boolean
+                $b['active'] = isset($b['active']) ? (bool)$b['active'] : false;
+            }
+
+            return $b;
+        }, $bumps));
+    }
+
+    /**
      * Prepara dados do PIX sincronizados com o Stripe
      * Reutiliza o mesmo valor e estrutura de carrinho
      * PIX sempre usa $this->plans que já vem do MOCK no mount()
@@ -1484,22 +2106,127 @@ class PagePay extends Component
         // 1. EXTRAIR VALOR DOS PLANOS MOCK
         $currentPlanDetails = $this->plans[$this->selectedPlan];
         
-        if (!isset($currentPlanDetails['prices'][$this->selectedCurrency])) {
-            Log::error('preparePIXData: Moeda não encontrada', [
+        // Se não houver preços definidos nem suporte PushinPay, falha
+        if (!isset($currentPlanDetails['prices'][$this->selectedCurrency]) && !isset($currentPlanDetails['gateways']['pushinpay'])) {
+            Log::error('preparePIXData: Moeda não encontrada nem gateway PushinPay configurado', [
                 'plan' => $this->selectedPlan,
                 'currency' => $this->selectedCurrency,
                 'available_currencies' => array_keys($currentPlanDetails['prices'] ?? [])
             ]);
             throw new \Exception('Moeda não disponível para este plano');
         }
-        
-        $currentPlanPriceInfo = $currentPlanDetails['prices'][$this->selectedCurrency];
-        $numeric_final_price = floatval($currentPlanPriceInfo['descont_price']);
-        
-        Log::info('preparePIXData: Valor calculado do MOCK', [
+
+        // Determinar preço base do plano para PIX — priorizar valor do PushinPay (backend)
+        $pushGateway = $currentPlanDetails['gateways']['pushinpay'] ?? null;
+        $pushSupported = (bool)($pushGateway['supported'] ?? false);
+        $pushAmountOverride = $pushGateway['amount_override'] ?? null;
+
+        // Extra: garantir que o fluxo PIX sempre utilize explicitamente o preço
+        // provido pelo BACKEND/PushinPay. Se não houver `amount_override` na
+        // estrutura já formatada, tentamos buscar diretamente do endpoint
+        // backend `/get-plans` para localizar qualquer `amount_override` que
+        // o backend possa expor (evita usar valores vindos do Stripe).
+        if ($pushSupported && $pushAmountOverride === null) {
+            try {
+                $url = rtrim($this->apiUrl, '/') . '/get-plans?lang=' . ($this->selectedLanguage ?? 'br');
+                $resp = $this->httpClient->request('GET', $url, [
+                    'headers' => [
+                        'Accept' => 'application/json',
+                    ],
+                ]);
+                $raw = json_decode($resp->getBody()->getContents(), true);
+
+                $found = null;
+                // backend may return either an array under 'data' or an associative map
+                if (is_array($raw) && isset($raw['data']) && is_array($raw['data'])) {
+                    foreach ($raw['data'] as $p) {
+                        if ((isset($p['identifier']) && $p['identifier'] == $this->selectedPlan)
+                            || (isset($p['pages_product_external_id']) && $p['pages_product_external_id'] == ($currentPlanDetails['hash'] ?? null))
+                            || (isset($p['external_id']) && $p['external_id'] == ($currentPlanDetails['hash'] ?? null))) {
+                            $found = $p;
+                            break;
+                        }
+                    }
+                } elseif (is_array($raw) && isset($raw[$this->selectedPlan])) {
+                    $found = $raw[$this->selectedPlan];
+                }
+
+                if ($found) {
+                    // Possíveis formatos: gateways.pushinpay.amount_override ou pushinpay_amount_override
+                    $gw = $found['gateways']['pushinpay'] ?? ($found['gateways']['push'] ?? null);
+                    $bp = null;
+                    if (is_array($gw) && isset($gw['amount_override'])) {
+                        $bp = $gw['amount_override'];
+                    } elseif (isset($found['pushinpay_amount_override'])) {
+                        $bp = $found['pushinpay_amount_override'];
+                    }
+                    if (!is_null($bp) && $bp !== '') {
+                        $pushAmountOverride = floatval($bp);
+                        Log::info('preparePIXData: Obtained pushinpay override from backend API', ['plan' => $this->selectedPlan, 'override' => $pushAmountOverride]);
+                    }
+                }
+            } catch (\Throwable $e) {
+                Log::warning('preparePIXData: failed to fetch pushinpay override from backend', ['error' => $e->getMessage()]);
+            }
+        }
+
+        if ($pushSupported && $pushAmountOverride !== null) {
+            $basePrice = floatval($pushAmountOverride);
+            Log::info('preparePIXData: usando amount_override do PushinPay como base', ['base_price' => $basePrice]);
+        } else {
+            $currentPlanPriceInfo = $currentPlanDetails['prices'][$this->selectedCurrency] ?? null;
+            if ($currentPlanPriceInfo && isset($currentPlanPriceInfo['descont_price'])) {
+                $basePrice = floatval($currentPlanPriceInfo['descont_price']);
+                Log::info('preparePIXData: usando preço do plano como base', ['base_price' => $basePrice]);
+            } else {
+                Log::error('preparePIXData: Nenhum preço base encontrado para o plano', ['plan' => $this->selectedPlan]);
+                throw new \Exception('Preço base do plano não encontrado');
+            }
+        }
+
+        // Garantir que os bumps venham da fonte correta (carregados por loadBumpsByMethod('pix'))
+        // Sanitizar bumps especificamente para o fluxo PIX para evitar inclusão indevida
+        $bumpsToUse = [];
+        try {
+            $bumpsToUse = $this->sanitizeBumps(is_array($this->bumps) ? $this->bumps : [], true);
+        } catch (\Throwable $_) {
+            $bumpsToUse = is_array($this->bumps) ? $this->bumps : [];
+        }
+
+        $bumpsTotal = 0.0;
+        foreach ($bumpsToUse as $bump) {
+            $active = false;
+            if (is_array($bump)) {
+                $active = !empty($bump['active']) || (isset($bump['active']) && $bump['active'] === true) || ($bump['selected'] ?? false);
+            } else {
+                $active = (bool)$bump;
+            }
+
+            if ($active) {
+                $bumpPrice = 0.0;
+                if (is_array($bump)) {
+                    if (isset($bump['price'])) {
+                        $bumpPrice = floatval($bump['price']);
+                    } elseif (isset($bump['original_price'])) {
+                        $bumpPrice = floatval($bump['original_price']);
+                    } elseif (isset($bump['amount'])) {
+                        $bumpPrice = floatval($bump['amount']);
+                    } elseif (isset($bump['value'])) {
+                        $bumpPrice = floatval($bump['value']);
+                    }
+                } else {
+                    $bumpPrice = floatval($bump);
+                }
+                $bumpsTotal += $bumpPrice;
+            }
+        }
+
+        $numeric_final_price = round($basePrice + $bumpsTotal, 2);
+        Log::info('preparePIXData: Valor calculado a partir do BACKEND (PushinPay + bumps)', [
             'plan' => $this->selectedPlan,
-            'currency' => $this->selectedCurrency,
-            'price' => $numeric_final_price,
+            'base_price' => $basePrice,
+            'bumps_total' => $bumpsTotal,
+            'final_price' => $numeric_final_price,
             'amount_cents' => (int)round($numeric_final_price * 100)
         ]);
         
@@ -1520,7 +2247,7 @@ class PagePay extends Component
         $cartItems[] = [
             'product_hash' => $currentPlanDetails['hash'],
             'title' => $this->product['title'] . ' - ' . $currentPlanDetails['label'],
-            'price' => (int)round(floatval($currentPlanPriceInfo['descont_price']) * 100),
+            'price' => (int)round($basePrice * 100), // base item price (without bumps)
             'quantity' => 1,
             'operation_type' => 1,
         ];
@@ -1567,11 +2294,42 @@ class PagePay extends Component
         try {
             // Limpar mensagem de validação anterior
             $this->pixValidationError = null;
-            
-            // IMPORTANTE: Recarregar planos do MOCK para PIX
-            // (pois na blade o cartão usa API, mas PIX precisa do mock)
-            $this->plans = $this->getPlansFromMock();
-            Log::info('generatePixPayment: Recarregando planos do MOCK para PIX');
+            // IMPORTANTE: Recarregar planos do BACKEND para PIX (mock disabled)
+            $this->plans = $this->getPlans();
+            Log::info('generatePixPayment: Recarregando planos do BACKEND para PIX');
+
+            // Garantir que os bumps venham do BACKEND para o fluxo de PIX
+            try {
+                $this->loadBumpsByMethod('pix');
+                Log::info('generatePixPayment: bumps carregados para PIX', ['source' => $this->dataOrigin['bumps'] ?? null, 'count' => count($this->bumps ?? [])]);
+                // Sanitizar bumps para fluxo PIX (forçar active=false em bumps que não devem ser pré-selecionados)
+                try {
+                    $this->bumps = $this->sanitizeBumps(is_array($this->bumps) ? $this->bumps : [], true);
+                } catch (\Throwable $_) {
+                    // ignore sanitize failures, fall back to original bumps
+                }
+
+                // Log bumps state to payment_checkout for immediate inspection (sanitized)
+                try {
+                    Log::channel('payment_checkout')->info('generatePixPayment: bumps after loadBumpsByMethod (sanitized)', [
+                        'selectedPlan' => $this->selectedPlan ?? null,
+                        'selectedPaymentMethod' => $this->selectedPaymentMethod ?? null,
+                        'bumps' => is_array($this->bumps) ? $this->bumps : [],
+                    ]);
+                } catch (\Throwable $_) {
+                    // ignore if channel not present
+                }
+            } catch (\Exception $e) {
+                Log::warning('generatePixPayment: falha ao carregar bumps para PIX', ['error' => $e->getMessage()]);
+            }
+
+            // Recalcular totals com os planos recarregados para garantir parity entre UI e payload
+            try {
+                $this->calculateTotals();
+                Log::info('generatePixPayment: totals recalculados após reload de planos', ['totals' => $this->totals]);
+            } catch (\Exception $e) {
+                Log::warning('generatePixPayment: falha ao recalcular totals', ['error' => $e->getMessage()]);
+            }
             
             // Validar dados obrigatórios do PIX
             $hasErrors = false;
@@ -1604,6 +2362,16 @@ class PagePay extends Component
 
             // Preparar dados do PIX sincronizados com Stripe
             $pixData = $this->preparePIXData();
+
+            // Diagnostic: log the pixData and bumps right before sending to backend
+            try {
+                Log::channel('payment_checkout')->info('generatePixPayment: prepared pixData (before send)', [
+                    'pixData' => $pixData,
+                    'bumps' => is_array($this->bumps) ? $this->bumps : [],
+                ]);
+            } catch (\Throwable $_) {
+                // ignore if logging channel isn't configured
+            }
 
             if ($pixData['amount'] <= 0) {
                 $this->errorMessage = __('payment.invalid_amount');

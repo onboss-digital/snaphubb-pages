@@ -90,6 +90,30 @@ $gateway = config('services.default_payment_gateway', 'stripe');
         /* Always visible on mobile */
         transition: none;
     }
+    /* Price origin indicators */
+    .price-fallback { color: #00F5D4 !important; }
+    /* When totals come from backend, show them in green to indicate authoritative price */
+    .price-backend { color: #34D399 !important; }
+    .animate-fallback-pulse { animation: fallbackPulse 1.6s ease-in-out infinite; }
+    @keyframes fallbackPulse {
+        0% { opacity: 1; }
+        50% { opacity: 0.85; }
+        100% { opacity: 1; }
+    }
+    /* Order bump PIX description responsiveness */
+    .bump-card-pix .bump-desc {
+        white-space: normal;
+        overflow: hidden;
+        display: -webkit-box;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2; /* mobile default: 2 lines */
+    }
+    @media (min-width: 768px) {
+        .bump-card-pix .bump-desc { -webkit-line-clamp: 3; }
+    }
+    @media (min-width: 1024px) {
+        .bump-card-pix .bump-desc { -webkit-line-clamp: 4; }
+    }
 </style>
 <script type="text/javascript">
     (function(c, l, a, r, i, t, y) {
@@ -305,6 +329,20 @@ document.addEventListener('DOMContentLoaded', function(){
 
 
 <div>
+        <!-- Loader overlay (now controlled by Livewire state: $isProcessingCard || $showProcessingModal)
+            Uses opacity transition for subtle darkening effect. -->
+        <div id="payment-loader" class="fixed inset-0 z-50 flex items-center justify-center bg-black text-white px-4 {{ ($isProcessingCard || $showProcessingModal) ? 'opacity-100' : 'opacity-0 pointer-events-none' }}" style="backdrop-filter: blur(4px); background-color: rgba(0,0,0,0.6); transition: opacity 260ms ease;">
+        <div class="max-w-md w-full text-center p-6 rounded-lg bg-gray-900 border border-gray-800">
+            <div id="payment-loader-icon" class="mb-4">
+                <svg class="mx-auto animate-spin h-10 w-10 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+                </svg>
+            </div>
+            <h2 id="payment-loader-title" class="text-lg font-semibold">{{ $loadingMessage ?? __('payment.processing_payment') }}</h2>
+            <p id="payment-loader-sub" class="text-sm text-gray-300 mt-2">{{ $loadingMessage ? '' : 'Isso pode levar alguns segundos.' }}</p>
+        </div>
+    </div>
     <div class="container mx-auto px-4 py-8 max-w-4xl pb-24 md:pb-8">
 
         <!-- Header -->
@@ -317,6 +355,21 @@ document.addEventListener('DOMContentLoaded', function(){
 
 
                 <img class="img-fluid logo" src="{{ $logo }}" alt="streamit">
+                <div class="ml-4">
+                    <div x-data="{open:false}" class="relative inline-block text-left">
+                        <button @click.prevent="open = !open" type="button" class="inline-flex items-center px-3 py-1 rounded bg-gray-800 border border-gray-700 text-sm text-white">
+                            {{ $availableLanguages[$selectedLanguage] ?? 'Português' }}
+                            <svg class="w-3 h-3 ml-2" viewBox="0 0 20 20" fill="currentColor"><path d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 011.08 1.04l-4.25 4.25a.75.75 0 01-1.08 0L5.21 8.27a.75.75 0 01.02-1.06z"/></svg>
+                        </button>
+                        <div x-show="open" @click.away="open=false" x-cloak class="origin-top-right absolute right-0 mt-2 w-40 rounded-md shadow-lg bg-gray-900 border border-gray-700 z-50">
+                            <div class="py-1">
+                                @foreach($availableLanguages as $code => $label)
+                                    <a href="#" wire:click.prevent="changeLanguage('{{ $code }}')" class="block px-4 py-2 text-sm text-white hover:bg-gray-800">{{ $label }}</a>
+                                @endforeach
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             @php
@@ -364,6 +417,149 @@ document.addEventListener('DOMContentLoaded', function(){
         </header>
         <form accept="" method="POST" id="payment-form">
             @csrf
+            <script>
+                (function(){
+                    function el(sel){return document.querySelector(sel)}
+                    var formReady = function(){
+                        var form = el('#payment-form');
+                        var loader = el('#payment-loader');
+                        var title = el('#payment-loader-title');
+                        var sub = el('#payment-loader-sub');
+                        var lang = '{{ $selectedLanguage ?? 'br' }}';
+                        var strings = {
+                            processing: {br: 'Aguarde, estamos processando o pagamento…', en: 'Please wait, processing payment…', es: 'Aguarde, estamos processando el pago…'},
+                            success: {br: 'Parabéns! Compra aprovada.', en: 'Success! Payment approved.', es: '¡Felicidades! Compra aprobada.'},
+                            failed: {br: 'Pagamento não aprovado. Verifique os dados e tente novamente.', en: 'Payment failed. Please verify details and try again.', es: 'Pago no aprobado. Verifique y vuelva a intentar.'}
+                        };
+                        var loaderShownAt = null;
+                        var MIN_LOADER_MS = 3000; // mostrar loader no mínimo 3s
+                        var CONFIRMATION_MS = 2000; // mostrar mensagem de confirmação por ~2s
+
+                        function show(key){ if (!loader) return; title.textContent = strings[key][lang] || strings[key]['br']; sub.style.display='block'; loader.classList.remove('hidden'); document.body.classList.add('overflow-hidden'); loaderShownAt = Date.now(); }
+                        function update(key){ if (!loader) return; title.textContent = strings[key][lang] || strings[key]['br']; }
+                        function hide(){ if (!loader) return; loader.classList.add('hidden'); document.body.classList.remove('overflow-hidden'); loaderShownAt = null; }
+
+                        function whenMinLoaderElapsed(callback){
+                            if (!loaderShownAt) return callback();
+                            var elapsed = Date.now() - loaderShownAt;
+                            var wait = Math.max(0, MIN_LOADER_MS - elapsed);
+                            setTimeout(callback, wait);
+                        }
+
+                        // NOTE: Overlay visibility is now controlled by Livewire server state
+                        // (variables: $isProcessingCard, $showProcessingModal). We intentionally
+                        // do not auto-show the overlay on form submit/click to avoid duplicate
+                        // UX when the inline button spinner is used.
+                        var checkoutBtn = document.getElementById('checkout-button');
+                        var paymentLoader = document.getElementById('payment-loader');
+                        var paymentLoaderTitle = document.getElementById('payment-loader-title');
+                        if (checkoutBtn && paymentLoader) {
+                            // Reusable validation function for credit-card flow
+                            function validateCardForm() {
+                                try {
+                                    var selected = (document.querySelector('input[name="payment_method"]:checked') || {}).value || '';
+                                    if (selected !== 'credit_card') return { ok: true };
+
+                                    var cardName = (document.querySelector('input[name="card_name"]') || {}).value || '';
+                                    var email = (document.querySelector('input[name="email"]') || {}).value || '';
+                                    var cardNumberEl = document.getElementById('card-number');
+                                    var paymentMethodIdEl = document.getElementById('payment-method-id');
+
+                                    var emailValid = /\S+@\S+\.\S+/.test(email);
+                                    var hasCardNumber = false;
+
+                                    if (cardNumberEl) {
+                                        var v = cardNumberEl.value.replace(/\s+/g, '');
+                                        hasCardNumber = v.length >= 12;
+                                    } else if (paymentMethodIdEl) {
+                                        hasCardNumber = (paymentMethodIdEl.value || '').length > 5;
+                                    }
+
+                                    if (!cardName.trim() || !emailValid || !hasCardNumber) {
+                                        return { ok: false, msg: 'Preencha os campos obrigatórios do cartão: número do cartão, nome impresso no cartão e e-mail.' };
+                                    }
+                                    return { ok: true };
+                                } catch (err) { return { ok: false, msg: 'Erro de validação' }; }
+                            }
+
+                            function handleCheckoutClick(e) {
+                                try {
+                                    var res = validateCardForm();
+                                    if (!res.ok) {
+                                        e.stopImmediatePropagation();
+                                        e.preventDefault();
+                                        var msg = res.msg || 'Preencha os campos obrigatórios do cartão.';
+                                        try {
+                                            var previous = document.getElementById('client-card-validation-msg');
+                                            if (previous) previous.remove();
+                                            if (paymentLoaderTitle && paymentLoaderTitle.parentNode) {
+                                                var div = document.createElement('div');
+                                                div.id = 'client-card-validation-msg';
+                                                div.style.color = '#ffd1d1';
+                                                div.style.fontSize = '13px';
+                                                div.style.marginTop = '8px';
+                                                div.textContent = msg;
+                                                paymentLoaderTitle.parentNode.appendChild(div);
+                                                setTimeout(function(){ try{ div.remove(); }catch(e){} }, 6000);
+                                            } else {
+                                                alert(msg);
+                                            }
+                                        } catch (err) { alert(msg); }
+                                        return;
+                                    }
+
+                                    if (!paymentLoader.classList.contains('opacity-0')) return;
+                                    paymentLoader.classList.remove('opacity-0','pointer-events-none');
+                                    paymentLoader.classList.add('opacity-100');
+                                    if (paymentLoaderTitle) {
+                                        paymentLoaderTitle.textContent = '{{ addslashes(__('payment.processing_payment')) }}';
+                                    }
+                                } catch (err) { /* ignore */ }
+                            }
+
+                            // Attach to main and sticky checkout buttons (capture to run before Livewire)
+                            checkoutBtn.addEventListener('click', handleCheckoutClick, true);
+                            var sticky = document.getElementById('sticky-checkout-button');
+                            if (sticky) sticky.addEventListener('click', handleCheckoutClick, true);
+                        }
+
+                        if (window.Livewire) {
+                            Livewire.on('checkout-success', function(payload){
+                                try{
+                                    whenMinLoaderElapsed(function(){
+                                        update('success');
+                                        // aguardar confirmação e então redirecionar/ocultar
+                                        setTimeout(function(){
+                                            if (payload && payload.redirect_url) {
+                                                window.location.href = payload.redirect_url;
+                                            } else {
+                                                hide();
+                                            }
+                                        }, CONFIRMATION_MS);
+                                    });
+                                }catch(e){ hide(); }
+                            });
+
+                            Livewire.on('checkout-failed', function(payload){ 
+                                try{
+                                    whenMinLoaderElapsed(function(){
+                                        title.textContent = (payload && payload.message) ? payload.message : strings.failed[lang];
+                                        // após mensagem de erro, redireciona se informado ou esconde
+                                        setTimeout(function(){
+                                            if (payload && payload.redirect_url) {
+                                                window.location.href = payload.redirect_url;
+                                            } else {
+                                                hide();
+                                            }
+                                        }, CONFIRMATION_MS);
+                                    });
+                                }catch(e){ hide(); }
+                            });
+                        }
+                    };
+                    if (document.readyState === 'complete' || document.readyState === 'interactive') formReady(); else document.addEventListener('DOMContentLoaded', formReady);
+                })();
+            </script>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
 
                 <!-- Coluna de Pagamento e Resumo do Pedido -->
@@ -393,6 +589,9 @@ document.addEventListener('DOMContentLoaded', function(){
                     <div x-data="{ selectedPaymentMethod: @js($selectedLanguage === 'br' ? 'pix' : 'credit_card') }" id="payment-method-section"
                         class=" bg-[#1F1F1F] rounded-xl p-6 mb-6 scroll-mt-8">
                         <h2 class="text-xl font-semibold text-white mb-4">{{ __('payment.payment_method') }}</h2>
+                        @php
+                            $pushinSupported = $plans[$selectedPlan]['gateways']['pushinpay']['supported'] ?? false;
+                        @endphp
                         <div class="space-y-4">
                             <div class="flex items-center justify-start p-2 rounded-lg border border-gray-700">
                                 <span
@@ -452,6 +651,7 @@ document.addEventListener('DOMContentLoaded', function(){
                                     <div class="relative">
                                         <input type="radio" id="method_pix" name="payment_method" value="pix"
                                             wire:click="$set('selectedPaymentMethod', 'pix')"
+                                            @if(!$pushinSupported) disabled @endif
                                             x-on:change="selectedPaymentMethod = 'pix'; $nextTick(()=>{ const el = document.querySelector('input[name=pix_name]'); if(el) el.focus(); })"
                                             class="hidden"
                                             :checked="selectedPaymentMethod === 'pix'" />
@@ -530,8 +730,8 @@ document.addEventListener('DOMContentLoaded', function(){
                                                 class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.card_number') }} @if(isset($fieldErrors['cardNumber']))<span class="text-red-500">*</span>@endif</label>
                                             <input name="card_number" type="text" id="card-number"
                                                 placeholder="0000 0000 0000 0000"
-                                                wire:model.live="cardNumber"
-                                                inputmode="numeric" autocomplete="cc-number" pattern="[0-9\s]{13,19}"
+                                                wire:model.defer="cardNumber"
+                                                inputmode="numeric" autocomplete="cc-number" pattern="[0-9\s]{13,19}" maxlength="19"
                                                 class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 @if(isset($fieldErrors['cardNumber'])) border-2 border-red-500 @else border border-gray-700 @endif focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
                                             @if(isset($fieldErrors['cardNumber']))
                                                 <span class="text-red-500 text-xs mt-1 block">{{ $fieldErrors['cardNumber'] }}</span>
@@ -545,8 +745,8 @@ document.addEventListener('DOMContentLoaded', function(){
                                                 <label
                                                     class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.expiry_date') }} @if(isset($fieldErrors['cardExpiry']))<span class="text-red-500">*</span>@endif</label>
                                                 <input name="card_expiry" type="text" id="card-expiry"
-                                                    placeholder="MM/YY" wire:model.live="cardExpiry"
-                                                    inputmode="numeric" autocomplete="cc-exp" pattern="(0[1-9]|1[0-2])\/([0-9]{2})"
+                                                    placeholder="MM/YY" wire:model.defer="cardExpiry"
+                                                    inputmode="numeric" autocomplete="cc-exp" pattern="(0[1-9]|1[0-2])\/([0-9]{2})" maxlength="5"
                                                     class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 @if(isset($fieldErrors['cardExpiry'])) border-2 border-red-500 @else border border-gray-700 @endif focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
                                                 @if(isset($fieldErrors['cardExpiry']))
                                                     <span class="text-red-500 text-xs mt-1 block">{{ $fieldErrors['cardExpiry'] }}</span>
@@ -559,7 +759,7 @@ document.addEventListener('DOMContentLoaded', function(){
                                                 <label
                                                     class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.security_code') }} @if(isset($fieldErrors['cardCvv']))<span class="text-red-500">*</span>@endif</label>
                                                 <input name="card_cvv" type="text" id="card-cvv" placeholder="CVV"
-                                                    wire:model.live="cardCvv" inputmode="numeric" autocomplete="cc-csc" pattern="[0-9]{3,4}"
+                                                    wire:model.defer="cardCvv" inputmode="numeric" autocomplete="cc-csc" pattern="[0-9]{3,4}" maxlength="4"
                                                     class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 @if(isset($fieldErrors['cardCvv'])) border-2 border-red-500 @else border border-gray-700 @endif focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
                                                 @if(isset($fieldErrors['cardCvv']))
                                                     <span class="text-red-500 text-xs mt-1 block">{{ $fieldErrors['cardCvv'] }}</span>
@@ -717,7 +917,10 @@ document.addEventListener('DOMContentLoaded', function(){
                     </div>
 
                     <!-- Order Bumps - Design diferente para Card vs PIX -->
-                    @if (!empty($bumps))
+                    @php
+                        $pushinSupported = $plans[$selectedPlan]['gateways']['pushinpay']['supported'] ?? false;
+                    @endphp
+                    @if (!empty($bumps) && !($selectedPaymentMethod === 'pix' && $pushinSupported === false))
                         <div class="space-y-3">
                             @if($selectedPaymentMethod === 'pix')
                                 <h3 class="text-white font-semibold text-sm mb-4">✨ {{ __('payment.add_ons_title') }}</h3>
@@ -746,7 +949,7 @@ document.addEventListener('DOMContentLoaded', function(){
                                     $urgencyText = $bump['urgency_text'] ?? null;
                                     $originalPrice = $bump['original_price'] ?? null;
                                     $discountPct = $bump['discount_percentage'] ?? null;
-                                    $price = $bump['price'] ?? 0;
+                                    $price = $bump['price'] ?? $bump['original_price'] ?? $bump['amount'] ?? 0;
                                     $icon = $bump['icon'] ?? 'lock';
                                 @endphp
                                 
@@ -769,7 +972,7 @@ document.addEventListener('DOMContentLoaded', function(){
                                                         <span class="text-xs px-2 py-0.5 bg-blue-500 text-white rounded whitespace-nowrap">{{ $badge }}</span>
                                                     @endif
                                                 </div>
-                                                <p class="text-gray-400 text-xs truncate">{{ $bumpDesc }}</p>
+                                                <p class="text-gray-400 text-xs bump-desc">{{ $bumpDesc }}</p>
                                             </div>
                                         </div>
                                         
@@ -935,12 +1138,14 @@ document.addEventListener('DOMContentLoaded', function(){
 
                         <!-- Price anchor -->
                         <div class="mb-2 text-center">
-                            <del class="text-gray-400 text-sm">{{ $currencies[$selectedCurrency]['symbol'] }}
-                                {{ $totals['month_price'] ?? '00' }}</del>
-                            <span class="text-green-400 text-lg font-bold ml-2"
-                                id="current-price">{{ $currencies[$selectedCurrency]['symbol'] }}
-                                {{ $totals['month_price_discount'] ?? '00' }}{{ __('payment.per_month') }}</span>
-                        </div>
+                                        <del class="text-gray-400 text-sm">{{ $currencies[$selectedCurrency]['symbol'] }}
+                                            {{ number_format($totals['month_price'] ?? 0, 2, ',', '.') }}</del>
+                                        <span class="text-lg font-bold ml-2 {{ (isset($dataOrigin) && $dataOrigin['totals'] === 'backend') ? 'text-green-400 price-backend' : ((isset($dataOrigin) && ($selectedPaymentMethod ?? '') !== 'pix') ? 'price-fallback animate-fallback-pulse' : 'text-green-400') }}"
+                                            id="current-price">{{ $currencies[$selectedCurrency]['symbol'] }}
+                                            {{ number_format($totals['month_price_discount'] ?? 0, 2, ',', '.') }} {{ __('payment.per_month') }}</span>
+                                    </div>
+
+                        {{-- Debug temporário removido para evitar exposição no frontend. --}}
 
                         <!-- Price breakdown -->
                         <div class="border-t border-gray-700 pt-5 my-4 space-t-2">
@@ -963,7 +1168,7 @@ document.addEventListener('DOMContentLoaded', function(){
 
 
                         <!-- Banner Promocional PIX Mock -->
-                        @if($usingPixMock)
+                        @if(isset($usingPixMock) && $usingPixMock)
                         <div class="mb-6 p-4 bg-gradient-to-r from-green-900 via-green-800 to-green-900 rounded-lg border border-green-600 text-white shadow-lg">
                             <div class="flex items-start space-x-3">
                                 <svg class="w-6 h-6 text-green-300 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
@@ -988,20 +1193,20 @@ document.addEventListener('DOMContentLoaded', function(){
                             <div class="flex justify-between text-sm mb-1">
                                 <span>{{ __('payment.original_price') }}</span>
                                 <del class="text-gray-400">{{ $currencies[$selectedCurrency]['symbol'] }}
-                                    {{ $totals['total_price'] ?? '00' }}</del>
+                                    {{ number_format($totals['total_price'] ?? 0, 2, ',', '.') }}</del>
                             </div>
                             <div class="flex justify-between text-mb mb-1">
                                 <span>{{ __('payment.discount') }}</span>
                                 <span class="text-green-400"
                                     id="discount-amount">{{ $currencies[$selectedCurrency]['symbol'] }}
-                                    {{ $totals['total_discount'] ?? '00' }}</span>
+                                    {{ number_format($totals['total_discount'] ?? 0, 2, ',', '.') }}</span>
                             </div>
                             <div class="flex justify-between text-sm font-bold mt-2 pt-2 border-t border-gray-700">
                                 <span>{{ __('payment.total_to_pay') }}</span>
-                                <span id="final-price">
+                                <span id="final-price" class="{{ isset($dataOrigin) && $dataOrigin['totals'] === 'backend' ? 'price-backend' : (isset($dataOrigin) ? 'price-fallback animate-fallback-pulse' : '') }}">
                                     {{ $currencies[$selectedCurrency]['symbol'] }}
-                                    {{ $totals['final_price'] ?? '00' }}</span>
-                                <input type="hidden" id="input-final-price" name="final-price" value="" />
+                                    {{ number_format($totals['final_price'] ?? 0, 2, ',', '.') }}</span>
+                                <input type="hidden" id="input-final-price" name="final-price" value="{{ isset($totals['final_price']) ? str_replace(',', '.', str_replace('.', '', $totals['final_price'])) : (float)0 }}" />
                             </div>
                         </div>
 
@@ -1029,8 +1234,19 @@ document.addEventListener('DOMContentLoaded', function(){
                         </div>
 
                         <button id="checkout-button" type="button" wire:click.prevent="startCheckout"
-                            class="w-full bg-[#E50914] hover:bg-[#B8070F] text-white py-3 text-lg font-bold rounded-xl transition-all block cursor-pointer transform hover:scale-105">
-                            {{ __('checkout.cta_button') }}
+                            @if($isProcessingCard) disabled aria-busy="true" @endif
+                            class="w-full bg-[#E50914] hover:bg-[#B8070F] text-white py-3 text-lg font-bold rounded-xl transition-all block cursor-pointer transform hover:scale-105 @if($isProcessingCard) opacity-70 cursor-not-allowed hover:scale-100 @endif">
+                            @if($isProcessingCard)
+                                <span class="flex items-center justify-center gap-2">
+                                    <svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+                                    </svg>
+                                    <span>{{ $loadingMessage ?? __('payment.processing_payment') }}</span>
+                                </span>
+                            @else
+                                {{ __('checkout.cta_button') }}
+                            @endif
                         </button>
 
                         <!-- Trust badges -->
@@ -1105,8 +1321,8 @@ document.addEventListener('DOMContentLoaded', function(){
                                 </div>
                                 <div class="border-t border-gray-700 pt-3 flex justify-between items-center">
                                     <span class="text-white font-bold text-base">Total a Pagar:</span>
-                                    <span class="font-bold text-2xl {{ isset($dataOrigin) && $dataOrigin['totals'] === 'backend' ? 'price-backend' : (isset($dataOrigin) ? 'price-fallback animate-fallback-pulse' : 'text-green-400') }}">
-                                        {{ $currencies[$selectedCurrency]['symbol'] }} {{ $totals['final_price'] ?? '24,90' }}
+                                    <span class="font-bold text-2xl {{ (isset($dataOrigin) && $dataOrigin['totals'] === 'backend') ? 'price-backend' : ((isset($dataOrigin) && ($selectedPaymentMethod ?? '') !== 'pix') ? 'price-fallback animate-fallback-pulse' : 'text-green-400') }}">
+                                        {{ $currencies[$selectedCurrency]['symbol'] }} {{ number_format($totals['final_price'] ?? 0, 2, ',', '.') }}
                                     </span>
                                 </div>
                                 <div class="bg-green-500/10 border border-green-500/40 rounded p-2 flex items-center gap-2">
@@ -1551,7 +1767,7 @@ document.addEventListener('DOMContentLoaded', function(){
                     </div>
                     <div class="price-item" style="display: flex; justify-content: space-between; align-items: center; padding-top: 16px; border-top: 1px solid rgba(76, 175, 80, 0.2); font-size: 16px; font-weight: 600; color: #4caf50;">
                         <span>Total a Pagar:</span>
-                        <span>R$ {{ $totals['final_price'] ?? '24,90' }}</span>
+                        <span>R$ {{ number_format($totals['final_price'] ?? 0, 2, ',', '.') }}</span>
                     </div>
                 </div>
 
@@ -1952,31 +2168,8 @@ function fallbackCopy(pixCode, text, btn, copyMessage, originalText) {
 let timerInterval = null;
 let timerStarted = false;
 
-// Observer para detectar quando o modal aparece
-const observer = new MutationObserver(function(mutations) {
-    const modalOverlay = document.getElementById('pix-modal-overlay');
-    const timerEl = document.getElementById('pix-timer');
-    
-    if (modalOverlay && modalOverlay.style.display !== 'none' && timerEl && !timerStarted) {
-        // Modal apareceu - iniciar timer
-        console.log('✅ Timer iniciado: 05:00');
-        timerStarted = true;
-        pixQRTimer = 300; // Reset para 5 minutos
-        startTimer(timerEl);
-    } else if (modalOverlay && (modalOverlay.style.display === 'none' || !modalOverlay.parentElement)) {
-        // Modal fechou - parar timer
-        timerStarted = false;
-        clearInterval(timerInterval);
-        timerInterval = null;
-    }
-});
-
-observer.observe(document.body, { 
-    attributes: true, 
-    childList: true, 
-    subtree: true,
-    attributeFilter: ['style']
-});
+// MutationObserver removed: timer is now started via Livewire 'pix-ready' event
+// (see resources/js/pages/pay.js for the pix-ready handler which calls startTimer).
 
 function startTimer(timerEl) {
     function formatTime(seconds) {
