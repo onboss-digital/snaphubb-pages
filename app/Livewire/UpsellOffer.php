@@ -10,6 +10,7 @@ class UpsellOffer extends Component
 {
     public $product;
     public $usingMock = true;
+    public $qr_mode = false;
     // Loader / UI flags (to mirror PagePay)
     public $showProcessingModal = false;
     public $isProcessingCard = false;
@@ -87,8 +88,9 @@ class UpsellOffer extends Component
             // Create PIX for this upsell using existing backend controller flow
         try {
             // show loader in UI
-            $this->loadingMessage = __('payment.processing_payment');
-            $this->isProcessingCard = true;
+            // Use the same loader message as PagePay for PIX flows to keep UX consistent
+            $this->loadingMessage = $this->qr_mode ? __('payment.loader_processing') : __('payment.processing_payment');
+            $this->isProcessingCard = !$this->qr_mode;
             $this->showProcessingModal = true;
             // Prefer off-session card charge when we have a Stripe customer id
             $sessionCustomer = session('last_order_customer', []);
@@ -196,6 +198,22 @@ class UpsellOffer extends Component
                 }
                 if ($foundPlan) {
                     $upsellProductId = $foundPlan['pages_upsell_product_external_id'] ?? $foundPlan['pages_upsell_product_external'] ?? null;
+                    // store the resolved plan and prepare bumps for PIX flow
+                    $this->foundPlan = $foundPlan;
+                    $this->bumps = [];
+                    if (!empty($foundPlan['order_bumps']) && is_array($foundPlan['order_bumps'])) {
+                        foreach ($foundPlan['order_bumps'] as $bump) {
+                            // consider only PIX bumps
+                            if (($bump['payment_method'] ?? 'pix') !== 'pix') continue;
+                            $price = isset($bump['original_price']) ? floatval($bump['original_price']) : (isset($bump['price']) ? floatval($bump['price']) : 0);
+                            $this->bumps[] = [
+                                'id' => $bump['id'] ?? null,
+                                'title' => $bump['title'] ?? null,
+                                'price' => (int) round($price * 100), // cents
+                                'active' => ($bump['active'] ?? true),
+                            ];
+                        }
+                    }
                     try {
                         \Illuminate\Support\Facades\Log::channel('payment_checkout')->info('UpsellOffer: found plan for upsell', [
                             'found_hash' => $foundPlan['hash'] ?? $foundPlan['identifier'] ?? null,
@@ -223,7 +241,9 @@ class UpsellOffer extends Component
                 }
             }
 
-                if (!empty($stripeCustomerId) && !empty($upsellProductId)) {
+                // If this component is rendered in QR mode, force PIX flow instead of attempting
+                // an off-session Stripe charge. QR pages must always generate PIX on button click.
+                if (!$this->qr_mode && !empty($stripeCustomerId) && !empty($upsellProductId)) {
                     // Safety guard: if upsellProductId looks like a local hash (not a Stripe product id),
                     // do not attempt a Stripe off-session charge to avoid wrong amounts.
                     if (!preg_match('/^prod_/', $upsellProductId)) {
@@ -334,8 +354,47 @@ class UpsellOffer extends Component
                 return;
             }
 
+            // Determine base price (in cents). Prefer backend-declared values when available.
+            $basePriceCents = isset($this->product['price']) ? (int)$this->product['price'] : 0;
+            if (!empty($foundPlan) && is_array($foundPlan)) {
+                // Prefer explicit pages_pix_price if provided by backend (decimal string in BRL)
+                if (isset($foundPlan['pages_pix_price']) && $foundPlan['pages_pix_price'] !== null && $foundPlan['pages_pix_price'] !== '') {
+                    $pp = floatval($foundPlan['pages_pix_price']);
+                    $basePriceCents = (int) round($pp * 100);
+                } elseif (isset($foundPlan['gateways']['pushinpay']['amount_override']) && $foundPlan['gateways']['pushinpay']['amount_override'] !== null && $foundPlan['gateways']['pushinpay']['amount_override'] !== '') {
+                    $ao = floatval($foundPlan['gateways']['pushinpay']['amount_override']);
+                    $basePriceCents = (int) round($ao * 100);
+                }
+            }
+
+            $bumpsTotal = array_sum(array_map(function($b){ return (isset($b['active']) && $b['active']) ? (int)($b['price'] ?? 0) : 0; }, $this->bumps ?? []));
+
+            // Build cart: main item + each active bump as operation_type 2
+            $cart = [];
+            $cart[] = [
+                'product_hash' => $this->product['hash'] ?? null,
+                'title' => $this->product['label'],
+                'price' => $basePriceCents,
+                'quantity' => 1,
+                'operation_type' => 1,
+            ];
+
+            if (!empty($this->bumps) && is_array($this->bumps)) {
+                foreach ($this->bumps as $b) {
+                    if (!isset($b['active']) || !$b['active']) continue;
+                    $cart[] = [
+                        'product_hash' => ($this->product['hash'] ?? null) . '_bump_' . ($b['id'] ?? uniqid()),
+                        'title' => $b['title'] ?? 'Order bump',
+                        'price' => (int) ($b['price'] ?? 0),
+                        'quantity' => 1,
+                        'operation_type' => 2,
+                    ];
+                }
+            }
+
             $pixData = [
-                'amount' => $this->product['price'],
+                // amount in cents: backend base price + any active bumps
+                'amount' => $basePriceCents + $bumpsTotal,
                 'currency_code' => $this->product['currency'] ?? 'BRL',
                 'plan_key' => $this->product['hash'] ?? 'painel_das_garotas',
                 'offer_hash' => $this->product['hash'] ?? 'painel_das_garotas',
@@ -345,19 +404,25 @@ class UpsellOffer extends Component
                     'phone_number' => $customer['phone'] ?? null,
                     'document' => $customer['document'] ?? null,
                 ],
-                'cart' => [[
-                    'product_hash' => $this->product['hash'] ?? null,
-                    'title' => $this->product['label'],
-                    'price' => $this->product['price'],
-                    'quantity' => 1,
-                    'operation_type' => 1,
-                ]],
+                'cart' => $cart,
                 'metadata' => [
                     'payment_method' => 'pix',
                     'is_upsell' => true,
                     'webhook_url' => url('/api/pix/webhook'),
                 ],
             ];
+
+            // Diagnostic: log the PIX payload and local state before calling backend
+            try {
+                \Illuminate\Support\Facades\Log::channel('payment_checkout')->info('UpsellOffer: PIX payload prepared', [
+                    'pixData' => $pixData,
+                    'product_price' => $this->product['price'] ?? null,
+                    'bumps' => $this->bumps ?? null,
+                    'session_customer' => $sessionCustomer ?? null,
+                ]);
+            } catch (\Throwable $_) {
+                // non-fatal
+            }
 
             // Call PixController directly (same pattern as PagePay)
             $controller = new \App\Http\Controllers\PixController(app(\App\Services\PushingPayPixService::class));

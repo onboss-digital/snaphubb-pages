@@ -78,3 +78,47 @@ Route::get('/debug/set-last-customer', function(){
 	]]);
 	return redirect('/upsell/painel-das-garotas')->with('success', 'Sessão de cliente de teste configurada!');
 });
+
+// DEBUG: Simula verificação de status PIX via PagePay para teste local
+Route::get('/debug/pix-test/{id}', function ($id) {
+	// Somente disponível em ambiente local
+	if (!app()->environment('local') && !config('app.debug')) {
+		abort(403, 'Not allowed');
+	}
+
+	try {
+		$component = app()->make(\App\Livewire\PagePay::class);
+
+		// Injeta um pixService fake que retorna status baseado em query ?status=paid
+		$status = request()->query('status', 'paid');
+		$fake = new class($status) {
+			private $status;
+			public function __construct($s) { $this->status = $s; }
+			public function getPaymentStatus($id) {
+				return ['data' => ['status' => $this->status]];
+			}
+		};
+
+		// pixService is a private property on the Livewire component; use Reflection to inject our fake
+		$ref = new \ReflectionClass($component);
+		if ($ref->hasProperty('pixService')) {
+			$prop = $ref->getProperty('pixService');
+			$prop->setAccessible(true);
+			$prop->setValue($component, $fake);
+		}
+
+		$component->pixTransactionId = $id;
+
+		// Chama o método de checagem (igual ao polling)
+		$component->checkPixPaymentStatus();
+
+		return response()->json([
+			'ok' => true,
+			'pixTransactionId' => $component->pixTransactionId,
+			'pixStatus' => $component->pixStatus,
+			'showPixModal' => $component->showPixModal,
+		]);
+	} catch (\Throwable $e) {
+		return response()->json(['ok' => false, 'error' => $e->getMessage(), 'trace' => $e->getTraceAsString()], 500);
+	}
+});

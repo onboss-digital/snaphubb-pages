@@ -56,7 +56,8 @@ class OrderBump extends Model
                 'original_price' => isset($arr['original_price']) ? floatval($arr['original_price']) : (isset($arr['price']) ? floatval($arr['price']) : 0.0),
                 'price_id' => $arr['price_id'] ?? null,
                 'recurring' => $arr['recurring'] ?? null,
-                'active' => isset($arr['active']) ? (bool)$arr['active'] : true,
+                // Do not mark bumps as selected by default in the UI; user must opt-in
+                'active' => isset($arr['active']) ? (bool)$arr['active'] : false,
                 'recommended' => isset($arr['recommended']) ? (bool)$arr['recommended'] : false,
                 'description' => $arr['description'] ?? null,
                 'payment_method' => $arr['payment_method'] ?? 'card',
@@ -82,7 +83,8 @@ class OrderBump extends Model
                 'original_price' => isset($arr['original_price']) ? floatval($arr['original_price']) : (isset($arr['price']) ? floatval($arr['price']) : 0.0),
                 'price_id' => $arr['price_id'] ?? null,
                 'recurring' => $arr['recurring'] ?? null,
-                'active' => isset($arr['active']) ? (bool)$arr['active'] : true,
+                // Do not mark bumps as selected by default in the UI; user must opt-in
+                'active' => isset($arr['active']) ? (bool)$arr['active'] : false,
                 'recommended' => isset($arr['recommended']) ? (bool)$arr['recommended'] : false,
                 'description' => $arr['description'] ?? null,
                 'payment_method' => $arr['payment_method'] ?? 'card',

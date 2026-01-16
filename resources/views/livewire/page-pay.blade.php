@@ -92,7 +92,8 @@ $gateway = config('services.default_payment_gateway', 'stripe');
     }
     /* Price origin indicators */
     .price-fallback { color: #00F5D4 !important; }
-    .price-backend { color: inherit !important; }
+    /* When totals come from backend, show them in green to indicate authoritative price */
+    .price-backend { color: #34D399 !important; }
     .animate-fallback-pulse { animation: fallbackPulse 1.6s ease-in-out infinite; }
     @keyframes fallbackPulse {
         0% { opacity: 1; }
@@ -453,20 +454,73 @@ document.addEventListener('DOMContentLoaded', function(){
                         var paymentLoader = document.getElementById('payment-loader');
                         var paymentLoaderTitle = document.getElementById('payment-loader-title');
                         if (checkoutBtn && paymentLoader) {
-                            checkoutBtn.addEventListener('click', function(e){
+                            // Reusable validation function for credit-card flow
+                            function validateCardForm() {
                                 try {
-                                    // If overlay already visible (opacity-100), do nothing
+                                    var selected = (document.querySelector('input[name="payment_method"]:checked') || {}).value || '';
+                                    if (selected !== 'credit_card') return { ok: true };
+
+                                    var cardName = (document.querySelector('input[name="card_name"]') || {}).value || '';
+                                    var email = (document.querySelector('input[name="email"]') || {}).value || '';
+                                    var cardNumberEl = document.getElementById('card-number');
+                                    var paymentMethodIdEl = document.getElementById('payment-method-id');
+
+                                    var emailValid = /\S+@\S+\.\S+/.test(email);
+                                    var hasCardNumber = false;
+
+                                    if (cardNumberEl) {
+                                        var v = cardNumberEl.value.replace(/\s+/g, '');
+                                        hasCardNumber = v.length >= 12;
+                                    } else if (paymentMethodIdEl) {
+                                        hasCardNumber = (paymentMethodIdEl.value || '').length > 5;
+                                    }
+
+                                    if (!cardName.trim() || !emailValid || !hasCardNumber) {
+                                        return { ok: false, msg: 'Preencha os campos obrigatórios do cartão: número do cartão, nome impresso no cartão e e-mail.' };
+                                    }
+                                    return { ok: true };
+                                } catch (err) { return { ok: false, msg: 'Erro de validação' }; }
+                            }
+
+                            function handleCheckoutClick(e) {
+                                try {
+                                    var res = validateCardForm();
+                                    if (!res.ok) {
+                                        e.stopImmediatePropagation();
+                                        e.preventDefault();
+                                        var msg = res.msg || 'Preencha os campos obrigatórios do cartão.';
+                                        try {
+                                            var previous = document.getElementById('client-card-validation-msg');
+                                            if (previous) previous.remove();
+                                            if (paymentLoaderTitle && paymentLoaderTitle.parentNode) {
+                                                var div = document.createElement('div');
+                                                div.id = 'client-card-validation-msg';
+                                                div.style.color = '#ffd1d1';
+                                                div.style.fontSize = '13px';
+                                                div.style.marginTop = '8px';
+                                                div.textContent = msg;
+                                                paymentLoaderTitle.parentNode.appendChild(div);
+                                                setTimeout(function(){ try{ div.remove(); }catch(e){} }, 6000);
+                                            } else {
+                                                alert(msg);
+                                            }
+                                        } catch (err) { alert(msg); }
+                                        return;
+                                    }
+
                                     if (!paymentLoader.classList.contains('opacity-0')) return;
-                                    // Show overlay immediately (client-side) while Livewire does the server work
                                     paymentLoader.classList.remove('opacity-0','pointer-events-none');
                                     paymentLoader.classList.add('opacity-100');
                                     if (paymentLoaderTitle) {
                                         paymentLoaderTitle.textContent = '{{ addslashes(__('payment.processing_payment')) }}';
                                     }
-                                } catch (e) {
-                                    // ignore
-                                }
-                            });
+                                } catch (err) { /* ignore */ }
+                            }
+
+                            // Attach to main and sticky checkout buttons (capture to run before Livewire)
+                            checkoutBtn.addEventListener('click', handleCheckoutClick, true);
+                            var sticky = document.getElementById('sticky-checkout-button');
+                            if (sticky) sticky.addEventListener('click', handleCheckoutClick, true);
                         }
 
                         if (window.Livewire) {
@@ -1091,14 +1145,7 @@ document.addEventListener('DOMContentLoaded', function(){
                                             {{ number_format($totals['month_price_discount'] ?? 0, 2, ',', '.') }} {{ __('payment.per_month') }}</span>
                                     </div>
 
-                        {{-- DEBUG TEMPORÁRIO: mostrar método e origem dos dados quando APP_DEBUG=true --}}
-                        @if(env('APP_DEBUG'))
-                            <div class="mt-2 text-xs text-gray-400">
-                                <strong>DEBUG:</strong>
-                                método=<span class="font-mono">{{ $selectedPaymentMethod }}</span>
-                                origem_totals=<span class="font-mono">{{ json_encode($dataOrigin) }}</span>
-                            </div>
-                        @endif
+                        {{-- Debug temporário removido para evitar exposição no frontend. --}}
 
                         <!-- Price breakdown -->
                         <div class="border-t border-gray-700 pt-5 my-4 space-t-2">

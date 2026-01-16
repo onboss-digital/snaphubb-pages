@@ -359,7 +359,12 @@
                 if(!paymentLoader) return;
                 paymentLoader.classList.remove('opacity-0','pointer-events-none');
                 paymentLoader.classList.add('opacity-100');
-                if(paymentLoaderTitle) paymentLoaderTitle.textContent = '{{ addslashes(__('payment.processing_payment')) }}';
+                // Do not override server-provided loading message (e.g. PIX message).
+                try{
+                    if(paymentLoaderTitle && (!paymentLoaderTitle.textContent || paymentLoaderTitle.textContent.trim() === '')){
+                        paymentLoaderTitle.textContent = '{{ addslashes(__('payment.processing_payment')) }}';
+                    }
+                }catch(e){}
                 loaderShownAt = Date.now();
             }
             function hideLoader(){

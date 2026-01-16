@@ -69,7 +69,8 @@ class PixController extends Controller
                 $validated['plan_key'],
                 $validated['amount'],
                 $validated['currency_code'],
-                $validated['cart']
+                $validated['cart'],
+                $validated['offer_hash'] ?? null
             );
 
             if (!$validAmount) {
@@ -102,7 +103,7 @@ class PixController extends Controller
             );
 
             // 5. CALCULAR PREÇO BASE DO BACKEND (PLANO + BUMPS) ANTES DE MONTAR O PAYLOAD
-            $planBase = $this->getPlanBaseAmountCents($validated['plan_key']);
+            $planBase = $this->getPlanBaseAmountCents($validated['plan_key'], $validated['offer_hash'] ?? null);
             $bumpsTotal = 0;
             foreach (($validated['cart'] ?? []) as $item) {
                 if (($item['operation_type'] ?? 0) === 2) {
@@ -260,7 +261,8 @@ class PixController extends Controller
         string $planKey,
         int $amount,
         string $currencyCode,
-        array $cart
+        array $cart,
+        ?string $offerHash = null
     ): bool
     {
         try {
@@ -286,16 +288,32 @@ class PixController extends Controller
                 }
 
                 if ($planRecord) {
-                    $pushEnabled = isset($planRecord->pushinpay_enabled) ? (bool) $planRecord->pushinpay_enabled : (bool) ($planRecord['pushinpay_enabled'] ?? false);
-                    $pushAmount = isset($planRecord->pushinpay_amount_override) ? $planRecord->pushinpay_amount_override : ($planRecord['pushinpay_amount_override'] ?? null);
-
-                    if ($pushEnabled && !is_null($pushAmount) && $pushAmount != '') {
-                        $expectedAmount = (int) round(floatval($pushAmount) * 100);
+                    // If this request corresponds to a pages PIX upsell (offerHash matches pages_pix_product_external_id)
+                    // prefer the explicit pages_pix_price when present.
+                    $pagesPixProductExternal = null;
+                    $pagesPixPrice = null;
+                    if (is_object($planRecord)) {
+                        $pagesPixProductExternal = $planRecord->pages_pix_product_external_id ?? null;
+                        $pagesPixPrice = $planRecord->pages_pix_price ?? null;
                     } else {
-                        // fallback to plan price fields
-                        $basePrice = $planRecord->pushinpay_amount_override ?? $planRecord->price ?? $planRecord->total_price ?? ($planRecord['price'] ?? null);
-                        if (!is_null($basePrice) && $basePrice !== '') {
-                            $expectedAmount = (int) round(floatval($basePrice) * 100);
+                        $pagesPixProductExternal = $planRecord['pages_pix_product_external_id'] ?? null;
+                        $pagesPixPrice = $planRecord['pages_pix_price'] ?? null;
+                    }
+
+                    if (!is_null($offerHash) && $pagesPixProductExternal && $offerHash == $pagesPixProductExternal && !is_null($pagesPixPrice) && $pagesPixPrice !== '') {
+                        $expectedAmount = (int) round(floatval($pagesPixPrice) * 100);
+                    } else {
+                        $pushEnabled = isset($planRecord->pushinpay_enabled) ? (bool) $planRecord->pushinpay_enabled : (bool) ($planRecord['pushinpay_enabled'] ?? false);
+                        $pushAmount = isset($planRecord->pushinpay_amount_override) ? $planRecord->pushinpay_amount_override : ($planRecord['pushinpay_amount_override'] ?? null);
+
+                        if ($pushEnabled && !is_null($pushAmount) && $pushAmount != '') {
+                            $expectedAmount = (int) round(floatval($pushAmount) * 100);
+                        } else {
+                            // fallback to plan price fields
+                            $basePrice = $planRecord->pushinpay_amount_override ?? $planRecord->price ?? $planRecord->total_price ?? ($planRecord['price'] ?? null);
+                            if (!is_null($basePrice) && $basePrice !== '') {
+                                $expectedAmount = (int) round(floatval($basePrice) * 100);
+                            }
                         }
                     }
                 }
@@ -359,7 +377,7 @@ class PixController extends Controller
      * Retorna o valor base do plano em centavos e a origem (db) ou null se não encontrado.
      * Não faz fallback para mocks — isso é intencional para evitar usar hardcoded values.
      */
-    private function getPlanBaseAmountCents(string $planKey): ?array
+    private function getPlanBaseAmountCents(string $planKey, ?string $offerHash = null): ?array
     {
         try {
             $planRecord = null;
@@ -380,6 +398,22 @@ class PixController extends Controller
 
             if (!$planRecord) {
                 return null;
+            }
+
+            // If this is an upsell via pages (offerHash matches pages_pix_product_external_id),
+            // prefer the explicit pages_pix_price when present.
+            $pagesPixProductExternal = null;
+            $pagesPixPrice = null;
+            if (is_object($planRecord)) {
+                $pagesPixProductExternal = $planRecord->pages_pix_product_external_id ?? null;
+                $pagesPixPrice = $planRecord->pages_pix_price ?? null;
+            } else {
+                $pagesPixProductExternal = $planRecord['pages_pix_product_external_id'] ?? null;
+                $pagesPixPrice = $planRecord['pages_pix_price'] ?? null;
+            }
+
+            if (!is_null($offerHash) && $pagesPixProductExternal && $offerHash == $pagesPixProductExternal && !is_null($pagesPixPrice) && $pagesPixPrice !== '') {
+                return ['base_cents' => (int) round(floatval($pagesPixPrice) * 100), 'source' => 'pages_pix_price'];
             }
 
             $pushEnabled = isset($planRecord->pushinpay_enabled) ? (bool) $planRecord->pushinpay_enabled : (bool) ($planRecord['pushinpay_enabled'] ?? false);

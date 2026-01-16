@@ -306,6 +306,13 @@ class PagePay extends Component
 
         // Carregar order bumps do backend para o método atualmente selecionado
         $this->loadBumpsByMethod($this->selectedPaymentMethod);
+
+        // Defensive: sempre garantir que bumps não venham pré-selecionados ao montar
+        if (is_array($this->bumps) && count($this->bumps) > 0) {
+            $onlyForPix = ($this->selectedPaymentMethod === 'pix');
+            $this->bumps = $this->sanitizeBumps($this->bumps, $onlyForPix);
+            $this->dataOrigin['bumps'] = $this->dataOrigin['bumps'] ?? 'db';
+        }
         
         // Recuperar preferência do usuário, se existir
         $this->selectedPlan = Session::get('selectedPlan', 'monthly');
@@ -583,6 +590,8 @@ class PagePay extends Component
 
                     if (isset($result[$this->selectedPlan]['order_bumps'])) {
                         $this->bumps = $result[$this->selectedPlan]['order_bumps'];
+                        // Only sanitize (prevent preselection) when current method is PIX
+                        $this->bumps = $this->sanitizeBumps($this->bumps, ($this->selectedPaymentMethod === 'pix'));
                         // ✅ Se bumps vêm da API, também marcar como backend
                         $this->dataOrigin['bumps'] = 'backend';
 
@@ -1584,11 +1593,48 @@ class PagePay extends Component
             return;
         }
 
-        // Para Pushing Pay, confiamos no webhook para notificar o status
-        // Não há rota pública para consultar status individual
-        Log::debug('PagePay: Aguardando notificação via webhook do PIX', [
-            'payment_id' => $this->pixTransactionId,
-        ]);
+        try {
+            // Prefer server-side pix service to retrieve authoritative status
+            $result = null;
+
+            try {
+                $result = $this->pixService->getPaymentStatus($this->pixTransactionId);
+            } catch (\Throwable $e) {
+                Log::warning('PagePay: falha ao consultar PixService para status', ['error' => $e->getMessage(), 'payment_id' => $this->pixTransactionId]);
+            }
+
+            if (empty($result) || !is_array($result) || empty($result['data'])) {
+                Log::debug('PagePay: getPaymentStatus retornou sem dado útil', ['payment_id' => $this->pixTransactionId, 'result' => $result]);
+                return;
+            }
+
+            $status = strtolower($result['data']['status'] ?? ($result['data']['payment_status'] ?? ''));
+            Log::info('PagePay: checkPixPaymentStatus fetched status', ['payment_id' => $this->pixTransactionId, 'status' => $status]);
+
+            if (in_array($status, ['approved', 'paid', 'confirmed'], true)) {
+                $this->pixStatus = 'approved';
+                $this->handlePixApproved();
+                return;
+            }
+
+            if (in_array($status, ['declined', 'refused'], true)) {
+                $this->pixStatus = 'rejected';
+                $this->handlePixRejected();
+                return;
+            }
+
+            if (in_array($status, ['expired', 'expired_payment'], true)) {
+                $this->pixStatus = 'expired';
+                $this->handlePixExpired();
+                return;
+            }
+
+            // otherwise keep waiting
+            Log::debug('PagePay: checkPixPaymentStatus - status not terminal, keep waiting', ['payment_id' => $this->pixTransactionId, 'status' => $status]);
+
+        } catch (\Exception $e) {
+            Log::error('PagePay: Erro em checkPixPaymentStatus', ['error' => $e->getMessage(), 'payment_id' => $this->pixTransactionId]);
+        }
     }
 
     
@@ -1826,6 +1872,16 @@ class PagePay extends Component
                 'bumps_count' => is_array($this->bumps) ? count($this->bumps) : 0,
                 'bumps_sample' => array_slice(is_array($this->bumps) ? $this->bumps : [], 0, 5),
             ]);
+            // Extra diagnostic: write full bumps state to payment_checkout log for reproduction
+            try {
+                Log::channel('payment_checkout')->info('PagePay: render - full bumps state', [
+                    'selectedPaymentMethod' => $this->selectedPaymentMethod ?? null,
+                    'selectedPlan' => $this->selectedPlan ?? null,
+                    'bumps' => is_array($this->bumps) ? $this->bumps : [],
+                ]);
+            } catch (\Throwable $_) {
+                // non-fatal if channel not configured
+            }
         } catch (\Throwable $e) {
             // non-fatal
             Log::warning('PagePay: failed to log bumps diagnostic', ['error' => $e->getMessage()]);
@@ -1843,6 +1899,16 @@ class PagePay extends Component
             }
         } catch (\Throwable $e) {
             Log::warning('PagePay: error checking pushinpay support at render', ['error' => $e->getMessage()]);
+        }
+
+        // Defensive: normalize bumps again at render time to avoid preselected UI state
+        try {
+            if (is_array($this->bumps) && count($this->bumps) > 0) {
+                $onlyForPix = ($this->selectedPaymentMethod === 'pix');
+                $this->bumps = $this->sanitizeBumps($this->bumps, $onlyForPix);
+            }
+        } catch (\Throwable $_) {
+            // non-fatal
         }
 
         return view('livewire.page-pay')->with([
@@ -1873,6 +1939,8 @@ class PagePay extends Component
                 && isset($this->plans[$this->selectedPlan]['order_bumps'])
                 && $method !== 'pix') {
                 $this->bumps = $this->plans[$this->selectedPlan]['order_bumps'];
+                // Normalize to avoid preselected bumps from backend only when loading for PIX
+                $this->bumps = $this->sanitizeBumps($this->bumps, ($method === 'pix' || ($this->selectedPaymentMethod === 'pix')));
                 $this->dataOrigin['bumps'] = 'backend';
                 $usedSource = 'backend';
             } else {
@@ -1981,6 +2049,45 @@ class PagePay extends Component
     }
 
     /**
+     * Normaliza a lista de bumps para evitar que venham pré-selecionados do backend.
+     * Sempre garante que o campo 'active' esteja definido como boolean false por padrão.
+     */
+    private function sanitizeBumps(array $bumps, bool $onlyForPix = false): array
+    {
+        return array_values(array_map(function ($b) use ($onlyForPix) {
+            if (!is_array($b)) {
+                return [
+                    'title' => (string)$b,
+                    'price' => 0.0,
+                    'active' => false,
+                ];
+            }
+
+            // Ensure other common keys exist to avoid undefined index issues in the view
+            if (!isset($b['price'])) $b['price'] = isset($b['original_price']) ? $b['original_price'] : 0.0;
+            if (!isset($b['title'])) $b['title'] = $b['name'] ?? '';
+            if (!isset($b['id'])) $b['id'] = $b['id'] ?? null;
+
+            // If caller requested sanitize only for PIX, then only force active=false
+            // for bumps that target PIX; otherwise preserve existing 'active' value.
+            if ($onlyForPix) {
+                $paymentMethod = $b['payment_method'] ?? 'card';
+                if (strtolower($paymentMethod) === 'pix') {
+                    $b['active'] = false;
+                } else {
+                    // keep whatever server or DB intended for non-pix bumps
+                    $b['active'] = isset($b['active']) ? (bool)$b['active'] : false;
+                }
+            } else {
+                // Default behaviour: do not alter 'active' state except ensure boolean
+                $b['active'] = isset($b['active']) ? (bool)$b['active'] : false;
+            }
+
+            return $b;
+        }, $bumps));
+    }
+
+    /**
      * Prepara dados do PIX sincronizados com o Stripe
      * Reutiliza o mesmo valor e estrutura de carrinho
      * PIX sempre usa $this->plans que já vem do MOCK no mount()
@@ -2078,8 +2185,16 @@ class PagePay extends Component
         }
 
         // Garantir que os bumps venham da fonte correta (carregados por loadBumpsByMethod('pix'))
+        // Sanitizar bumps especificamente para o fluxo PIX para evitar inclusão indevida
+        $bumpsToUse = [];
+        try {
+            $bumpsToUse = $this->sanitizeBumps(is_array($this->bumps) ? $this->bumps : [], true);
+        } catch (\Throwable $_) {
+            $bumpsToUse = is_array($this->bumps) ? $this->bumps : [];
+        }
+
         $bumpsTotal = 0.0;
-        foreach ($this->bumps as $bump) {
+        foreach ($bumpsToUse as $bump) {
             $active = false;
             if (is_array($bump)) {
                 $active = !empty($bump['active']) || (isset($bump['active']) && $bump['active'] === true) || ($bump['selected'] ?? false);
@@ -2187,6 +2302,23 @@ class PagePay extends Component
             try {
                 $this->loadBumpsByMethod('pix');
                 Log::info('generatePixPayment: bumps carregados para PIX', ['source' => $this->dataOrigin['bumps'] ?? null, 'count' => count($this->bumps ?? [])]);
+                // Sanitizar bumps para fluxo PIX (forçar active=false em bumps que não devem ser pré-selecionados)
+                try {
+                    $this->bumps = $this->sanitizeBumps(is_array($this->bumps) ? $this->bumps : [], true);
+                } catch (\Throwable $_) {
+                    // ignore sanitize failures, fall back to original bumps
+                }
+
+                // Log bumps state to payment_checkout for immediate inspection (sanitized)
+                try {
+                    Log::channel('payment_checkout')->info('generatePixPayment: bumps after loadBumpsByMethod (sanitized)', [
+                        'selectedPlan' => $this->selectedPlan ?? null,
+                        'selectedPaymentMethod' => $this->selectedPaymentMethod ?? null,
+                        'bumps' => is_array($this->bumps) ? $this->bumps : [],
+                    ]);
+                } catch (\Throwable $_) {
+                    // ignore if channel not present
+                }
             } catch (\Exception $e) {
                 Log::warning('generatePixPayment: falha ao carregar bumps para PIX', ['error' => $e->getMessage()]);
             }
@@ -2230,6 +2362,16 @@ class PagePay extends Component
 
             // Preparar dados do PIX sincronizados com Stripe
             $pixData = $this->preparePIXData();
+
+            // Diagnostic: log the pixData and bumps right before sending to backend
+            try {
+                Log::channel('payment_checkout')->info('generatePixPayment: prepared pixData (before send)', [
+                    'pixData' => $pixData,
+                    'bumps' => is_array($this->bumps) ? $this->bumps : [],
+                ]);
+            } catch (\Throwable $_) {
+                // ignore if logging channel isn't configured
+            }
 
             if ($pixData['amount'] <= 0) {
                 $this->errorMessage = __('payment.invalid_amount');
