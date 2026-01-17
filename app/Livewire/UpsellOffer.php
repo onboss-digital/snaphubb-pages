@@ -258,7 +258,6 @@ class UpsellOffer extends Component
                         $this->errorMessage = 'Não foi possível resolver o produto de upsell para cobrança com cartão. Tente novamente ou use PIX.';
                         return;
                     }
-                }
                 // Try to charge the customer's default card via StripeGateway
                 $gateway = app(\App\Services\PaymentGateways\StripeGateway::class);
 
