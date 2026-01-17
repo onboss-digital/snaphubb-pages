@@ -563,7 +563,7 @@ document.addEventListener('DOMContentLoaded', function(){
             <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
 
                 <!-- Coluna de Pagamento e Resumo do Pedido -->
-                <div class="flex flex-col order-1 md:order-1">
+                <div class="flex flex-col order-2 md:order-1">
                     <!-- Benefits -->
                     <div class=" bg-[#1F1F1F] rounded-xl p-6 mb-6">
                         <h2 class="text-xl font-semibold text-white mb-4">{{ __('checkout.benefits_title') }}</h2>
@@ -1097,7 +1097,7 @@ document.addEventListener('DOMContentLoaded', function(){
                     @endif
                 </div>
                 <!-- Coluna de Resumo do Pedido -->
-                <div class="md:col-span-1 order-2 md:order-2">
+                <div class="md:col-span-1 order-1 md:order-2">
                     <!-- Card de resumo de cartão - oculto quando PIX é selecionado -->
                     <div class="bg-[#1F1F1F] rounded-xl p-6 sticky top-6" wire:poll.1s="decrementTimer"
                         wire:poll.15000ms="decrementSpotsLeft" wire:poll.8000ms="updateLiveActivity">
