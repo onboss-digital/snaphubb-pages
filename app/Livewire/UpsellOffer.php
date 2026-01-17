@@ -292,6 +292,24 @@ class UpsellOffer extends Component
 
                 $idempotency = md5($upsellProductId . '|' . $stripeCustomerId . '|' . now()->timestamp);
 
+                // Determine upsell URLs: prefer backend-declared values (from foundPlan), then query params
+                $upsellSuccessUrl = null;
+                $upsellFailedUrl = null;
+                
+                if (!empty($foundPlan) && is_array($foundPlan)) {
+                    // For Stripe/cartão: use pages_upsell_succes_url or pages_upsell_url
+                    $upsellSuccessUrl = $foundPlan['pages_upsell_succes_url'] ?? $foundPlan['pages_upsell_url'] ?? null;
+                    $upsellFailedUrl = $foundPlan['pages_upsell_fail_url'] ?? null;
+                }
+                
+                // Fallback to query params if backend didn't provide
+                if (empty($upsellSuccessUrl)) {
+                    $upsellSuccessUrl = request()->query('upsell_success_url') ?? null;
+                }
+                if (empty($upsellFailedUrl)) {
+                    $upsellFailedUrl = request()->query('upsell_failed_url') ?? null;
+                }
+                
                 $paymentPayload = [
                     'customer' => [
                         'id' => $stripeCustomerId,
@@ -300,8 +318,8 @@ class UpsellOffer extends Component
                     ],
                     'cart' => [ $cartItem ],
                     'metadata' => [ 'is_upsell' => true, 'offer_hash' => $upsellProductId, 'product_external_id' => $upsellProductId ],
-                    'upsell_success_url' => request()->query('upsell_success_url') ?? null,
-                    'upsell_failed_url' => request()->query('upsell_failed_url') ?? null,
+                    'upsell_success_url' => $upsellSuccessUrl,
+                    'upsell_failed_url' => $upsellFailedUrl,
                 ];
 
                 $res = $gateway->processPayment($paymentPayload, $idempotency);
@@ -392,6 +410,16 @@ class UpsellOffer extends Component
                 }
             }
 
+            // Determine PIX upsell URLs: prefer backend-declared values (from foundPlan), then defaults
+            $pixUpsellSuccessUrl = null;
+            $pixUpsellFailUrl = null;
+            
+            if (!empty($foundPlan) && is_array($foundPlan)) {
+                // For PIX: use pages_pix_upsell_succes_url or pages_pix_upsell_url
+                $pixUpsellSuccessUrl = $foundPlan['pages_pix_upsell_succes_url'] ?? $foundPlan['pages_pix_upsell_url'] ?? null;
+                $pixUpsellFailUrl = $foundPlan['pages_pix_upsell_fail_url'] ?? null;
+            }
+
             $pixData = [
                 // amount in cents: backend base price + any active bumps
                 'amount' => $basePriceCents + $bumpsTotal,
@@ -408,6 +436,8 @@ class UpsellOffer extends Component
                 'metadata' => [
                     'payment_method' => 'pix',
                     'is_upsell' => true,
+                    'upsell_success_url' => $pixUpsellSuccessUrl,
+                    'upsell_fail_url' => $pixUpsellFailUrl,
                     'webhook_url' => url('/api/pix/webhook'),
                 ],
             ];

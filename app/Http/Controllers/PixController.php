@@ -133,11 +133,15 @@ class PixController extends Controller
             ]);
 
             // 6. CHAMAR SERVIÇO PIX PARA GERAR PAGAMENTO
+            // Extract webhook_url from metadata (if provided)
+            $webhookUrl = $validated['metadata']['webhook_url'] ?? null;
+            
             $pixPaymentData = [
                 'amount' => (int) $pixAmount,
                 'currency' => $validated['currency_code'] ?? 'BRL',
                 'currency_code' => $validated['currency_code'] ?? 'BRL',
                 'description' => $description,
+                'webhook_url' => $webhookUrl,
                 'customer' => [
                     'name' => $validated['customer']['name'],
                     'email' => $validated['customer']['email'],

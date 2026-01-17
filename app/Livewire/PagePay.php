@@ -497,33 +497,6 @@ class PagePay extends Component
      * Carrega Order Bumps do banco de dados
      * Busca bumps por método de pagamento
      */
-    private function loadBumps()
-    {
-        try {
-            // Usar Model ao invés de HTTP request para evitar timeout
-            // Se os bumps já vieram da API do backend, não sobrescreve-los
-            if (($this->dataOrigin['bumps'] ?? null) === 'backend' && !empty($this->bumps)) {
-                Log::info('PagePay: loadBumps - bumps já provenientes do backend, mantendo os existentes', ['count' => count($this->bumps)]);
-                return;
-            }
-
-            $this->bumps = \App\Models\OrderBump::getByPaymentMethod('card');
-
-            Log::info('PagePay: Order bumps carregados do banco', [
-                'count' => count($this->bumps),
-            ]);
-        } catch (\Exception $e) {
-            Log::error('PagePay: Exceção ao carregar bumps', [
-                'error' => $e->getMessage(),
-            ]);
-            // Não sobrescrever bumps já carregados pelo backend; se não houver nenhum, usar array vazio
-            if (empty($this->bumps)) {
-                $this->bumps = [];
-                $this->dataOrigin['bumps'] = 'fallback';
-            }
-        }
-    }
-
     public function getPlans()
     {
         try {
@@ -1907,22 +1880,33 @@ class PagePay extends Component
     public function loadBumpsByMethod($method = 'card')
     {
         try {
-            // Preferir bumps vindos da API (quando o backend forneceu 'order_bumps' para o plano)
-            // Isso evita sobrescrever bumps ricos da API com registros locais possivelmente incompletos.
-            $usedSource = 'db';
+            // Bumps come ONLY from backend API — no fallback to local database
+            // Backend is the single source of truth for order bumps
+            $usedSource = 'backend';
             if (($this->dataOrigin['plans'] ?? null) === 'backend'
                 && !empty($this->plans)
-                && isset($this->plans[$this->selectedPlan]['order_bumps'])
-                && $method !== 'pix') {
+                && isset($this->plans[$this->selectedPlan]['order_bumps'])) {
                 $this->bumps = $this->plans[$this->selectedPlan]['order_bumps'];
                 // Normalize to avoid preselected bumps from backend only when loading for PIX
                 $this->bumps = $this->sanitizeBumps($this->bumps, ($method === 'pix' || ($this->selectedPaymentMethod === 'pix')));
                 $this->dataOrigin['bumps'] = 'backend';
-                $usedSource = 'backend';
             } else {
-                // Usar Model ao invés de HTTP request para evitar timeout
-                $this->bumps = \App\Models\OrderBump::getByPaymentMethod($method);
-                $this->dataOrigin['bumps'] = 'db';
+                // No fallback — if backend doesn't provide bumps, show none
+                $this->bumps = [];
+                $this->dataOrigin['bumps'] = 'none';
+            }
+
+            // Filtrar bumps por payment_method — garantir compatibilidade (cartão ≠ PIX)
+            try {
+                if (is_array($this->bumps) && !empty($this->bumps)) {
+                    $this->bumps = array_values(array_filter($this->bumps, function ($b) use ($method) {
+                        $bumpMethod = $b['payment_method'] ?? 'all';
+                        // Mostrar bumps que correspondem ao método OU bumps universais ('all')
+                        return $bumpMethod === 'all' || $bumpMethod === $method;
+                    }));
+                }
+            } catch (\Throwable $e) {
+                Log::warning('PagePay: Falha ao filtrar bumps por payment_method', ['method' => $method, 'error' => $e->getMessage()]);
             }
 
             // Filtrar bumps sem preço válido para fluxos de cartão (evita mostrar bump R$0,00)
