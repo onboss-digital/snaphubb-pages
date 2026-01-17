@@ -24,7 +24,7 @@ class PagePay extends Component
         $plans, $modalData, $product, $testimonials = [],
         $utm_source, $utm_medium, $utm_campaign, $utm_id, $utm_term, $utm_content, $src, $sck;
 
-    public $selectedPaymentMethod = null;
+    public $selectedPaymentMethod = 'pix';
     public $selectedLanguage = 'br';
     public $selectedCurrency = 'BRL';
     public $selectedPlan = 'monthly';
