@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\Facades\View;
 use App\Interfaces\PaymentGatewayInterface; // Added
 use App\Factories\PaymentGatewayFactory; // Added
 
@@ -29,5 +30,8 @@ class AppServiceProvider extends ServiceProvider
             // Make sure the manifest is properly loaded
             @json_decode(file_get_contents($manifestPath), true);
         }
+
+        // Register view namespace 'layouts' to point to components/layouts
+        View::addNamespace('layouts', resource_path('views/components/layouts'));
     }
 }

@@ -89,6 +89,21 @@
     {{ $slot }}
     @stack('scripts')
     @livewireScripts
+
+    <!-- Fallback estático para ambientes onde /livewire/* retorna 404 (ex: nginx try_files não roteando para index.php) -->
+    <script>
+        (function(){
+            function loadFallback(){
+                if (typeof Livewire === 'undefined') {
+                    var s = document.createElement('script');
+                    s.src = "{{ asset('vendor/livewire/livewire.js') }}";
+                    s.defer = true;
+                    (document.head || document.documentElement).appendChild(s);
+                }
+            }
+            if (document.readyState === 'complete') { setTimeout(loadFallback, 100); } else { window.addEventListener('load', function(){ setTimeout(loadFallback, 100); }); }
+        })();
+    </script>
 </body>
 
 </html>
