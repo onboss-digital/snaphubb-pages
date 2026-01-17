@@ -2327,7 +2327,6 @@ function startTimer(timerEl) {
 
 <!-- Stripe JS -->
 @push('scripts')
-@vite('resources/js/pages/pay.js')
 @if($gateway === 'stripe')
 <script src="https://js.stripe.com/v3/"></script>
 <script>
