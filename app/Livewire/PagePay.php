@@ -24,7 +24,7 @@ class PagePay extends Component
         $plans, $modalData, $product, $testimonials = [],
         $utm_source, $utm_medium, $utm_campaign, $utm_id, $utm_term, $utm_content, $src, $sck;
 
-    public $selectedPaymentMethod = 'credit_card';
+    public $selectedPaymentMethod = null;
     public $selectedLanguage = 'br';
     public $selectedCurrency = 'BRL';
     public $selectedPlan = 'monthly';
@@ -77,45 +77,21 @@ class PagePay extends Component
             }
         }
 
-        // Validar se plano selecionado suporta este método
-        if (!$this->planSupportsPaymentMethod($this->selectedPlan, $value)) {
+        // Validar se plano selecionado suporta este método — não forçamos o revert
+        $supported = $this->planSupportsPaymentMethod($this->selectedPlan, $value);
+        if (!$supported) {
             $this->addError(
                 'payment_method',
-                "O plano selecionado não suporta pagamento via " . ($value === 'pix' ? 'PIX' : 'Cartão')
+                "O plano selecionado não declara suporte para " . ($value === 'pix' ? 'PIX' : 'Cartão') . ". Selecione outro plano ou contacte o suporte."
             );
-            Log::warning("updatedSelectedPaymentMethod: Plano não suporta método", [
+            Log::warning("updatedSelectedPaymentMethod: Plano NÃO declara suporte para o método selecionado", [
                 'plan' => $this->selectedPlan,
                 'method' => $value,
             ]);
-
-            // If PIX is not supported, force-switch back to credit card and recalc totals
-            if ($value === 'pix') {
-                Log::info('updatedSelectedPaymentMethod: PIX não suportado, revertendo para credit_card', ['plan' => $this->selectedPlan]);
-                $this->selectedPaymentMethod = 'credit_card';
-                try {
-                    $this->loadBumpsByMethod('card');
-                } catch (\Throwable $e) {
-                    Log::warning('updatedSelectedPaymentMethod: falha ao carregar bumps de card fallback', ['error' => $e->getMessage()]);
-                }
-                $this->setCardTotals($this->selectedPlan);
-            } else {
-                // Mesmo que o backend marque o plano como não suportando cartão,
-                // atualizamos os totals exibidos para evitar que a UI continue
-                // mostrando o preço do PushinPay quando o usuário seleciona 'cartão'.
-                try {
-                    $this->loadBumpsByMethod('card');
-                } catch (\Throwable $e) {
-                    Log::warning('updatedSelectedPaymentMethod: falha ao carregar bumps de card fallback', ['error' => $e->getMessage()]);
-                }
-
-                $this->setCardTotals($this->selectedPlan);
-            }
-
-            return;
+        } else {
+            // Limpar erros se o método é válido
+            $this->resetErrorBag();
         }
-
-        // Limpar erros se o método é válido
-        $this->resetErrorBag();
 
         // Gerenciar order bumps e estado ao alternar métodos
         if ($value === 'pix') {
@@ -298,14 +274,12 @@ class PagePay extends Component
         }
         Log::info('PagePay::mount - Carregando planos da API Stripe');
 
-        // Se idioma for Português (BR), selecionar PIX como método padrão
-        if ($this->selectedLanguage === 'br') {
-            $this->selectedPaymentMethod = 'pix';
-            Log::info('PagePay: PIX selecionado automaticamente (idioma BR)');
+        // NÃO selecionar automaticamente nenhum método aqui. O método
+        // será escolhido explicitamente pelo usuário na UI.
+        // Carregar order bumps apenas se o método já estiver definido.
+        if (!empty($this->selectedPaymentMethod)) {
+            $this->loadBumpsByMethod($this->selectedPaymentMethod);
         }
-
-        // Carregar order bumps do backend para o método atualmente selecionado
-        $this->loadBumpsByMethod($this->selectedPaymentMethod);
 
         // Defensive: sempre garantir que bumps não venham pré-selecionados ao montar
         if (is_array($this->bumps) && count($this->bumps) > 0) {
@@ -329,11 +303,13 @@ class PagePay extends Component
 
         // Update product details based on the selected plan
         $this->updateProductDetails();
-        // If default method is credit_card, ensure totals reflect plan 'price' (Preço*)
-        if ($this->selectedPaymentMethod !== 'pix') {
-            $this->setCardTotals($this->selectedPlan);
-        } else {
-            $this->calculateTotals();
+        // Recalcular totals apenas se um método estiver selecionado.
+        if ($this->selectedPaymentMethod !== null) {
+            if ($this->selectedPaymentMethod !== 'pix') {
+                $this->setCardTotals($this->selectedPlan);
+            } else {
+                $this->calculateTotals();
+            }
         }
     }
 

@@ -586,7 +586,7 @@ document.addEventListener('DOMContentLoaded', function(){
                     </div>
 
                     <!-- Payment Methods -->
-                    <div x-data="{ selectedPaymentMethod: @js($selectedLanguage === 'br' ? 'pix' : 'credit_card') }" id="payment-method-section"
+                    <div x-data="{ selectedPaymentMethod: @entangle('selectedPaymentMethod') }" id="payment-method-section"
                         class=" bg-[#1F1F1F] rounded-xl p-6 mb-6 scroll-mt-8">
                         <h2 class="text-xl font-semibold text-white mb-4">{{ __('payment.payment_method') }}</h2>
                         @php
@@ -612,11 +612,16 @@ document.addEventListener('DOMContentLoaded', function(){
                                 <!-- Credit Card Option -->
                                 <div class="relative">
                                     <input type="radio" id="method_credit_card" name="payment_method" value="credit_card"
+                                        wire:model="selectedPaymentMethod"
+                                        x-model="selectedPaymentMethod"
                                         wire:click="$set('selectedPaymentMethod', 'credit_card')"
                                         x-on:change="selectedPaymentMethod = 'credit_card'; $nextTick(()=>{ const el = document.querySelector('input[name=card_name]'); if(el) el.focus(); })"
                                         class="hidden"
                                         :checked="selectedPaymentMethod === 'credit_card'" />
                                     <label for="method_credit_card" 
+                                        wire:click="$set('selectedPaymentMethod', 'credit_card')"
+                                        role="button"
+                                        tabindex="0"
                                         :class="selectedPaymentMethod === 'credit_card' 
                                             ? 'block relative cursor-pointer p-4 rounded-xl border-2 h-28 flex items-center payment-option border-[#E50914] bg-gradient-to-r from-[#2b2b2b] to-[#161616]'
                                             : 'block relative cursor-pointer p-4 rounded-xl border-2 h-28 flex items-center payment-option border-gray-700 bg-[#0f0f10] hover:border-gray-600'">
@@ -650,12 +655,16 @@ document.addEventListener('DOMContentLoaded', function(){
                                 @if ($selectedLanguage === 'br')
                                     <div class="relative">
                                         <input type="radio" id="method_pix" name="payment_method" value="pix"
-                                            wire:click="$set('selectedPaymentMethod', 'pix')"
-                                            @if(!$pushinSupported) disabled @endif
+                                            wire:model="selectedPaymentMethod"
+                                                x-model="selectedPaymentMethod"
+                                                wire:click="$set('selectedPaymentMethod', 'pix')"
                                             x-on:change="selectedPaymentMethod = 'pix'; $nextTick(()=>{ const el = document.querySelector('input[name=pix_name]'); if(el) el.focus(); })"
                                             class="hidden"
                                             :checked="selectedPaymentMethod === 'pix'" />
                                         <label for="method_pix" 
+                                            wire:click="$set('selectedPaymentMethod', 'pix')"
+                                                role="button"
+                                                tabindex="0"
                                             :class="selectedPaymentMethod === 'pix'
                                                 ? 'block relative cursor-pointer p-4 rounded-xl border-2 h-28 flex items-center border-green-400 bg-gradient-to-r from-[#0f1f12] to-[#07120a]'
                                                 : 'block relative cursor-pointer p-4 rounded-xl border-2 h-28 flex items-center border-gray-700 bg-[#0f0f10] hover:border-gray-600'">
@@ -1095,8 +1104,8 @@ document.addEventListener('DOMContentLoaded', function(){
                         <h2 class="text-xl font-semibold text-white mb-4 text-center">
                             {{ __('checkout.order_summary_title') }}</h2>
 
-                        <!-- Conteúdo de Cartão - Oculto quando PIX é selecionado -->
-                        @if($selectedPaymentMethod !== 'pix')
+                        <!-- Conteúdo de Cartão - mostrado apenas quando Cartão estiver selecionado -->
+                        @if($selectedPaymentMethod === 'credit_card')
 
                         <!-- Timer -->
                         <div
@@ -1140,7 +1149,7 @@ document.addEventListener('DOMContentLoaded', function(){
                         <div class="mb-2 text-center">
                                         <del class="text-gray-400 text-sm">{{ $currencies[$selectedCurrency]['symbol'] }}
                                             {{ number_format($totals['month_price'] ?? 0, 2, ',', '.') }}</del>
-                                        <span class="text-lg font-bold ml-2 {{ (isset($dataOrigin) && $dataOrigin['totals'] === 'backend') ? 'text-green-400 price-backend' : ((isset($dataOrigin) && ($selectedPaymentMethod ?? '') !== 'pix') ? 'price-fallback animate-fallback-pulse' : 'text-green-400') }}"
+                                        <span class="text-lg font-bold ml-2 {{ (isset($dataOrigin) && $dataOrigin['totals'] === 'backend') ? 'text-green-400 price-backend' : ((isset($dataOrigin) && ($selectedPaymentMethod === 'credit_card')) ? 'price-fallback animate-fallback-pulse' : 'text-green-400') }}"
                                             id="current-price">{{ $currencies[$selectedCurrency]['symbol'] }}
                                             {{ number_format($totals['month_price_discount'] ?? 0, 2, ',', '.') }} {{ __('payment.per_month') }}</span>
                                     </div>
@@ -1321,7 +1330,7 @@ document.addEventListener('DOMContentLoaded', function(){
                                 </div>
                                 <div class="border-t border-gray-700 pt-3 flex justify-between items-center">
                                     <span class="text-white font-bold text-base">Total a Pagar:</span>
-                                    <span class="font-bold text-2xl {{ (isset($dataOrigin) && $dataOrigin['totals'] === 'backend') ? 'price-backend' : ((isset($dataOrigin) && ($selectedPaymentMethod ?? '') !== 'pix') ? 'price-fallback animate-fallback-pulse' : 'text-green-400') }}">
+                                    <span class="font-bold text-2xl {{ (isset($dataOrigin) && $dataOrigin['totals'] === 'backend') ? 'price-backend' : ((isset($dataOrigin) && ($selectedPaymentMethod === 'credit_card')) ? 'price-fallback animate-fallback-pulse' : 'text-green-400') }}">
                                         {{ $currencies[$selectedCurrency]['symbol'] }} {{ number_format($totals['final_price'] ?? 0, 2, ',', '.') }}
                                     </span>
                                 </div>
