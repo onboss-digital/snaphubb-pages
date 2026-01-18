@@ -11,6 +11,7 @@ return [
 
     // CTA Button
     'cta_button' => 'GARANTIR MEU ACESSO AGORA',
+    'activate_account' => 'ATIVAR CONTA',
 
     // Form Fields Helper Text
     'phone_helper' => '(Opcional) Para avisos sobre sua assinatura',

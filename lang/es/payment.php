@@ -83,8 +83,12 @@ return [
 
     // Final Summary
     'final_summary' => 'Resumen Final:',
+    'subscription_plan' => 'Plan de Suscripción',
+    'monthly_price' => 'Precio Mensual:',
     'original_price' => 'Precio Original:',
     'discount' => 'Descuento:',
+    'add_ons_total' => 'Total de Complementos:',
+    'one_time' => 'compra única',
     'total_to_pay' => 'TOTAL A PAGAR:',
     'spots_left' => '¡Solo quedan <span id="spots-left">12</span> plazas!',
     'people_finishing' => '<strong id="activityCounter">10</strong> personas están finalizando ahora!',

@@ -56,9 +56,11 @@ return [
     'instant_confirmation' => 'Confirmação Instantânea',
 
     // Order Bumps
-    'add_ons_title' => '🚀 ACELERE SEUS RESULTADOS - Desbloqueie Bônus Exclusivos',
+    'add_ons_title' => 'Adicione Bônus Exclusivos por Tempo Limitado',
     'recommended' => 'Recomendado',
     'people_bought' => 'pessoas compraram',
+    'subscription_price' => 'Preço da Assinatura',
+    'one_time_charges' => 'Cobranças Únicas',
 
     // Order Summary
     'order_summary' => 'Resumo do pedido',
@@ -78,6 +80,10 @@ return [
     'discount' => 'Desconto:',
     'total_to_pay' => 'TOTAL A PAGAR:',
     'final_summary' => 'Resumo Final:',
+    'subscription_plan' => 'Plano de Assinatura',
+    'monthly_price' => 'Preço Mensal:',
+    'add_ons_total' => 'Total de Adicionais:',
+    'one_time' => 'compra única',
     'spots_left' => 'Apenas <span id="spots-left">12</span> vagas restantes!',
     'people_finishing' => '<strong id="activityCounter">10</strong> pessoas finalizando a compra agora!',
 
