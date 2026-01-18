@@ -493,6 +493,24 @@ class StripeGateway implements PaymentGatewayInterface
             $bumps = array_values(array_filter(array_map(function ($order_bump) use ($selectedCurrency, $normalizeAmount) {
                 if (empty($order_bump['external_id'])) return null;
 
+                // 🔹 Se é PIX, usar price_order_pix do backend, não buscar do Stripe
+                if (($order_bump['payment_method'] ?? null) === 'pix' && isset($order_bump['price_order_pix'])) {
+                    $bumpPrice = floatval($order_bump['price_order_pix']);
+                    return [
+                        'id'          => $order_bump['external_id'],
+                        'title'       => $order_bump['title'],
+                        'text_button' => $order_bump['text_button'],
+                        'description' => $order_bump['description'],
+                        'price'       => $bumpPrice,
+                        'price_id'    => null,
+                        'currency'    => $selectedCurrency,
+                        'hash'        => $order_bump['external_id'],
+                        'active'      => false,
+                        'payment_method' => 'pix',
+                    ];
+                }
+
+                // 🔹 Para Stripe (card ou sem payment_method), buscar preços da API
                 // Diagnostic log for bump price resolution
                 \Illuminate\Support\Facades\Log::info('StripeGateway::formatPlans - fetching bump prices', ['bump_external_id' => $order_bump['external_id'], 'selected_currency' => $selectedCurrency]);
 
@@ -528,6 +546,7 @@ class StripeGateway implements PaymentGatewayInterface
                     'currency'    => $selectedCurrency,
                     'hash'        => $order_bump['external_id'],
                     'active'      => false,
+                    'payment_method' => $order_bump['payment_method'] ?? 'card',
                 ] : null;
             }, $plan['order_bumps'] ?? [])));
 
