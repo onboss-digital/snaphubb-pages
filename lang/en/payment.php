@@ -83,8 +83,12 @@ return [
 
     // Final Summary
     'final_summary' => 'Final Summary:',
+    'subscription_plan' => 'Subscription Plan',
+    'monthly_price' => 'Monthly Price:',
     'original_price' => 'Original Price:',
     'discount' => 'Discount:',
+    'add_ons_total' => 'Add-ons Total:',
+    'one_time' => 'one-time',
     'total_to_pay' => 'TOTAL TO PAY:',
     'spots_left' => 'Only <span id="spots-left">12</span> spots left!',
     'people_finishing' => '<strong id="activityCounter">10</strong> people are checking out now!',

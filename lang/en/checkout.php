@@ -11,6 +11,7 @@ return [
 
     // CTA Button
     'cta_button' => 'ACTIVATE MY ACCOUNT',
+    'activate_account' => 'ACTIVATE ACCOUNT',
 
     // Form Fields Helper Text
     'phone_helper' => '(Optional) For notifications about your subscription',

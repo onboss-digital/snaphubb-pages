@@ -360,10 +360,12 @@ class PagePay extends Component
         // Use numeric floats here; formatting happens in the Blade view
         $months = intval($plan['nunber_months'] ?? 1) ?: 1;
 
-        // Start from base plan price
-        $finalPrice = round($base, 2);
+        // Keep plan price separate from bumps
+        $planFinalPrice = round($base, 2);
+        $month_price = round($planFinalPrice / $months, 2);
 
-        // Add active bumps (support multiple shapes: 'price', 'original_price', 'amount')
+        // Calculate bumps total (one-time charges, NOT recurring)
+        $bumpsTotalPrice = 0.0;
         foreach ($this->bumps as $bump) {
             $isActive = false;
             if (is_array($bump)) {
@@ -386,17 +388,19 @@ class PagePay extends Component
                     $bumpPrice = floatval($bump);
                 }
 
-                $finalPrice += $bumpPrice;
+                $bumpsTotalPrice += $bumpPrice;
             }
         }
 
-        $month_price = round($finalPrice / $months, 2);
+        // Total = plan price + bumps (ONE-TIME only)
+        $totalWithBumps = round($planFinalPrice + $bumpsTotalPrice, 2);
 
         $this->totals = [
             'month_price' => $month_price,
             'month_price_discount' => $month_price,
-            'total_price' => round($finalPrice, 2),
-            'final_price' => round($finalPrice, 2),
+            'total_price' => round($planFinalPrice, 2),
+            'final_price' => $totalWithBumps,
+            'bumps_total' => round($bumpsTotalPrice, 2),
             'total_discount' => 0.0,
         ];
 
@@ -684,16 +688,18 @@ class PagePay extends Component
 
     if ($this->selectedPaymentMethod === 'pix' && $pushAmount !== null && $pushSupported === true) {
         $pushAmount = floatval($pushAmount);
+        $months = intval($plan['nunber_months'] ?? 1) ?: 1;
 
+        // Keep plan price separate from bumps (PIX)
         $this->totals = [
-            'month_price' => $pushAmount / ($plan['nunber_months'] ?? 1),
-            'month_price_discount' => $pushAmount / ($plan['nunber_months'] ?? 1),
+            'month_price' => $pushAmount / $months,
+            'month_price_discount' => $pushAmount / $months,
             'total_price' => $pushAmount,
             'total_discount' => 0,
         ];
 
-        $finalPrice = $pushAmount;
-
+        // Calculate bumps total (one-time charges, NOT recurring)
+        $bumpsTotalPrice = 0.0;
         foreach ($this->bumps as $bump) {
             $isActive = false;
             if (is_array($bump)) {
@@ -716,10 +722,13 @@ class PagePay extends Component
                     $bumpPrice = floatval($bump);
                 }
 
-                $finalPrice += floatval($bumpPrice ?? 0);
+                $bumpsTotalPrice += floatval($bumpPrice ?? 0);
             }
         }
 
+        // Total = plan price + bumps (ONE-TIME only)
+        $finalPrice = $pushAmount + $bumpsTotalPrice;
+        $this->totals['bumps_total'] = round(floatval($bumpsTotalPrice), 2);
         $this->totals['final_price'] = round(floatval($finalPrice), 2);
         $this->totals = array_map(function ($value) {
             return round(floatval($value), 2);
@@ -776,6 +785,26 @@ class PagePay extends Component
     // ✅ Se chegou aqui, totals foram calculados com dados válidos
     $this->dataOrigin['totals'] = $this->dataOrigin['plans'];
 }
+    /**
+     * Hook executado quando qualquer propriedade de bumps é atualizada via wire:model
+     * Garante que calculateTotals seja chamado automaticamente
+     */
+    public function updatedBumps()
+    {
+        $this->calculateTotals();
+    }
+
+    /**
+     * Toggle bump active state and recalculate totals
+     * Called when user clicks on order bump card
+     */
+    public function toggleBump($index)
+    {
+        if (isset($this->bumps[$index]) && is_array($this->bumps[$index])) {
+            $this->bumps[$index]['active'] = !($this->bumps[$index]['active'] ?? false);
+            $this->calculateTotals();
+        }
+    }
 
     /**
      * Valida todos os campos do cartão de crédito
