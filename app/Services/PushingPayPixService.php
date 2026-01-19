@@ -121,10 +121,20 @@ class PushingPayPixService
 
             $responseData = $response->json();
 
-            Log::info('PushingPayPixService: Response da criação de PIX', [
+            Log::channel('payment_checkout')->info('PushingPayPixService: Response da criação de PIX', [
                 'status_code' => $response->status(),
                 'response_keys' => array_keys($responseData),
                 'full_response' => $responseData,
+                'has_qr_code_base64' => isset($responseData['qr_code_base64']),
+                'has_qr_code' => isset($responseData['qr_code']),
+                'has_copyAndPaste' => isset($responseData['copyAndPaste']),
+                'has_pix_code' => isset($responseData['pix_code']),
+            ]);
+
+            // Debug: Log completo para auditoria
+            Log::info('PushingPayPixService: Response completa da criação de PIX', [
+                'status_code' => $response->status(),
+                'body_sample' => substr(json_encode($responseData), 0, 500),
             ]);
 
             // O campo de ID pode estar em: 'id', 'payment_id', ou 'transactionId'
@@ -138,8 +148,35 @@ class PushingPayPixService
                     ?? null;
 
                 $qrCodeBase64 = $responseData['qr_code_base64'] 
-                    ?? $responseData['qr_code'] 
+                    ?? $responseData['qr_code_image']
                     ?? null;
+
+                // Se não temos base64 mas temos o código PIX, gerar a imagem QR
+                if (empty($qrCodeBase64) && !empty($qrCode)) {
+                    Log::channel('payment_checkout')->info('PushingPayPixService: Gerando QR code base64 (falta na resposta da API)', [
+                        'payment_id' => $paymentId,
+                        'pix_code_length' => strlen($qrCode),
+                    ]);
+                    
+                    $qrCodeBase64 = $this->generateQrCodeBase64($qrCode);
+                    
+                    if ($qrCodeBase64) {
+                        Log::channel('payment_checkout')->info('PushingPayPixService: QR code base64 gerado com sucesso', [
+                            'payment_id' => $paymentId,
+                            'base64_length' => strlen($qrCodeBase64),
+                        ]);
+                    } else {
+                        Log::warning('PushingPayPixService: Falhou ao gerar QR code base64', [
+                            'payment_id' => $paymentId,
+                            'qr_code' => $qrCode,
+                        ]);
+                    }
+                } else {
+                    Log::channel('payment_checkout')->debug('PushingPayPixService: QR code base64 obtido da API', [
+                        'payment_id' => $paymentId,
+                        'base64_length' => strlen($qrCodeBase64 ?? ''),
+                    ]);
+                }
 
                 // Determinar expiração com prioridade para o valor retornado pela API
                 $expiration = null;
@@ -283,6 +320,95 @@ class PushingPayPixService
                 return 'expired';
             default:
                 return 'pending'; // Default para status desconhecido
+        }
+    }
+
+    /**
+     * Gera uma imagem QR code em base64 a partir de um código PIX.
+     * Tenta múltiplas opções de geração:
+     * 1. Biblioteca chillerlan/php-qrcode (se instalada)
+     * 2. API qr-server.com (sem dependências)
+     * 3. API goqr.me (backup)
+     *
+     * @param string $pixCode Código PIX a ser codificado (copyAndPaste)
+     * @return string|null Base64 da imagem PNG do QR code, ou null se falhar
+     */
+    protected function generateQrCodeBase64(string $pixCode): ?string
+    {
+        if (empty($pixCode)) {
+            Log::warning('PushingPayPixService: pixCode vazio para generateQrCodeBase64');
+            return null;
+        }
+
+        try {
+            // Opção 1: Tentar usar a biblioteca chillerlan/php-qrcode se disponível
+            if (class_exists('\\chillerlan\\QRCode\\QRCode')) {
+                try {
+                    $qrCode = new \chillerlan\QRCode\QRCode($pixCode);
+                    $qrCode->setErrorCorrectionLevel(\chillerlan\QRCode\Enum\EccLevel::H);
+                    
+                    // Renderizar como PNG
+                    $image = $qrCode->render();
+                    if ($image) {
+                        Log::channel('payment_checkout')->debug('PushingPayPixService: QR code gerado via chillerlan/php-qrcode');
+                        return base64_encode($image);
+                    }
+                } catch (\Exception $e) {
+                    Log::warning('PushingPayPixService: Falhou ao usar chillerlan/php-qrcode', [
+                        'exception' => $e->getMessage(),
+                    ]);
+                }
+            }
+
+            // Opção 2: Usar a API gratuita do qr-server.com
+            Log::channel('payment_checkout')->debug('PushingPayPixService: Tentando gerar QR code via API qr-server');
+            
+            $qrServerUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=' . urlencode($pixCode);
+            
+            $response = Http::withoutVerifying()
+                ->timeout(5)
+                ->retry(2, 100)
+                ->get($qrServerUrl);
+            
+            if ($response->successful() && $response->body()) {
+                Log::channel('payment_checkout')->debug('PushingPayPixService: QR code gerado via qr-server com sucesso', [
+                    'size' => strlen($response->body()),
+                ]);
+                return base64_encode($response->body());
+            }
+
+            Log::warning('PushingPayPixService: Falhou qr-server status=' . $response->status());
+
+            // Opção 3: Usar a API backup goqr.me
+            Log::channel('payment_checkout')->debug('PushingPayPixService: Tentando gerar QR code via API goqr.me (backup)');
+            
+            $goqrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=' . urlencode($pixCode);
+            
+            $response2 = Http::withoutVerifying()
+                ->timeout(5)
+                ->retry(2, 100)
+                ->get($goqrUrl);
+            
+            if ($response2->successful() && $response2->body()) {
+                Log::channel('payment_checkout')->debug('PushingPayPixService: QR code gerado via goqr.me com sucesso');
+                return base64_encode($response2->body());
+            }
+
+            Log::error('PushingPayPixService: Todas as opções de gerar QR code falharam', [
+                'qr_server_status' => $response->status(),
+                'goqr_status' => $response2->status(),
+                'pix_code_length' => strlen($pixCode),
+            ]);
+
+            return null;
+
+        } catch (\Exception $e) {
+            Log::error('PushingPayPixService: Exceção ao gerar QR code base64', [
+                'exception' => $e->getMessage(),
+                'trace' => substr($e->getTraceAsString(), 0, 200),
+                'pix_code_length' => strlen($pixCode),
+            ]);
+            return null;
         }
     }
 }

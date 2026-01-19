@@ -145,18 +145,19 @@ class PagePay extends Component
     public $pixStatus = 'pending';
     public $pixError = null;
     public $pixValidationError = null;
-    public $isProcessingCard = false;
+    // Payment processing flags
+    public $isProcessingCard = false; // Cartão apenas
+    public $showProcessingModal = false; // PIX apenas
     // Modal / UI flags used by the blade views
-    public $showUpsellModal = false;
     public $showDownsellModal = false;
-    public $showProcessingModal = false;
-    public $showSuccessModal = false;
     public $showErrorModal = false;
     public $showSecure = false;
     public $loadingMessage = null;
     public $errorMessage = null;
     // Legacy/typo alias observed in debug data
     public $showLodingModal = false;
+    // Payment redirect after successful purchase
+    public $redirectAfterPayment = null;
     protected $apiUrl;
     private $httpClient;
     private $pixService;
@@ -183,10 +184,12 @@ class PagePay extends Component
         ];
 
         if ($this->selectedLanguage === 'br') {
-            $rules['cpf'] = ['required', 'string', 'regex:/^\d{3}\.\d{3}\.\d{3}\-\d{2}$|^\d{11}$/'];
+            // CPF não é obrigatório para Stripe (que é o gateway padrão)
+            $rules['cpf'] = ['nullable', 'string', 'regex:/^\d{3}\.\d{3}\.\d{3}\-\d{2}$|^\d{11}$/'];
         }
 
-        if ($this->gateway !== 'stripe') {
+        // Stripe trata campos de cartão via Stripe.js, não precisa validar aqui
+        if (config('services.default_payment_gateway') !== 'stripe') {
             $rules['cardNumber'] = 'required|numeric|digits_between:13,19';
             $rules['cardExpiry'] = ['required', 'string', 'regex:/^(0[1-9]|1[0-2])\/?([0-9]{2})$/'];
             $rules['cardCvv'] = 'required|numeric|digits_between:3,4';
@@ -246,7 +249,7 @@ class PagePay extends Component
         $this->testimonials = trans('checkout.testimonials') ?? [];
         
         // Sempre carregar planos da API Stripe para o cartão de crédito
-            $this->plans = $this->getPlans(); // Always load plans from the API for credit card
+            $this->plans = $this->getPlans();
 
             // Recalcular totals com os planos recarregados para garantir parity entre UI e payload
             try {
@@ -501,7 +504,7 @@ class PagePay extends Component
      * Carrega Order Bumps do banco de dados
      * Busca bumps por método de pagamento
      */
-    public function getPlans()
+    public function getPlans($reloadBumps = true)
     {
         try {
             $headers = [
@@ -541,7 +544,9 @@ class PagePay extends Component
                     // ✅ Marcar como dados do backend
                     $this->dataOrigin['plans'] = 'backend';
 
-                    if (isset($result[$this->selectedPlan]['order_bumps'])) {
+                    // ⚠️ IMPORTANTE: Só recarregar bumps se explicitly requested
+                    // Isso previne destruir a seleção do usuário quando ele apenas muda de idioma ou método de pagamento
+                    if ($reloadBumps && isset($result[$this->selectedPlan]['order_bumps'])) {
                         $this->bumps = $result[$this->selectedPlan]['order_bumps'];
                         // Only sanitize (prevent preselection) when current method is PIX
                         $this->bumps = $this->sanitizeBumps($this->bumps, ($this->selectedPaymentMethod === 'pix'));
@@ -835,7 +840,8 @@ class PagePay extends Component
         }
         
         // Validar CPF (se BR - OPCIONAL para Stripe, OBRIGATÓRIO para outros gateways)
-        if ($this->selectedLanguage === 'br' && $this->gateway !== 'stripe') {
+        // Stripe é o gateway padrão, então não exigir CPF
+        if ($this->selectedLanguage === 'br' && config('services.default_payment_gateway') !== 'stripe') {
             if (empty($this->cpf)) {
                 $this->fieldErrors['cpf'] = __('payment.cpf_required');
             } else {
@@ -846,8 +852,9 @@ class PagePay extends Component
             }
         }
         
-        // Validar campos do cartão (se não for Stripe)
-        if ($this->gateway !== 'stripe') {
+        // Validar campos do cartão SOMENTE se NÃO estiver usando Stripe Elements
+        // Stripe Elements trata cartão via JavaScript e cria um paymentMethod
+        if ($this->selectedPaymentMethod === 'credit_card' && config('services.default_payment_gateway') !== 'stripe') {
             // Número do cartão
             if (empty($this->cardNumber)) {
                 $this->fieldErrors['cardNumber'] = __('payment.card_number_required');
@@ -958,7 +965,6 @@ class PagePay extends Component
                         break;
                     }
                 default:
-                    $this->showProcessingModal = true;
                     $this->sendCheckout();
                     return;
             }
@@ -1008,37 +1014,44 @@ class PagePay extends Component
 
     public function sendCheckout()
     {
-        //$this->showDownsellModal = $this->showUpsellModal = false;
-        $this->loadingMessage = __('payment.processing_payment');
+        try {
+            \Illuminate\Support\Facades\Log::info('PagePay::sendCheckout - START', ['payment_method' => $this->selectedPaymentMethod, 'plan' => $this->selectedPlan]);
+            
+            // Reset redirect URL at start (so watchers can detect the change)
+            $this->redirectAfterPayment = null;
+            
+            //$this->showDownsellModal = $this->showUpsellModal = false;
+            $this->loadingMessage = __('payment.processing_payment');
 
-        $checkoutData = $this->prepareCheckoutData();
-        
-        // ✅ NOVO: Determinar qual gateway usar baseado no método de pagamento
-        // Se PIX, usar Push in Pay; se cartão, usar Stripe
-        $gatewayType = $this->selectedPaymentMethod === 'pix' ? 'pushinpay' : 'stripe';
-        
-        // ✅ NOVO: Adicionar o Product ID do gateway aos dados de checkout
-        $productId = $this->getGatewayProductId($this->selectedPlan, $this->selectedPaymentMethod);
-        if ($productId) {
-            $checkoutData['product_id'] = $productId;
-            Log::info("sendCheckout: Usando Product ID do gateway", [
-                'gateway' => $gatewayType,
-                'product_id' => $productId,
-                'payment_method' => $this->selectedPaymentMethod,
-            ]);
-        }
-        
-        $this->paymentGateway = app(PaymentGatewayFactory::class)->create($gatewayType);
-        $response = $this->paymentGateway->processPayment($checkoutData);
+            $checkoutData = $this->prepareCheckoutData();
+            
+            // ✅ NOVO: Determinar qual gateway usar baseado no método de pagamento
+            // Se PIX, usar Push in Pay; se cartão, usar Stripe
+            $gatewayType = $this->selectedPaymentMethod === 'pix' ? 'pushinpay' : 'stripe';
+            
+            // ✅ NOVO: Adicionar o Product ID do gateway aos dados de checkout
+            $productId = $this->getGatewayProductId($this->selectedPlan, $this->selectedPaymentMethod);
+            if ($productId) {
+                $checkoutData['product_id'] = $productId;
+                Log::info("sendCheckout: Usando Product ID do gateway", [
+                    'gateway' => $gatewayType,
+                    'product_id' => $productId,
+                    'payment_method' => $this->selectedPaymentMethod,
+                ]);
+            }
+            
+            $this->paymentGateway = app(PaymentGatewayFactory::class)->create($gatewayType);
+            \Illuminate\Support\Facades\Log::info('PagePay::sendCheckout - gateway instantiated, about to call processPayment', ['gateway' => $gatewayType]);
+            $response = $this->paymentGateway->processPayment($checkoutData);
+            \Illuminate\Support\Facades\Log::info('PagePay::sendCheckout - processPayment returned', ['response_status' => $response['status'] ?? 'unknown', 'has_data' => !empty($response['data'])]);
 
-        if ($response['status'] === 'success') {
+            if ($response['status'] === 'success') {
             Log::info('PagePay: Payment successful via gateway.', [
                 'gateway' => get_class($this->paymentGateway),
                 'response' => $response
             ]);
 
-            $this->showSuccessModal = true;
-            $this->showProcessingModal = false; // Ensure it's hidden on erro
+            $this->isProcessingCard = false; // Ensure it's hidden on error
             $this->showErrorModal = false;
 
             // Prepare data for the Purchase event
@@ -1090,72 +1103,98 @@ class PagePay extends Component
                 // ignore session failures
             }
 
-            // Dispatch the event to the browser (Livewire emit and browser event)
-            $this->dispatch('checkout-success', purchaseData: $purchaseData);
-            try {
-                $this->dispatchBrowserEvent('checkout-success', $purchaseData);
-            } catch (\Exception $e) {
-                Log::warning('Could not dispatch browser event checkout-success: ' . $e->getMessage());
-            }
+            // Preferir URL de sucesso configurada no plano quando disponível
+            $plan = $this->plans[$this->selectedPlan] ?? null;
+            // Preferir a URL de upsell configurada diretamente no plano
+            // (campo `pages_upsell_url`) para redirecionamento após
+            // compra do produto principal. Em seguida, considerar outras
+            // variantes históricas/alternativas.
+            $possibleKeys = [
+                'pages_upsell_url',
+                'upsell_url',
+                'pages_upsell_succes_url', // historical typo
+                'pages_upsell_success_url', // alternative
+                'pages_upsell_succes',
+                'pages_upsell_success',
+                'upsell_success_url',
+            ];
 
-                // Preferir URL de sucesso configurada no plano quando disponível
-                $plan = $this->plans[$this->selectedPlan] ?? null;
-                // Preferir a URL de upsell configurada diretamente no plano
-                // (campo `pages_upsell_url`) para redirecionamento após
-                // compra do produto principal. Em seguida, considerar outras
-                // variantes históricas/alternativas.
-                $possibleKeys = [
-                    'pages_upsell_url',
-                    'upsell_url',
-                    'pages_upsell_succes_url', // historical typo
-                    'pages_upsell_success_url', // alternative
-                    'pages_upsell_succes',
-                    'pages_upsell_success',
-                    'upsell_success_url',
-                ];
-
-                $planRedirect = null;
-                $chosenKey = null;
-                if ($plan && is_array($plan)) {
-                    foreach ($possibleKeys as $k) {
-                        if (!empty($plan[$k])) {
-                            $planRedirect = $plan[$k];
-                            $chosenKey = $k;
-                            break;
-                        }
+            $planRedirect = null;
+            $chosenKey = null;
+            if ($plan && is_array($plan)) {
+                foreach ($possibleKeys as $k) {
+                    if (!empty($plan[$k])) {
+                        $planRedirect = $plan[$k];
+                        $chosenKey = $k;
+                        break;
                     }
                 }
+            }
 
-                $customerId = $response['data']['customerId'] ?? null;
-                // Prefer plan-defined pages_upsell_product_external_id to ensure redirect carries the Stripe product id
-                $upsell_productId = $plan['pages_upsell_product_external_id'] ?? ($response['data']['upsell_productId'] ?? null);
+            $customerId = $response['data']['customerId'] ?? null;
+            // Prefer plan-defined pages_upsell_product_external_id to ensure redirect carries the Stripe product id
+            $upsell_productId = $plan['pages_upsell_product_external_id'] ?? ($response['data']['upsell_productId'] ?? null);
 
-                if (!empty($planRedirect)) {
-                    Log::info('sendCheckout: usando URL de sucesso do plano para redirecionamento', ['plan' => $this->selectedPlan, 'url' => $planRedirect, 'field' => $chosenKey]);
-                    $queryParams = http_build_query(array_filter([
-                        'customerId' => $customerId,
-                        'upsell_productId' => $upsell_productId,
-                    ]));
-                    return redirect()->to($planRedirect . (empty($queryParams) ? '' : '?' . $queryParams));
+            $redirectUrl = null;
+            if (!empty($planRedirect)) {
+                Log::info('sendCheckout: usando URL de sucesso do plano para redirecionamento', ['plan' => $this->selectedPlan, 'url' => $planRedirect, 'field' => $chosenKey]);
+                $queryParams = http_build_query(array_filter([
+                    'customerId' => $customerId,
+                    'upsell_productId' => $upsell_productId,
+                ]));
+                $redirectUrl = $planRedirect . (empty($queryParams) ? '' : '?' . $queryParams);
+            } elseif (isset($response['data']['redirect_url']) && !empty($response['data']['redirect_url'])) {
+                $redirectUrl = $response['data']['redirect_url'];
+                Log::info('sendCheckout: nenhum URL do plano encontrado; usando redirect_url do gateway', ['redirect_url' => $redirectUrl]);
+                $queryParams = http_build_query(array_filter([
+                    'customerId' => $customerId,
+                    'upsell_productId' => $upsell_productId,
+                ]));
+                $redirectUrl = $redirectUrl . (empty($queryParams) ? '' : '?' . $queryParams);
+            } else {
+                // ✅ FALLBACK: Redirecionar para a página de upsell sempre que não houver URL configurada
+                // Determinar qual página de upsell usar baseado no método de pagamento
+                $upsellPath = '/upsell/painel-das-garotas-card';
+                if ($this->selectedPaymentMethod === 'pix') {
+                    $upsellPath = '/upsell/painel-das-garotas-qr';
                 }
+                
+                $redirectUrl = rtrim(config('app.url') ?? '', '/') . $upsellPath;
+                
+                // Adicionar parâmetros se disponíveis
+                $queryParams = http_build_query(array_filter([
+                    'customerId' => $customerId,
+                    'upsell_productId' => $upsell_productId,
+                ]));
+                $redirectUrl = $redirectUrl . (empty($queryParams) ? '' : '?' . $queryParams);
+                
+                Log::warning('sendCheckout: nenhum redirect_url disponível; usando fallback de upsell', ['fallback' => $redirectUrl, 'payment_method' => $this->selectedPaymentMethod]);
+            }
 
-                // Caso não haja URL no plano, usar a URL retornada pelo gateway (se houver)
-                if (isset($response['data']['redirect_url']) && !empty($response['data']['redirect_url'])) {
-                    $redirectUrl = $response['data']['redirect_url'];
-                    Log::info('sendCheckout: nenhum URL do plano encontrado; usando redirect_url do gateway', ['redirect_url' => $redirectUrl]);
-                    $queryParams = http_build_query(array_filter([
-                        'customerId' => $customerId,
-                        'upsell_productId' => $upsell_productId,
-                    ]));
-                    return redirect()->to($redirectUrl . (empty($queryParams) ? '' : '?' . $queryParams));
-                }
-
-                // Último fallback: rota local padrão
-                $redirectUrl = $response['redirect_url'] ?? rtrim(config('app.url') ?? '', '/') . '/upsell/painel-das-garotas-card';
-                Log::warning('sendCheckout: nenhum redirect_url disponível; usando fallback local', ['fallback' => $redirectUrl]);
-                return redirect()->to($redirectUrl);
+            // Set redirect URL as a reactive property so Livewire JS can detect and handle it
+            // This is more reliable than dispatch() in Livewire 2.x
+            $purchaseData['redirect_url'] = $redirectUrl;
+            \Illuminate\Support\Facades\Log::info('PagePay::sendCheckout - Setting redirectAfterPayment property', ['redirect_url' => $redirectUrl]);
+            
+            // Set the redirect URL (Livewire will emit this change to frontend automatically)
+            $this->redirectAfterPayment = $redirectUrl;
+            
+            // Use dispatchBrowserEvent for Livewire 2.x compatibility
+            try {
+                $this->dispatchBrowserEvent('payment-success', ['redirectUrl' => $redirectUrl]);
+                \Illuminate\Support\Facades\Log::info('PagePay::sendCheckout - dispatchBrowserEvent sent', ['redirect_url' => $redirectUrl]);
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::warning('PagePay::sendCheckout - dispatchBrowserEvent failed', ['error' => $e->getMessage()]);
+            }
+            
+            // ALSO dispatch event for redundancy (some versions may use it)
+            $this->dispatch('checkout-success', purchaseData: $purchaseData);
+            
+            \Illuminate\Support\Facades\Log::info('PagePay::sendCheckout - redirectAfterPayment property updated, event dispatched', ['redirect_url' => $redirectUrl]);
         } else {
-            Log::error('PagePay: Payment failed via gateway.', [
+            \Illuminate\Support\Facades\Log::error('PagePay::sendCheckout - Payment FAILED, response status is not success', [
+                'status' => $response['status'] ?? 'unknown',
+                'message' => $response['message'] ?? 'no message',
                 'gateway' => get_class($this->paymentGateway),
                 'response' => $response
             ]);
@@ -1167,7 +1206,7 @@ class PagePay extends Component
             // Emit a Livewire event so the frontend can show a localized loader/failure message
             try {
                 $redirect = $response['redirect_url'] ?? null;
-                $this->dispatch('checkout-failed', message: $errorMessage, redirect_url: $redirect);
+                $this->dispatch('checkout-failed', ['message' => $errorMessage, 'redirect_url' => $redirect]);
             } catch (\Throwable $_) {
                 // ignore
             }
@@ -1175,7 +1214,18 @@ class PagePay extends Component
             $this->addError('payment', $errorMessage);
             // Potentially show a generic error modal or message on the page
             $this->showErrorModal = true;
-            $this->showProcessingModal = false; // Ensure it's hidden on erro
+            $this->isProcessingCard = false; // Ensure it's hidden on erro
+        }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('PagePay::sendCheckout - EXCEPTION thrown', [
+                'error' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            $this->isProcessingCard = false;
+            $this->showErrorModal = true;
+            $this->addError('payment', 'Erro no processamento: ' . $e->getMessage());
         }
     }
 
@@ -1299,18 +1349,6 @@ class PagePay extends Component
     }
 
 
-    public function closeModal()
-    {
-        $this->showProcessingModal = false;
-        $this->showErrorModal = false;
-        $this->showSuccessModal = false;
-        $this->selectedPaymentMethod = 'credit_card';
-        $this->showPixModal = false;
-        $this->pixQrImage = null;
-        $this->pixQrCodeText = null;
-        $this->dispatch('pix-modal-closed');
-    }
-
     public function decrementTimer()
     {
         if ($this->countdownSeconds > 0) {
@@ -1384,7 +1422,8 @@ class PagePay extends Component
 
             // Carregar planos do backend (sem utilizar mock local)
             if (empty($this->plans) || !isset($this->plans[$this->selectedPlan])) {
-                $this->plans = $this->getPlans();
+                // ⚠️ NÃO recarregar bumps aqui - preservar seleção do usuário
+                $this->plans = $this->getPlans(false);
             }
 
             if (!isset($this->plans[$this->selectedPlan])) {
@@ -1394,7 +1433,7 @@ class PagePay extends Component
                 ]);
                 $this->errorMessage = __('payment.plan_not_loaded') ?? 'Plano não disponível no momento. Tente novamente mais tarde.';
                 $this->showErrorModal = true;
-                $this->showProcessingModal = false;
+                $this->isProcessing = false;
                 return;
             }
 
@@ -1417,7 +1456,7 @@ class PagePay extends Component
                 ]);
                 $this->errorMessage = __('payment.plan_not_loaded') ?? 'Plano não disponível no momento. Tente novamente mais tarde.';
                 $this->showErrorModal = true;
-                $this->showProcessingModal = false;
+                $this->isProcessing = false;
                 return;
             }
 
@@ -1633,7 +1672,7 @@ class PagePay extends Component
         // Fecha o modal PIX (não mostra modal de sucesso, apenas redireciona)
         $this->showPixModal = false;
         $this->showSuccessModal = false;
-        $this->showProcessingModal = false;
+        $this->isProcessing = false;
 
         // Dispatch evento de sucesso para tracking (Facebook Pixel, etc)
         $purchaseData = [
@@ -1975,7 +2014,8 @@ class PagePay extends Component
                         $supports = (bool) ($this->plans[$this->selectedPlan]['gateways']['pushinpay']['supported'] ?? false);
                     } else {
                         // Tentar recarregar planos uma vez para checar suporte
-                        $this->plans = $this->getPlans();
+                        // ⚠️ NÃO recarregar bumps aqui - preservar seleção do usuário
+                        $this->plans = $this->getPlans(false);
                         $supports = (bool) ($this->plans[$this->selectedPlan]['gateways']['pushinpay']['supported'] ?? false);
                     }
 
@@ -2057,20 +2097,10 @@ class PagePay extends Component
             if (!isset($b['title'])) $b['title'] = $b['name'] ?? '';
             if (!isset($b['id'])) $b['id'] = $b['id'] ?? null;
 
-            // If caller requested sanitize only for PIX, then only force active=false
-            // for bumps that target PIX; otherwise preserve existing 'active' value.
-            if ($onlyForPix) {
-                $paymentMethod = $b['payment_method'] ?? 'card';
-                if (strtolower($paymentMethod) === 'pix') {
-                    $b['active'] = false;
-                } else {
-                    // keep whatever server or DB intended for non-pix bumps
-                    $b['active'] = isset($b['active']) ? (bool)$b['active'] : false;
-                }
-            } else {
-                // Default behaviour: do not alter 'active' state except ensure boolean
-                $b['active'] = isset($b['active']) ? (bool)$b['active'] : false;
-            }
+            // IMPORTANT: Always preserve the 'active' state that the user selected
+            // DO NOT force active=false even if onlyForPix is true
+            // The user's selection (marked checkbox) must be respected
+            $b['active'] = isset($b['active']) ? (bool)$b['active'] : false;
 
             return $b;
         }, $bumps));
@@ -2281,41 +2311,46 @@ class PagePay extends Component
     public function generatePixPayment()
     {
         try {
+            // DEBUG: Log do estado dos bumps ANTES de gerar PIX
+            Log::info('generatePixPayment ANTES - bumps state:', [
+                'bumps_count' => count($this->bumps ?? []),
+                'bumps' => $this->bumps ?? [],
+            ]);
+
             // Limpar mensagem de validação anterior
             $this->pixValidationError = null;
-            // IMPORTANTE: Recarregar planos do BACKEND para PIX (mock disabled)
-            $this->plans = $this->getPlans();
-            Log::info('generatePixPayment: Recarregando planos do BACKEND para PIX');
-
-            // Garantir que os bumps venham do BACKEND para o fluxo de PIX
+            
+            // ⚠️ NÃO chame getPlans() aqui! Isso recarrega bumps do backend e destrói a seleção do usuário
+            // Os planos já estão em $this->plans desde o mount()
+            // Se absolutamente necessário atualizar preços, faça sem recarregar bumps
+            
+            Log::info('generatePixPayment: preservando bumps selecionados pelo usuário', [
+                'count' => count($this->bumps ?? []), 
+                'bumps' => $this->bumps ?? []
+            ]);
+            
+            // Sanitizar bumps mantendo o estado active que o usuário escolheu
             try {
-                $this->loadBumpsByMethod('pix');
-                Log::info('generatePixPayment: bumps carregados para PIX', ['source' => $this->dataOrigin['bumps'] ?? null, 'count' => count($this->bumps ?? [])]);
-                // Sanitizar bumps para fluxo PIX (forçar active=false em bumps que não devem ser pré-selecionados)
-                try {
-                    $this->bumps = $this->sanitizeBumps(is_array($this->bumps) ? $this->bumps : [], true);
-                } catch (\Throwable $_) {
-                    // ignore sanitize failures, fall back to original bumps
-                }
-
-                // Log bumps state to payment_checkout for immediate inspection (sanitized)
-                try {
-                    Log::channel('payment_checkout')->info('generatePixPayment: bumps after loadBumpsByMethod (sanitized)', [
-                        'selectedPlan' => $this->selectedPlan ?? null,
-                        'selectedPaymentMethod' => $this->selectedPaymentMethod ?? null,
-                        'bumps' => is_array($this->bumps) ? $this->bumps : [],
-                    ]);
-                } catch (\Throwable $_) {
-                    // ignore if channel not present
-                }
-            } catch (\Exception $e) {
-                Log::warning('generatePixPayment: falha ao carregar bumps para PIX', ['error' => $e->getMessage()]);
+                $this->bumps = $this->sanitizeBumps(is_array($this->bumps) ? $this->bumps : [], false);
+            } catch (\Throwable $_) {
+                // ignore sanitize failures, fall back to original bumps
             }
 
-            // Recalcular totals com os planos recarregados para garantir parity entre UI e payload
+            // Log bumps state to payment_checkout for immediate inspection (sanitized)
+            try {
+                Log::channel('payment_checkout')->info('generatePixPayment: bumps após sanitize', [
+                    'selectedPlan' => $this->selectedPlan ?? null,
+                    'selectedPaymentMethod' => $this->selectedPaymentMethod ?? null,
+                    'bumps' => is_array($this->bumps) ? $this->bumps : [],
+                ]);
+            } catch (\Throwable $_) {
+                // ignore if channel not present
+            }
+
+            // Recalcular totals para garantir que bumps selecionados estão nos cálculos
             try {
                 $this->calculateTotals();
-                Log::info('generatePixPayment: totals recalculados após reload de planos', ['totals' => $this->totals]);
+                Log::info('generatePixPayment: totals recalculados', ['totals' => $this->totals]);
             } catch (\Exception $e) {
                 Log::warning('generatePixPayment: falha ao recalcular totals', ['error' => $e->getMessage()]);
             }
@@ -2345,7 +2380,7 @@ class PagePay extends Component
                 return;
             }
 
-            // Mostrar modal de processamento
+            // Mostrar modal de processamento (PIX)
             $this->showProcessingModal = true;
             $this->loadingMessage = __('payment.loader_processing');
 
@@ -2576,5 +2611,83 @@ class PagePay extends Component
 
         // Converter formato brasileiro (1.234,56) para decimal (1234.56)
         return (float) str_replace(['.', ','], ['', '.'], $finalPrice);
+    }
+
+    /**
+     * Debug method to check bumps state on server
+     * Call this from the UI to diagnose why bumps aren't being properly synced
+     */
+    public function debugBumpsState()
+    {
+        $bumpsDebug = [];
+        if (is_array($this->bumps) && !empty($this->bumps)) {
+            foreach ($this->bumps as $idx => $bump) {
+                $bumpsDebug[] = [
+                    'index' => $idx,
+                    'title' => $bump['title'] ?? 'N/A',
+                    'active' => $bump['active'] ?? false,
+                    'active_type' => gettype($bump['active'] ?? null),
+                    'price' => $bump['price'] ?? 0,
+                ];
+            }
+        }
+
+        Log::info('DEBUG: bumpsState check from UI', [
+            'total_bumps' => count($this->bumps ?? []),
+            'bumps_detail' => $bumpsDebug,
+            'totals' => $this->totals ?? [],
+        ]);
+
+        // Dispatch event to show in browser console
+        $this->dispatch('showBumpsDebug', [
+            'bumps' => $bumpsDebug,
+            'totals' => $this->totals ?? [],
+        ]);
+    }
+
+    /**
+     * Toggle bump selection and immediately recalculate totals
+     * This is called when user checks/unchecks a bump checkbox
+     * 
+     * @param int $index The index of the bump in $this->bumps array
+     */
+    public function toggleBumpSelection(int $index)
+    {
+        Log::info('toggleBumpSelection called', [
+            'index' => $index,
+            'bumps_count' => count($this->bumps ?? []),
+            'current_active_value' => $this->bumps[$index]['active'] ?? null,
+        ]);
+
+        // Ensure bumps array exists and index is valid
+        if (!is_array($this->bumps) || !isset($this->bumps[$index])) {
+            Log::warning('toggleBumpSelection: Invalid index or bumps not array', ['index' => $index]);
+            return;
+        }
+
+        // Toggle the active state
+        // The wire:model.live should have already updated it, but let's log and recalculate
+        $currentActive = $this->bumps[$index]['active'] ?? false;
+        Log::info('toggleBumpSelection: Current state after wire:model.live', [
+            'index' => $index,
+            'active_before_toggle' => $currentActive,
+            'bump_data' => $this->bumps[$index] ?? [],
+        ]);
+
+        // Recalculate totals with the updated bump state
+        $this->calculateTotals();
+
+        Log::info('toggleBumpSelection: totals recalculated', [
+            'index' => $index,
+            'totals' => $this->totals ?? [],
+            'bumps_after' => $this->bumps[$index] ?? [],
+        ]);
+
+        // Dispatch event to confirm selection in UI
+        $this->dispatch('bumpToggled', [
+            'index' => $index,
+            'active' => $this->bumps[$index]['active'] ?? false,
+            'totals' => $this->totals ?? [],
+        ]);
     }
 }

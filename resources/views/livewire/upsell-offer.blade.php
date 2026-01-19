@@ -1,17 +1,46 @@
 <div>
-    <!-- Loader overlay (same behavior as PagePay) -->
-    <div id="payment-loader" class="fixed inset-0 z-50 flex items-center justify-center bg-black text-white px-4 {{ ($isProcessingCard || $showProcessingModal) ? 'opacity-100' : 'opacity-0 pointer-events-none' }}" style="backdrop-filter: blur(4px); background-color: rgba(0,0,0,0.6); transition: opacity 260ms ease;">
-        <div class="max-w-md w-full text-center p-6 rounded-lg bg-gray-900 border border-gray-800">
-            <div id="payment-loader-icon" class="mb-4">
-                <svg class="mx-auto animate-spin h-10 w-10 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
-                </svg>
-            </div>
-            <h2 id="payment-loader-title" class="text-lg font-semibold">{{ $loadingMessage ?? __('payment.processing_payment') }}</h2>
-            <p id="payment-loader-sub" class="text-sm text-gray-300 mt-2">{{ $loadingMessage ? '' : 'Isso pode levar alguns segundos.' }}</p>
+    <!-- ✅ Loader em HTML puro (não depende de Livewire, aparece IMEDIATAMENTE) -->
+    <div id="simple-payment-loader" style="display: none !important; visibility: hidden !important; pointer-events: none !important;">
+        <div class="loader-box">
+            <!-- Ícone de sucesso -->
+            <svg class="loader-icon loader-icon-success" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" width="70" height="70">
+                <circle cx="32" cy="32" r="30" fill="none" stroke="#00ff88" stroke-width="2" opacity="0.3"/>
+                <circle cx="32" cy="32" r="30" fill="none" stroke="#00ff88" stroke-width="3" stroke-dasharray="188" stroke-dashoffset="188" style="animation: drawCircle 0.6s ease-out forwards;"/>
+                <path d="M 24 34 L 30 40 L 42 28" fill="none" stroke="#00ff88" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="20" stroke-dashoffset="20" style="animation: drawCheck 0.5s ease-out 0.3s forwards;"/>
+                <style>
+                    @keyframes drawCircle {
+                        to { stroke-dashoffset: 0; }
+                    }
+                    @keyframes drawCheck {
+                        to { stroke-dashoffset: 0; }
+                    }
+                </style>
+            </svg>
+            
+            <!-- Ícone de erro -->
+            <svg class="loader-icon loader-icon-error" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" width="70" height="70">
+                <circle cx="32" cy="32" r="30" fill="none" stroke="#ff4444" stroke-width="2" opacity="0.3"/>
+                <circle cx="32" cy="32" r="30" fill="none" stroke="#ff4444" stroke-width="3" stroke-dasharray="188" stroke-dashoffset="188" style="animation: drawErrorCircle 0.6s ease-out forwards;"/>
+                <path d="M 24 24 L 40 40" stroke="#ff4444" stroke-width="3" stroke-linecap="round" stroke-dasharray="23" stroke-dashoffset="23" style="animation: drawX 0.4s ease-out 0.2s forwards;"/>
+                <path d="M 40 24 L 24 40" stroke="#ff4444" stroke-width="3" stroke-linecap="round" stroke-dasharray="23" stroke-dashoffset="23" style="animation: drawX 0.4s ease-out 0.4s forwards;"/>
+                <style>
+                    @keyframes drawErrorCircle {
+                        to { stroke-dashoffset: 0; }
+                    }
+                    @keyframes drawX {
+                        to { stroke-dashoffset: 0; }
+                    }
+                </style>
+            </svg>
+            
+            <!-- Spinner de carregamento -->
+            <div class="loader-spinner"></div>
+            
+            <div class="loader-text">Processando seu pagamento…</div>
+            <div class="loader-sub">Isso pode levar alguns segundos.</div>
         </div>
     </div>
+    
     <!-- Header -->
     <div class="border-b border-red-900/30 px-6 py-4">
         <div class="max-w-5xl mx-auto flex justify-between items-center">
@@ -172,6 +201,17 @@
                         document.head.appendChild(s);
                     </script>
 
+                    <!-- CTA Buttons - Below Video -->
+                    <div class="space-y-3 mb-8">
+                        <button id="upsell-checkout-button" wire:click="aproveOffer" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-4 rounded-lg transition-all duration-300 flex items-center justify-center gap-2 text-lg group cursor-pointer">
+                            <svg class="w-5 h-5 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                            Ativar Painel
+                        </button>
+                        <button wire:click="declineOffer" class="w-full bg-gray-900 hover:bg-gray-800 text-gray-300 font-semibold py-4 rounded-lg transition-all duration-300 border border-gray-700 cursor-pointer">
+                            Continuar apenas com streaming
+                        </button>
+                    </div>
+
                     <!-- Corpo do Texto -->
                     <div class="mb-6 space-y-4">
                         <p class="text-gray-300">Você já garantiu seu acesso, mas deixe-me te fazer uma pergunta rápida:</p>
@@ -270,10 +310,10 @@
                     <div class="space-y-3">
                         <button id="upsell-checkout-button" wire:click="aproveOffer" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-4 rounded-lg transition-all duration-300 flex items-center justify-center gap-2 text-lg group cursor-pointer">
                             <svg class="w-5 h-5 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
-                            Aproveitar Oferta Agora
+                            Ativar Painel
                         </button>
                         <button wire:click="declineOffer" class="w-full bg-gray-900 hover:bg-gray-800 text-gray-300 font-semibold py-4 rounded-lg transition-all duration-300 border border-gray-700 cursor-pointer">
-                            Não, continuar com minha compra
+                            Continuar apenas com streaming
                         </button>
                     </div>
 
@@ -343,73 +383,5 @@
                     }).catch(()=>{});
             }, 8000);
         });
-    </script>
-    <script>
-        // Loader behaviour for Upsell page: show overlay on click and respect Livewire events
-        (function(){
-            function el(sel){return document.querySelector(sel)}
-            var MIN_LOADER_MS = 3000;
-            var CONFIRMATION_MS = 2000;
-            var checkoutBtn = document.getElementById('upsell-checkout-button');
-            var paymentLoader = document.getElementById('payment-loader');
-            var paymentLoaderTitle = document.getElementById('payment-loader-title');
-            var loaderShownAt = null;
-
-            function showLoader(){
-                if(!paymentLoader) return;
-                paymentLoader.classList.remove('opacity-0','pointer-events-none');
-                paymentLoader.classList.add('opacity-100');
-                // Do not override server-provided loading message (e.g. PIX message).
-                try{
-                    if(paymentLoaderTitle && (!paymentLoaderTitle.textContent || paymentLoaderTitle.textContent.trim() === '')){
-                        paymentLoaderTitle.textContent = '{{ addslashes(__('payment.processing_payment')) }}';
-                    }
-                }catch(e){}
-                loaderShownAt = Date.now();
-            }
-            function hideLoader(){
-                if(!paymentLoader) return;
-                paymentLoader.classList.add('opacity-0','pointer-events-none');
-                paymentLoader.classList.remove('opacity-100');
-                loaderShownAt = null;
-            }
-            function whenMinElapsed(cb){
-                if(!loaderShownAt) return cb();
-                var elapsed = Date.now() - loaderShownAt; var wait = Math.max(0, MIN_LOADER_MS - elapsed);
-                setTimeout(cb, wait);
-            }
-
-            if(checkoutBtn && paymentLoader){
-                checkoutBtn.addEventListener('click', function(){
-                    try{ if(!paymentLoader.classList.contains('opacity-100')) showLoader(); }catch(e){}
-                });
-            }
-
-            if(window.Livewire){
-                Livewire.on('checkout-success', function(payload){
-                    try{
-                        whenMinElapsed(function(){
-                            if(payload && payload.redirect_url){
-                                // show success briefly then redirect
-                                if(paymentLoaderTitle) paymentLoaderTitle.textContent = 'Sucesso! Redirecionando...';
-                                setTimeout(function(){ window.location.href = payload.redirect_url; }, CONFIRMATION_MS);
-                            } else {
-                                hideLoader();
-                            }
-                        });
-                    }catch(e){ hideLoader(); }
-                });
-
-                Livewire.on('checkout-failed', function(payload){
-                    try{
-                        whenMinElapsed(function(){
-                            var msg = (payload && payload.message) ? payload.message : 'Pagamento não aprovado.';
-                            if(paymentLoaderTitle) paymentLoaderTitle.textContent = msg;
-                            setTimeout(function(){ hideLoader(); }, CONFIRMATION_MS);
-                        });
-                    }catch(e){ hideLoader(); }
-                });
-            }
-        })();
     </script>
 </div>

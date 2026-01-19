@@ -1,5 +1,6 @@
 @import 'intl-tel-input/build/css/intlTelInput.css';
 @import 'tailwindcss';
+@import './loader.css';
 
 .iti {
     width: 100% !important;

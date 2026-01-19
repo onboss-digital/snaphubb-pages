@@ -11,19 +11,22 @@ class UpsellOffer extends Component
     public $product;
     public $usingMock = true;
     public $qr_mode = false;
-    // Loader / UI flags (to mirror PagePay)
-    public $showProcessingModal = false;
-    public $isProcessingCard = false;
+    // Loader / UI flags
+    public $isProcessing = false;
     public $loadingMessage = null;
+    public $upsellFailUrl = null;
+    public $errorMessage;
 
-    // PIX properties
+    // PIX properties (used only in qr_mode)
     public $pixTransactionId;
     public $pixQrImage;
     public $pixQrCodeText;
     public $pixStatus = 'idle';
     public $pixExpiresAt;
     public $pixAmount;
-    public $errorMessage;
+
+    // Plan data
+    public $foundPlan = null;
 
     public function mount()
     {
@@ -88,10 +91,8 @@ class UpsellOffer extends Component
             // Create PIX for this upsell using existing backend controller flow
         try {
             // show loader in UI
-            // Use the same loader message as PagePay for PIX flows to keep UX consistent
-            $this->loadingMessage = $this->qr_mode ? __('payment.loader_processing') : __('payment.processing_payment');
-            $this->isProcessingCard = !$this->qr_mode;
-            $this->showProcessingModal = true;
+            $this->loadingMessage = 'Processando seu pagamento…\nIsso pode levar alguns segundos.';
+            $this->isProcessing = true;
             // Prefer off-session card charge when we have a Stripe customer id
             $sessionCustomer = session('last_order_customer', []);
             $stripeCustomerId = $sessionCustomer['stripe_customer_id'] ?? null;
@@ -114,7 +115,7 @@ class UpsellOffer extends Component
                 $foundPlan = null;
                 try {
                     // Prefer using the Referer header when the current request is a Livewire internal endpoint
-                    $currentFull = url()->full();
+                    $currentFull = request()->url();
                     $currentPath = parse_url($currentFull, PHP_URL_PATH) ?: $currentFull;
                     if (str_starts_with($currentPath, '/livewire')) {
                         $referer = request()->server('HTTP_REFERER') ?: request()->headers->get('referer');
@@ -198,22 +199,6 @@ class UpsellOffer extends Component
                 }
                 if ($foundPlan) {
                     $upsellProductId = $foundPlan['pages_upsell_product_external_id'] ?? $foundPlan['pages_upsell_product_external'] ?? null;
-                    // store the resolved plan and prepare bumps for PIX flow
-                    $this->foundPlan = $foundPlan;
-                    $this->bumps = [];
-                    if (!empty($foundPlan['order_bumps']) && is_array($foundPlan['order_bumps'])) {
-                        foreach ($foundPlan['order_bumps'] as $bump) {
-                            // consider only PIX bumps
-                            if (($bump['payment_method'] ?? 'pix') !== 'pix') continue;
-                            $price = isset($bump['original_price']) ? floatval($bump['original_price']) : (isset($bump['price']) ? floatval($bump['price']) : 0);
-                            $this->bumps[] = [
-                                'id' => $bump['id'] ?? null,
-                                'title' => $bump['title'] ?? null,
-                                'price' => (int) round($price * 100), // cents
-                                'active' => ($bump['active'] ?? true),
-                            ];
-                        }
-                    }
                     try {
                         \Illuminate\Support\Facades\Log::channel('payment_checkout')->info('UpsellOffer: found plan for upsell', [
                             'found_hash' => $foundPlan['hash'] ?? $foundPlan['identifier'] ?? null,
@@ -309,6 +294,9 @@ class UpsellOffer extends Component
                 if (empty($upsellFailedUrl)) {
                     $upsellFailedUrl = request()->query('upsell_failed_url') ?? null;
                 }
+
+                // Store fail URL for later use in case of error
+                $this->upsellFailUrl = $upsellFailedUrl ?? url('/upsell/thank-you-recused');
                 
                 $paymentPayload = [
                     'customer' => [
@@ -332,8 +320,7 @@ class UpsellOffer extends Component
 
                 if (($res['status'] ?? '') === 'success') {
                     $redirect = $res['data']['redirect_url'] ?? ($paymentPayload['upsell_success_url'] ?? url('/upsell/thank-you-card'));
-                    // Emit Livewire/browser events instead of redirecting immediately so client
-                    // can show the loader for a minimum duration before navigating.
+                    // Emit success event to show message and redirect
                     $purchaseData = [
                         'transaction_id' => $res['data']['transaction_id'] ?? null,
                         'value' => ($cartItem['price'] ?? null) ? (($cartItem['price'] / 100) ?? null) : null,
@@ -341,148 +328,132 @@ class UpsellOffer extends Component
                         'content_ids' => [$cartItem['product_hash'] ?? null],
                     ];
 
-                    $payload = ['redirect_url' => $redirect, 'purchaseData' => $purchaseData];
+                    $payload = ['redirect_url' => $redirect, 'purchaseData' => $purchaseData, 'message' => 'Compra aprovada'];
+                    // Hide loader state so frontend can show success state
+                    $this->isProcessing = false;
                     try {
-                        $this->dispatch('checkout-success', $payload);
-                        $this->dispatchBrowserEvent('checkout-success', $payload);
+                        $this->dispatch('upsell-success', $payload);
+                        $this->dispatchBrowserEvent('upsell-success', $payload);
                     } catch (\Throwable $_) {
                         // ignore
                     }
 
-                    // Keep modal visible until client handles redirect
+                    // Keep loader visible until client handles redirect
                     return;
                 }
 
-                // If not success, show error and fallthrough to PIX fallback
-                $this->errorMessage = $res['message'] ?? ($res['errors'][0] ?? 'Erro ao realizar cobrança do upsell.');
+                // If not success, show error and redirect to fail URL
+                $failUrl = $this->upsellFailUrl ?? url('/upsell/thank-you-recused');
+                $errorMessage = $res['message'] ?? ($res['errors'][0] ?? 'Erro ao processar o pagamento.');
+                
+                // Hide loader state so frontend can show error state
+                $this->isProcessing = false;
                 try {
-                    $this->dispatch('checkout-failed', ['message' => $this->errorMessage]);
-                    $this->dispatchBrowserEvent('checkout-failed', ['message' => $this->errorMessage]);
+                    $this->dispatch('upsell-failed', ['message' => $errorMessage, 'redirect_url' => $failUrl]);
+                    $this->dispatchBrowserEvent('upsell-failed', ['message' => $errorMessage, 'redirect_url' => $failUrl]);
                 } catch (\Throwable $_) {}
-                // ensure loader hidden
-                $this->isProcessingCard = false;
-                $this->showProcessingModal = false;
+                
+                // Keep loader visible for error message display
                 return;
             }
 
-            // Fallback PIX flow (original behavior)
-            $customer = $this->getCustomerData();
-            if (!$customer || empty($customer['email'])) {
-                $this->errorMessage = 'Dados do cliente não disponíveis. Faça login ou use o mesmo navegador da compra.';
-                return;
-            }
-
-            // Determine base price (in cents). Prefer backend-declared values when available.
-            $basePriceCents = isset($this->product['price']) ? (int)$this->product['price'] : 0;
-            if (!empty($foundPlan) && is_array($foundPlan)) {
-                // Prefer explicit pages_pix_price if provided by backend (decimal string in BRL)
-                if (isset($foundPlan['pages_pix_price']) && $foundPlan['pages_pix_price'] !== null && $foundPlan['pages_pix_price'] !== '') {
-                    $pp = floatval($foundPlan['pages_pix_price']);
-                    $basePriceCents = (int) round($pp * 100);
-                } elseif (isset($foundPlan['gateways']['pushinpay']['amount_override']) && $foundPlan['gateways']['pushinpay']['amount_override'] !== null && $foundPlan['gateways']['pushinpay']['amount_override'] !== '') {
-                    $ao = floatval($foundPlan['gateways']['pushinpay']['amount_override']);
-                    $basePriceCents = (int) round($ao * 100);
+            // PIX Flow (when qr_mode=true)
+            if ($this->qr_mode) {
+                $customer = $this->getCustomerData();
+                if (!$customer || empty($customer['email'])) {
+                    $this->errorMessage = 'Dados do cliente não disponíveis. Faça login ou use o mesmo navegador da compra.';
+                    $this->isProcessing = false;
+                    return;
                 }
-            }
 
-            $bumpsTotal = array_sum(array_map(function($b){ return (isset($b['active']) && $b['active']) ? (int)($b['price'] ?? 0) : 0; }, $this->bumps ?? []));
-
-            // Build cart: main item + each active bump as operation_type 2
-            $cart = [];
-            $cart[] = [
-                'product_hash' => $this->product['hash'] ?? null,
-                'title' => $this->product['label'],
-                'price' => $basePriceCents,
-                'quantity' => 1,
-                'operation_type' => 1,
-            ];
-
-            if (!empty($this->bumps) && is_array($this->bumps)) {
-                foreach ($this->bumps as $b) {
-                    if (!isset($b['active']) || !$b['active']) continue;
-                    $cart[] = [
-                        'product_hash' => ($this->product['hash'] ?? null) . '_bump_' . ($b['id'] ?? uniqid()),
-                        'title' => $b['title'] ?? 'Order bump',
-                        'price' => (int) ($b['price'] ?? 0),
-                        'quantity' => 1,
-                        'operation_type' => 2,
-                    ];
+                // Determine base price (in cents)
+                $basePriceCents = isset($this->product['price']) ? (int)$this->product['price'] : 0;
+                if (!empty($foundPlan) && is_array($foundPlan)) {
+                    if (isset($foundPlan['pages_pix_price']) && $foundPlan['pages_pix_price'] !== null && $foundPlan['pages_pix_price'] !== '') {
+                        $pp = floatval($foundPlan['pages_pix_price']);
+                        $basePriceCents = (int) round($pp * 100);
+                    } elseif (isset($foundPlan['gateways']['pushinpay']['amount_override']) && $foundPlan['gateways']['pushinpay']['amount_override'] !== null && $foundPlan['gateways']['pushinpay']['amount_override'] !== '') {
+                        $ao = floatval($foundPlan['gateways']['pushinpay']['amount_override']);
+                        $basePriceCents = (int) round($ao * 100);
+                    }
                 }
-            }
 
-            // Determine PIX upsell URLs: prefer backend-declared values (from foundPlan), then defaults
-            $pixUpsellSuccessUrl = null;
-            $pixUpsellFailUrl = null;
-            
-            if (!empty($foundPlan) && is_array($foundPlan)) {
-                // For PIX: use pages_pix_upsell_succes_url or pages_pix_upsell_url
-                $pixUpsellSuccessUrl = $foundPlan['pages_pix_upsell_succes_url'] ?? $foundPlan['pages_pix_upsell_url'] ?? null;
-                $pixUpsellFailUrl = $foundPlan['pages_pix_upsell_fail_url'] ?? null;
-            }
+                // Build cart for PIX
+                $cart = [];
+                $cart[] = [
+                    'product_hash' => $this->product['hash'] ?? null,
+                    'title' => $this->product['label'],
+                    'price' => $basePriceCents,
+                    'quantity' => 1,
+                    'operation_type' => 1,
+                ];
 
-            $pixData = [
-                // amount in cents: backend base price + any active bumps
-                'amount' => $basePriceCents + $bumpsTotal,
-                'currency_code' => $this->product['currency'] ?? 'BRL',
-                'plan_key' => $this->product['hash'] ?? 'painel_das_garotas',
-                'offer_hash' => $this->product['hash'] ?? 'painel_das_garotas',
-                'customer' => [
-                    'name' => $customer['name'] ?? 'Cliente',
-                    'email' => $customer['email'],
-                    'phone_number' => $customer['phone'] ?? null,
-                    'document' => $customer['document'] ?? null,
-                ],
-                'cart' => $cart,
-                'metadata' => [
-                    'payment_method' => 'pix',
-                    'is_upsell' => true,
-                    'upsell_success_url' => $pixUpsellSuccessUrl,
-                    'upsell_fail_url' => $pixUpsellFailUrl,
-                    'webhook_url' => url('/api/pix/webhook'),
-                ],
-            ];
+                // Determine PIX upsell URLs
+                $pixUpsellSuccessUrl = null;
+                $pixUpsellFailUrl = null;
+                if (!empty($foundPlan) && is_array($foundPlan)) {
+                    $pixUpsellSuccessUrl = $foundPlan['pages_pix_upsell_succes_url'] ?? $foundPlan['pages_pix_upsell_url'] ?? null;
+                    $pixUpsellFailUrl = $foundPlan['pages_pix_upsell_fail_url'] ?? null;
+                }
 
-            // Diagnostic: log the PIX payload and local state before calling backend
-            try {
-                \Illuminate\Support\Facades\Log::channel('payment_checkout')->info('UpsellOffer: PIX payload prepared', [
-                    'pixData' => $pixData,
-                    'product_price' => $this->product['price'] ?? null,
-                    'bumps' => $this->bumps ?? null,
-                    'session_customer' => $sessionCustomer ?? null,
-                ]);
-            } catch (\Throwable $_) {
-                // non-fatal
-            }
+                $pixData = [
+                    'amount' => $basePriceCents,
+                    'currency_code' => $this->product['currency'] ?? 'BRL',
+                    'plan_key' => $this->product['hash'] ?? 'painel_das_garotas',
+                    'offer_hash' => $this->product['hash'] ?? 'painel_das_garotas',
+                    'customer' => [
+                        'name' => $customer['name'] ?? 'Cliente',
+                        'email' => $customer['email'],
+                        'phone_number' => $customer['phone'] ?? null,
+                        'document' => $customer['document'] ?? null,
+                    ],
+                    'cart' => $cart,
+                    'metadata' => [
+                        'payment_method' => 'pix',
+                        'is_upsell' => true,
+                        'upsell_success_url' => $pixUpsellSuccessUrl,
+                        'upsell_fail_url' => $pixUpsellFailUrl,
+                        'webhook_url' => url('/api/pix/webhook'),
+                    ],
+                ];
 
-            // Call PixController directly (same pattern as PagePay)
-            $controller = new \App\Http\Controllers\PixController(app(\App\Services\PushingPayPixService::class));
-            $request = \Illuminate\Http\Request::create('/api/pix/create', 'POST', $pixData, [], [], [], json_encode($pixData));
-            $request->headers->set('Accept', 'application/json');
-            $request->headers->set('Content-Type', 'application/json');
+                // Call PixController to generate QR Code
+                $controller = new \App\Http\Controllers\PixController(app(\App\Services\PushingPayPixService::class));
+                $request = \Illuminate\Http\Request::create('/api/pix/create', 'POST', $pixData, [], [], [], json_encode($pixData));
+                $request->headers->set('Accept', 'application/json');
+                $request->headers->set('Content-Type', 'application/json');
 
-            $response = $controller->create($request);
-            if ($response instanceof \Illuminate\Http\JsonResponse) {
-                $json = json_decode($response->getContent(), true);
-                if (($json['status'] ?? '') === 'success' && isset($json['data'])) {
-                    $d = $json['data'];
-                    $this->pixTransactionId = $d['payment_id'] ?? null;
-                    $this->pixQrImage = $d['qr_code_base64'] ?? null;
-                    $this->pixQrCodeText = $d['qr_code'] ?? null;
-                    $this->pixAmount = $d['amount'] ?? ($this->product['price'] / 100);
-                    $this->pixExpiresAt = $d['expiration_date'] ?? null;
-                    $this->pixStatus = $d['status'] ?? 'pending';
+                $response = $controller->create($request);
+                if ($response instanceof \Illuminate\Http\JsonResponse) {
+                    $json = json_decode($response->getContent(), true);
+                    if (($json['status'] ?? '') === 'success' && isset($json['data'])) {
+                        $d = $json['data'];
+                        // Store properties to display QR in view
+                        $this->pixTransactionId = $d['payment_id'] ?? null;
+                        $this->pixQrImage = $d['qr_code_base64'] ?? null;
+                        $this->pixQrCodeText = $d['qr_code'] ?? null;
+                        $this->pixAmount = $d['amount'] ?? ($this->product['price'] / 100);
+                        $this->pixStatus = $d['status'] ?? 'pending';
 
-                    // Start polling in browser
-                    $this->dispatchBrowserEvent('upsell:pix-generated', ['payment_id' => $this->pixTransactionId]);
+                        // Hide loader - view will show QR code screen
+                        $this->isProcessing = false;
+                        $this->dispatchBrowserEvent('upsell:pix-generated', ['payment_id' => $this->pixTransactionId]);
+                        return;
+                    } else {
+                        $this->errorMessage = $json['message'] ?? 'Erro ao gerar PIX para upsell.';
+                        $this->isProcessing = false;
+                        return;
+                    }
                 } else {
-                    $this->errorMessage = $json['message'] ?? 'Erro ao gerar PIX para upsell.';
+                    $this->errorMessage = 'Resposta inesperada ao gerar PIX.';
+                    $this->isProcessing = false;
+                    return;
                 }
-            } else {
-                $this->errorMessage = 'Resposta inesperada ao gerar PIX.';
             }
         } catch (\Exception $e) {
-            Log::error('UpsellOffer: error generating pix', ['exception' => $e->getMessage()]);
-            $this->errorMessage = 'Erro ao gerar PIX. Tente novamente.';
+            Log::error('UpsellOffer: error in aproveOffer', ['exception' => $e->getMessage()]);
+            $this->errorMessage = 'Erro ao processar pagamento. Tente novamente.';
+            $this->isProcessing = false;
         }
     }
 

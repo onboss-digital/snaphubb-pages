@@ -90,6 +90,42 @@ $gateway = config('services.default_payment_gateway', 'stripe');
         50% { opacity: 0.85; }
         100% { opacity: 1; }
     }
+    
+    @keyframes toastSlideIn {
+        from {
+            opacity: 0;
+            transform: scale(0.9);
+        }
+        to {
+            opacity: 1;
+            transform: scale(1);
+        }
+    }
+    
+    .animate-pulse-subtle {
+        animation: toastSlideIn 0.5s ease-out forwards;
+    }
+    
+    #toast-bump-push_UGdkMrh9VR3 {
+        transition: opacity 0.4s ease-in, transform 0.4s ease-in;
+    }
+    
+    .opacity-0 {
+        opacity: 0 !important;
+    }
+    
+    .opacity-100 {
+        opacity: 1 !important;
+    }
+    
+    .scale-95 {
+        transform: scale(0.9) !important;
+    }
+    
+    .scale-100 {
+        transform: scale(1) !important;
+    }
+    
     /* Order bump PIX description responsiveness */
     .bump-card-pix .bump-desc {
         white-space: normal;
@@ -149,6 +185,18 @@ $gateway = config('services.default_payment_gateway', 'stripe');
 <script>
 document.addEventListener('DOMContentLoaded', function(){
     try{
+        // Test Livewire availability
+        if (window.Livewire) {
+            console.log('✅ LIVEWIRE LOADED AND AVAILABLE', window.Livewire);
+            console.log('Livewire version:', window.Livewire.version);
+            console.log('Livewire dispatch available:', typeof window.Livewire.dispatch);
+            console.log('Livewire.find available:', typeof window.Livewire.find);
+            console.log('Livewire.findClosest available:', typeof window.Livewire.findClosest);
+            console.log('All Livewire methods:', Object.getOwnPropertyNames(window.Livewire).sort());
+        } else {
+            console.error('❌ LIVEWIRE NOT AVAILABLE! window.Livewire is', typeof window.Livewire);
+        }
+
         // Build checkout data from server variables
         window.checkoutData = {
             value: parseFloat("{{ isset($totals['final_price']) ? str_replace(',', '.', str_replace('.', '', $totals['final_price'])) : '0' }}"),
@@ -290,6 +338,15 @@ document.addEventListener('DOMContentLoaded', function(){
                 var currency = purchase.currency || window.checkoutData.currency || 'BRL';
                 var content_ids = purchase.content_ids || window.checkoutData.content_ids || [];
 
+                // ✅ REDIRECT se houver URL
+                if (purchase.redirect_url) {
+                    console.log('✅ Redirecionando para:', purchase.redirect_url);
+                    setTimeout(function() {
+                        window.location.href = purchase.redirect_url;
+                    }, 2000); // Aguarda 2s para mostrar sucesso
+                    return;
+                }
+
                 // Facebook Purchase (use safe wrapper in case fbq not yet ready)
                 // Include eventID for deduplication with server-side CAPI (if available in payload)
                 var eventId = (purchase && purchase.transaction_id) ? purchase.transaction_id : null;
@@ -319,20 +376,48 @@ document.addEventListener('DOMContentLoaded', function(){
 
 
 <div>
-        <!-- Loader overlay (now controlled by Livewire state: $isProcessingCard || $showProcessingModal)
-            Uses opacity transition for subtle darkening effect. -->
-        <div id="payment-loader" class="fixed inset-0 z-50 flex items-center justify-center bg-black text-white px-4 {{ ($isProcessingCard || $showProcessingModal) ? 'opacity-100' : 'opacity-0 pointer-events-none' }}" style="backdrop-filter: blur(4px); background-color: rgba(0,0,0,0.6); transition: opacity 260ms ease;">
-        <div class="max-w-md w-full text-center p-6 rounded-lg bg-gray-900 border border-gray-800">
-            <div id="payment-loader-icon" class="mb-4">
-                <svg class="mx-auto animate-spin h-10 w-10 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
-                </svg>
-            </div>
-            <h2 id="payment-loader-title" class="text-lg font-semibold">{{ $loadingMessage ?? __('payment.processing_payment') }}</h2>
-            <p id="payment-loader-sub" class="text-sm text-gray-300 mt-2">{{ $loadingMessage ? '' : 'Isso pode levar alguns segundos.' }}</p>
+    <!-- ✅ Loader em HTML puro (não depende de Livewire, aparece IMEDIATAMENTE) -->
+    <div id="simple-payment-loader" style="display: none !important; visibility: hidden !important; pointer-events: none !important;">
+        <div class="loader-box">
+            <!-- Ícone de sucesso -->
+            <svg class="loader-icon loader-icon-success" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" width="70" height="70">
+                <circle cx="32" cy="32" r="30" fill="none" stroke="#00ff88" stroke-width="2" opacity="0.3"/>
+                <circle cx="32" cy="32" r="30" fill="none" stroke="#00ff88" stroke-width="3" stroke-dasharray="188" stroke-dashoffset="188" style="animation: drawCircle 0.6s ease-out forwards;"/>
+                <path d="M 24 34 L 30 40 L 42 28" fill="none" stroke="#00ff88" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="20" stroke-dashoffset="20" style="animation: drawCheck 0.5s ease-out 0.3s forwards;"/>
+                <style>
+                    @keyframes drawCircle {
+                        to { stroke-dashoffset: 0; }
+                    }
+                    @keyframes drawCheck {
+                        to { stroke-dashoffset: 0; }
+                    }
+                </style>
+            </svg>
+            
+            <!-- Ícone de erro -->
+            <svg class="loader-icon loader-icon-error" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" width="70" height="70">
+                <circle cx="32" cy="32" r="30" fill="none" stroke="#ff4444" stroke-width="2" opacity="0.3"/>
+                <circle cx="32" cy="32" r="30" fill="none" stroke="#ff4444" stroke-width="3" stroke-dasharray="188" stroke-dashoffset="188" style="animation: drawErrorCircle 0.6s ease-out forwards;"/>
+                <path d="M 24 24 L 40 40" stroke="#ff4444" stroke-width="3" stroke-linecap="round" stroke-dasharray="23" stroke-dashoffset="23" style="animation: drawX 0.4s ease-out 0.2s forwards;"/>
+                <path d="M 40 24 L 24 40" stroke="#ff4444" stroke-width="3" stroke-linecap="round" stroke-dasharray="23" stroke-dashoffset="23" style="animation: drawX 0.4s ease-out 0.4s forwards;"/>
+                <style>
+                    @keyframes drawErrorCircle {
+                        to { stroke-dashoffset: 0; }
+                    }
+                    @keyframes drawX {
+                        to { stroke-dashoffset: 0; }
+                    }
+                </style>
+            </svg>
+            
+            <!-- Spinner de carregamento -->
+            <div class="loader-spinner"></div>
+            
+            <div class="loader-text">Processando seu pagamento…</div>
+            <div class="loader-sub">Isso pode levar alguns segundos.</div>
         </div>
     </div>
+
     <div class="container mx-auto px-4 py-8 max-w-4xl pb-24 md:pb-8">
 
         <!-- Header -->
@@ -412,9 +497,9 @@ document.addEventListener('DOMContentLoaded', function(){
                     function el(sel){return document.querySelector(sel)}
                     var formReady = function(){
                         var form = el('#payment-form');
-                        var loader = el('#payment-loader');
-                        var title = el('#payment-loader-title');
-                        var sub = el('#payment-loader-sub');
+                        var loader = el('#simple-payment-loader');
+                        var title = el('#payment-loader-title') || el('.loader-text');
+                        var sub = el('#payment-loader-sub') || el('.loader-sub');
                         var lang = '{{ $selectedLanguage ?? 'br' }}';
                         var strings = {
                             processing: {br: 'Aguarde, estamos processando o pagamento…', en: 'Please wait, processing payment…', es: 'Aguarde, estamos processando el pago…'},
@@ -425,115 +510,129 @@ document.addEventListener('DOMContentLoaded', function(){
                         var MIN_LOADER_MS = 3000; // mostrar loader no mínimo 3s
                         var CONFIRMATION_MS = 2000; // mostrar mensagem de confirmação por ~2s
 
-                        function show(key){ if (!loader) return; title.textContent = strings[key][lang] || strings[key]['br']; sub.style.display='block'; loader.classList.remove('hidden'); document.body.classList.add('overflow-hidden'); loaderShownAt = Date.now(); }
-                        function update(key){ if (!loader) return; title.textContent = strings[key][lang] || strings[key]['br']; }
-                        function hide(){ if (!loader) return; loader.classList.add('hidden'); document.body.classList.remove('overflow-hidden'); loaderShownAt = null; }
+                        function show(key){
+                            if (!loader) {
+                                console.error('Loader element not found!');
+                                return;
+                            }
+                            if (title) title.textContent = strings[key] ? (strings[key][lang] || strings[key]['br']) : 'Processando...';
+                            if (sub) sub.style.display = 'block';
+                            loader.classList.add('show', 'loading');
+                            loader.classList.remove('success', 'failed');
+                            document.body.classList.add('overflow-hidden');
+                            loaderShownAt = Date.now();
+                            console.log('✅ Loader shown with state:', key);
+                        }
+
+                        function update(key){
+                            if (!loader) return;
+                            if (title) title.textContent = strings[key] ? (strings[key][lang] || strings[key]['br']) : 'Processando...';
+                            
+                            // Remove all state classes first
+                            loader.classList.remove('loading', 'failed', 'success');
+                            
+                            // Add appropriate state class
+                            if (key === 'success') {
+                                loader.classList.add('show', 'success');
+                                console.log('✅ Loader updated to SUCCESS state');
+                            } else if (key === 'failed') {
+                                loader.classList.add('show', 'failed');
+                                console.log('❌ Loader updated to FAILED state');
+                            } else {
+                                loader.classList.add('show', 'loading');
+                                console.log('⏳ Loader updated to LOADING state');
+                            }
+                        }
+
+                        function hide(){
+                            if (!loader) return;
+                            loader.classList.remove('show', 'loading', 'success', 'failed');
+                            document.body.classList.remove('overflow-hidden');
+                            loaderShownAt = null;
+                            console.log('❌ Loader hidden');
+                        }
 
                         function whenMinLoaderElapsed(callback){
                             if (!loaderShownAt) return callback();
                             var elapsed = Date.now() - loaderShownAt;
                             var wait = Math.max(0, MIN_LOADER_MS - elapsed);
+                            console.log('⏱️ Waiting', wait, 'ms before executing callback');
                             setTimeout(callback, wait);
                         }
 
-                        // NOTE: Overlay visibility is now controlled by Livewire server state
-                        // (variables: $isProcessingCard, $showProcessingModal). We intentionally
-                        // do not auto-show the overlay on form submit/click to avoid duplicate
-                        // UX when the inline button spinner is used.
-                        var checkoutBtn = document.getElementById('checkout-button');
-                        var paymentLoader = document.getElementById('payment-loader');
-                        var paymentLoaderTitle = document.getElementById('payment-loader-title');
-                        if (checkoutBtn && paymentLoader) {
-                            // Reusable validation function for credit-card flow
-                            function validateCardForm() {
-                                try {
-                                    var selected = (document.querySelector('input[name="payment_method"]:checked') || {}).value || '';
-                                    if (selected !== 'credit_card') return { ok: true };
-
-                                    var cardName = (document.querySelector('input[name="card_name"]') || {}).value || '';
-                                    var email = (document.querySelector('input[name="email"]') || {}).value || '';
-                                    var cardNumberEl = document.getElementById('card-number');
-                                    var paymentMethodIdEl = document.getElementById('payment-method-id');
-
-                                    var emailValid = /\S+@\S+\.\S+/.test(email);
-                                    var hasCardNumber = false;
-
-                                    if (cardNumberEl) {
-                                        var v = cardNumberEl.value.replace(/\s+/g, '');
-                                        hasCardNumber = v.length >= 12;
-                                    } else if (paymentMethodIdEl) {
-                                        hasCardNumber = (paymentMethodIdEl.value || '').length > 5;
-                                    }
-
-                                    if (!cardName.trim() || !emailValid || !hasCardNumber) {
-                                        return { ok: false, msg: 'Preencha os campos obrigatórios do cartão: número do cartão, nome impresso no cartão e e-mail.' };
-                                    }
-                                    return { ok: true };
-                                } catch (err) { return { ok: false, msg: 'Erro de validação' }; }
-                            }
-
-                            function handleCheckoutClick(e) {
-                                try {
-                                    var res = validateCardForm();
-                                    if (!res.ok) {
-                                        e.stopImmediatePropagation();
-                                        e.preventDefault();
-                                        var msg = res.msg || 'Preencha os campos obrigatórios do cartão.';
-                                        try {
-                                            var previous = document.getElementById('client-card-validation-msg');
-                                            if (previous) previous.remove();
-                                            if (paymentLoaderTitle && paymentLoaderTitle.parentNode) {
-                                                var div = document.createElement('div');
-                                                div.id = 'client-card-validation-msg';
-                                                div.style.color = '#ffd1d1';
-                                                div.style.fontSize = '13px';
-                                                div.style.marginTop = '8px';
-                                                div.textContent = msg;
-                                                paymentLoaderTitle.parentNode.appendChild(div);
-                                                setTimeout(function(){ try{ div.remove(); }catch(e){} }, 6000);
-                                            } else {
-                                                alert(msg);
-                                            }
-                                        } catch (err) { alert(msg); }
-                                        return;
-                                    }
-
-                                    if (!paymentLoader.classList.contains('opacity-0')) return;
-                                    paymentLoader.classList.remove('opacity-0','pointer-events-none');
-                                    paymentLoader.classList.add('opacity-100');
-                                    if (paymentLoaderTitle) {
-                                        paymentLoaderTitle.textContent = '{{ addslashes(__('payment.processing_payment')) }}';
-                                    }
-                                } catch (err) { /* ignore */ }
-                            }
-
-                            // Attach to main and sticky checkout buttons (capture to run before Livewire)
-                            checkoutBtn.addEventListener('click', handleCheckoutClick, true);
-                            var sticky = document.getElementById('sticky-checkout-button');
-                            if (sticky) sticky.addEventListener('click', handleCheckoutClick, true);
-                        }
+                        // Loader mostra automaticamente quando Livewire muda $isProcessingCard para true
+                        console.log('✅ Formulário de pagamento inicializado');
 
                         if (window.Livewire) {
-                            Livewire.on('checkout-success', function(payload){
-                                try{
+                            console.log('✅ Livewire is AVAILABLE and ready!', window.Livewire);
+                            
+                            // Listen for payment-success browser event (Livewire 2.x compatible)
+                            window.Livewire.on('payment-success', function(data){
+                                console.log('✅ payment-success browser event RECEIVED', data);
+                                
+                                if (data && data.redirectUrl) {
+                                    // Delay to show success state, then redirect with a hard redirect
                                     whenMinLoaderElapsed(function(){
+                                        console.log('📤 Showing success state in loader');
                                         update('success');
-                                        // aguardar confirmação e então redirecionar/ocultar
+                                        
+                                        // Wait for confirmation message, then redirect using a hard navigation
                                         setTimeout(function(){
-                                            if (payload && payload.redirect_url) {
-                                                window.location.href = payload.redirect_url;
-                                            } else {
-                                                hide();
-                                            }
+                                            console.log('🔄 Performing HARD redirect to:', data.redirectUrl);
+                                            // Use hard reload to bypass any Livewire re-rendering
+                                            window.location.href = data.redirectUrl;
+                                            // Give it 100ms, then reload if somehow Livewire interferes
+                                            setTimeout(function() {
+                                                window.location.href = data.redirectUrl;
+                                            }, 100);
                                         }, CONFIRMATION_MS);
                                     });
-                                }catch(e){ hide(); }
+                                }
+                            });
+                            
+                            // Listen for the checkout-success event dispatched from server (fallback)
+                            window.Livewire.on('checkout-success', function(payload){
+                                console.log('✅ Livewire checkout-success event RECEIVED', payload);
+                                try{
+                                    var redirectUrl = null;
+                                    
+                                    // Extract redirect URL from various possible locations
+                                    if (payload && payload.purchaseData && payload.purchaseData.redirect_url) {
+                                        redirectUrl = payload.purchaseData.redirect_url;
+                                    } else if (payload && payload.redirect_url) {
+                                        redirectUrl = payload.redirect_url;
+                                    }
+                                    
+                                    if (redirectUrl) {
+                                        whenMinLoaderElapsed(function(){
+                                            console.log('📤 Showing success state in loader');
+                                            update('success');
+                                            
+                                            // Wait for confirmation message, then redirect
+                                            setTimeout(function(){
+                                                console.log('🔄 Performing HARD redirect to:', redirectUrl);
+                                                window.location.href = redirectUrl;
+                                                // Double-ensure redirect
+                                                setTimeout(function() {
+                                                    window.location.href = redirectUrl;
+                                                }, 100);
+                                            }, CONFIRMATION_MS);
+                                        });
+                                    } else {
+                                        console.log('⚠️ No redirect URL found, hiding loader');
+                                        hide();
+                                    }
+                                }catch(e){ console.error('❌ Error in checkout-success handler:', e); hide(); }
                             });
 
-                            Livewire.on('checkout-failed', function(payload){ 
+                            Livewire.on('checkout-failed', function(payload){
+                                console.log('❌ Livewire checkout-failed event RECEIVED', payload);
                                 try{
                                     whenMinLoaderElapsed(function(){
-                                        title.textContent = (payload && payload.message) ? payload.message : strings.failed[lang];
+                                        var errorMsg = (payload && payload.message) ? payload.message : strings.failed[lang];
+                                        if (title) title.textContent = errorMsg;
+                                        update('failed');
+                                        
                                         // após mensagem de erro, redireciona se informado ou esconde
                                         setTimeout(function(){
                                             if (payload && payload.redirect_url) {
@@ -543,8 +642,17 @@ document.addEventListener('DOMContentLoaded', function(){
                                             }
                                         }, CONFIRMATION_MS);
                                     });
-                                }catch(e){ hide(); }
+                                }catch(e){ console.error('❌ Error in checkout-failed handler:', e); hide(); }
                             });
+
+                            // Show loader when $isProcessingCard changes to true
+                            // This is typically handled by Livewire reactivity
+                            // But we need to manually show it when form is submitted
+                            window.showPaymentLoader = function() {
+                                show('processing');
+                            };
+                        } else {
+                            console.error('❌ LIVEWIRE NOT AVAILABLE!');
                         }
                     };
                     if (document.readyState === 'complete' || document.readyState === 'interactive') formReady(); else document.addEventListener('DOMContentLoaded', formReady);
@@ -862,6 +970,25 @@ document.addEventListener('DOMContentLoaded', function(){
                                             @error('cpf')
                                                 <span class="text-red-500 text-xs sm:text-sm mt-1 sm:mt-2 block">{{ $message }}</span>
                                             @enderror
+
+                                            <!-- Mobile Only Button - Below CPF (Only for Credit Card) -->
+                                            <div class="md:hidden mt-4" x-show="selectedPaymentMethod === 'credit_card'">
+                                                <button type="button" wire:click.prevent="startCheckout"
+                                                    @if($isProcessingCard) disabled aria-busy="true" @endif
+                                                    class="w-full bg-[#E50914] hover:bg-[#B8070F] text-white py-3 text-lg font-bold rounded-xl transition-all block cursor-pointer transform hover:scale-105 @if($isProcessingCard) opacity-70 cursor-not-allowed hover:scale-100 @endif">
+                                                    @if($isProcessingCard)
+                                                        <span class="flex items-center justify-center gap-2">
+                                                            <svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+                                                            </svg>
+                                                            <span>{{ $loadingMessage ?? __('payment.processing_payment') }}</span>
+                                                        </span>
+                                                    @else
+                                                        ATIVAR MINHA CONTA
+                                                    @endif
+                                                </button>
+                                            </div>
                                         </div>
                                     @endif
                                 </div>
@@ -955,16 +1082,53 @@ document.addEventListener('DOMContentLoaded', function(){
                                                 @endphp
                                                 
                                                 <!-- PIX Design: Minimalista e compacto -->
-                                                <div class="bump-card-pix relative bg-gradient-to-r from-blue-600/20 to-blue-500/10 rounded-lg p-3 md:p-4 border border-blue-500/30 hover:border-blue-400/60 transition-all duration-300 cursor-pointer flex flex-col md:grid md:grid-cols-12 md:items-center gap-3 md:gap-4"
-                                                    @click="document.getElementById('order-bump-{{ $bump['id'] }}').click()">
+                                                <div class="bump-card-pix relative bg-gradient-to-r from-blue-600/20 to-blue-500/10 rounded-lg p-3 md:p-4 border border-blue-500/30 hover:border-blue-400/60 transition-all duration-300 flex flex-col md:grid md:grid-cols-12 md:items-center gap-3 md:gap-4">
                                                     
-                                                    <div class="flex items-center gap-3 md:col-span-8">
+                                                    <!-- Toast Notification - Glass Effect -->
+                                                    <div id="toast-bump-{{ $bump['id'] }}" class="fixed inset-0 flex items-center justify-center z-50 hidden pointer-events-none p-4">
+                                                        <div class="bg-gradient-to-r from-emerald-500/25 to-green-500/15 backdrop-blur-2xl rounded-3xl px-8 py-7 md:px-10 md:py-8 shadow-2xl border border-emerald-400/40 flex flex-col items-center gap-3 max-w-sm w-full animate-pulse-subtle pointer-events-auto text-center">
+                                                            <!-- Ícone com glow -->
+                                                            <div class="relative">
+                                                                <div class="absolute inset-0 bg-emerald-400 blur-xl opacity-60 rounded-full w-16 h-16"></div>
+                                                                <svg class="w-12 h-12 text-emerald-300 relative z-10" fill="currentColor" viewBox="0 0 20 20">
+                                                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                                                                </svg>
+                                                            </div>
+                                                            
+                                                            <!-- Texto -->
+                                                            <div class="flex flex-col gap-2">
+                                                                <span class="font-bold text-lg md:text-xl text-white">{{ $bumpTitle }}</span>
+                                                                <span class="text-sm md:text-base text-emerald-100 font-semibold">+ {{ $currencies[$selectedCurrency]['symbol'] }}{{ number_format($price, 2, ',', '.') }}</span>
+                                                                <span class="text-xs md:text-sm text-emerald-200/80">adicionado ao pedido</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    <div class="flex items-center gap-3 md:col-span-8 cursor-pointer w-full">
                                                         <input id="order-bump-{{ $bump['id'] }}" type="checkbox"
                                                             class="w-5 h-5 text-blue-500 bg-blue-900/30 border-blue-400 rounded
                                                             focus:ring-blue-500 focus:ring-opacity-25 focus:ring-2
                                                             focus:border-blue-500 cursor-pointer flex-shrink-0"
                                                             wire:model.live="bumps.{{ $index }}.active"
-                                                            wire:change="calculateTotals" />
+                                                            wire:change="toggleBumpSelection({{ $index }})"
+                                                            onchange="
+                                                                console.log('✅ Bump {{ $bump['title'] }} marcado:', this.checked);
+                                                                const toast = document.getElementById('toast-bump-{{ $bump['id'] }}');
+                                                                if(this.checked) {
+                                                                    toast.classList.remove('hidden');
+                                                                    void toast.offsetWidth;
+                                                                    toast.classList.add('opacity-100', 'scale-100');
+                                                                    toast.classList.remove('opacity-0', 'scale-95');
+                                                                    const hideTimer = setTimeout(() => {
+                                                                        toast.classList.remove('opacity-100', 'scale-100');
+                                                                        toast.classList.add('opacity-0', 'scale-95');
+                                                                        setTimeout(() => {
+                                                                            toast.classList.add('hidden');
+                                                                        }, 400);
+                                                                    }, 4500);
+                                                                    toast.dataset.timer = hideTimer;
+                                                                }
+                                                            " />
                                                         
                                                         <div class="flex-1 min-w-0">
                                                             <div class="flex items-center gap-2 flex-wrap">
@@ -1389,16 +1553,18 @@ document.addEventListener('DOMContentLoaded', function(){
                             </div>
 
                             <!-- Price Breakdown -->
-                            <div class="bg-gray-800/50 rounded-lg p-4 mb-4 space-y-3">
+                            <div class="bg-gray-800/50 rounded-lg p-4 mb-4" wire:key="pix-summary-{{ json_encode($bumps) }}">
                                 <!-- Preço Recorrente do Plano -->
-                                <div class="flex justify-between items-center">
+                                <div class="flex justify-between items-center pb-3 border-b border-gray-700 mb-3">
                                     <span class="text-gray-300 text-sm">{{ __('payment.subscription_price') }} <span class="text-xs text-gray-400">/mês</span></span>
                                     <span class="text-white font-semibold text-sm">{{ $currencies[$selectedCurrency]['symbol'] }} {{ number_format($totals['month_price'] ?? 0, 2, ',', '.') }}</span>
                                 </div>
                                 
-                                <!-- Order Bumps Individuais (se houver) -->
+                                <!-- Confirmação de Order Bumps Adicionados (se houver) -->
+                                <!-- DEBUG: Bumps total = {{ count($bumps ?? []) }} -->
                                 @if(!empty($bumps))
                                     @foreach($bumps as $bumpIdx => $bump)
+                                        <!-- DEBUG: Bump {{ $bumpIdx }} - ID: {{ $bump['id'] ?? 'null' }} - Active: {{ $bump['active'] ?? 'false' }} -->
                                         @php
                                             $isActive = !empty($bump['active']) || (isset($bump['active']) && $bump['active'] === true);
                                             if ($isActive) {
@@ -1408,30 +1574,35 @@ document.addEventListener('DOMContentLoaded', function(){
                                                     default => 'title'
                                                 };
                                                 $bumpTitle = $bump[$langCode] ?? $bump['title'] ?? '';
-                                                $bumpPrice = $bump['price'] ?? $bump['original_price'] ?? $bump['amount'] ?? 0;
+                                                $price = $bump['price'] ?? $bump['original_price'] ?? $bump['amount'] ?? 0;
                                             }
                                         @endphp
                                         
                                         @if($isActive)
-                                            <div class="flex justify-between items-center text-xs md:text-sm px-2 py-1.5 bg-blue-900/10 rounded border border-blue-500/20">
-                                                <span class="flex items-center gap-2 flex-wrap">
-                                                    <span class="break-words">{{ $bumpTitle }}</span>
-                                                    <span class="inline-block px-1.5 py-0.5 text-xs bg-blue-600 text-white rounded whitespace-nowrap">{{ __('payment.one_time') }}</span>
-                                                </span>
-                                                <span class="font-semibold text-blue-300">+{{ $currencies[$selectedCurrency]['symbol'] }} {{ number_format($bumpPrice, 2, ',', '.') }}</span>
+                                            <!-- RENDERIZANDO BUMP ATIVO -->
+                                            <div class="flex items-center justify-between py-2 px-2 mb-2 bg-green-500/10 rounded border border-green-500/30">
+                                                <div class="flex items-center gap-2">
+                                                    <svg class="w-4 h-4 text-green-400 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                                                    </svg>
+                                                    <span class="text-green-300 text-xs md:text-sm font-semibold">{{ $bumpTitle }}</span>
+                                                </div>
+                                                <span class="text-green-400 font-bold text-xs md:text-sm">+{{ $currencies[$selectedCurrency]['symbol'] }}{{ number_format($price, 2, ',', '.') }}</span>
                                             </div>
                                         @endif
                                     @endforeach
+                                @else
+                                    <!-- DEBUG: Nenhum bump disponível -->
                                 @endif
                                 
                                 <!-- Total a Pagar -->
-                                <div class="border-t border-gray-700 pt-3 flex justify-between items-center">
+                                <div class="flex justify-between items-center pt-3 border-t border-gray-700">
                                     <span class="text-white font-bold text-base">{{ __('payment.total_to_pay') }}</span>
                                     <span class="font-bold text-2xl {{ (isset($dataOrigin) && $dataOrigin['totals'] === 'backend') ? 'price-backend' : ((isset($dataOrigin) && ($selectedPaymentMethod === 'credit_card')) ? 'price-fallback animate-fallback-pulse' : 'text-green-400') }}">
                                         {{ $currencies[$selectedCurrency]['symbol'] }} {{ number_format($totals['final_price'] ?? 0, 2, ',', '.') }}
                                     </span>
                                 </div>
-                                <div class="bg-green-500/10 border border-green-500/40 rounded p-2 flex items-center gap-2">
+                                <div class="bg-green-500/10 border border-green-500/40 rounded p-2 flex items-center gap-2 mt-3">
                                     <svg class="w-4 h-4 text-green-400 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></path></svg>
                                     <span class="text-green-300 text-xs font-semibold">{{ __('payment.flexible_plan') }}</span>
                                 </div>
@@ -1720,442 +1891,253 @@ document.addEventListener('DOMContentLoaded', function(){
 
 </div>
 
-
-
-<!-- Upsell Modal -->
-<div id="upsell-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 @if (!$showUpsellModal) hidden @endif">
-    <div class="bg-[#1F1F1F] rounded-xl max-w-md w-full mx-4">
-        <div class="p-6">
-            <button id="close-upsell" wire:click.prevent="rejectUpsell"
-                class="absolute top-3 right-3 text-gray-400 hover:text-white">
-                <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M6 18L18 6M6 6l12 12" />
-                </svg>
-            </button>
-
-            <div class="text-center mb-4">
-                <div class="bg-[#E50914] rounded-full h-16 w-16 flex items-center justify-center mx-auto mb-4">
-                    <svg class="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"
-                        stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
-                    </svg>
-                </div>
-                <h3 class="text-2xl font-bold text-white">{{ __('payment.save_more') }}</h3>
-                <p class="text-gray-300 mt-2">{{ __('payment.semi_annual_free_months') }}</p>
-            </div>
-
-            <div class="bg-[#2D2D2D] rounded-lg p-4 mb-4">
-                <div class="flex justify-between items-center mb-2">
-                    <span class="text-gray-300">{{ __('payment.monthly') }} {{ __('payment.current') }}</span>
-                    <span class="text-white font-medium" id="upsell-monthly">
-                        {{ $currencies[$selectedCurrency]['symbol'] ?? 'R$' }}
-                        {{ $modalData['actual_month_value'] ?? 00 }} {{ __('payment.per_month') }}
-                    </span>
-                </div>
-                <div class="flex justify-between items-center">
-                    <span class="text-white font-medium">
-                        {{ __('payment.semi-annual') }}
-                    </span>
-                    <span class="text-[#E50914] font-bold" id="upsell-annual">
-                        {{ $currencies[$selectedCurrency]['symbol'] ?? 'R$' }}
-                        {{ $modalData['offer_month_value'] ?? 00 }}
-                        {{ __('payment.per_month') }}
-                    </span>
-                </div>
-                <div class="mt-2 text-green-500 text-sm text-right" id="upsell-savings">
-                    {{ __('payment.savings') }}
-                    {{ $currencies[$selectedCurrency]['symbol'] ?? 'R$' }}
-                    {{ $modalData['offer_total_discount'] ?? 00 }}
-                    {{ __('payment.semi-annual') }}
-                </div>
-                <div class="mt-2 text-sm text-right" id="upsell-savings">
-                    {{ __('payment.total_to_pay') }}
-                    {{ $currencies[$selectedCurrency]['symbol'] ?? 'R$' }}
-                    {{ $modalData['offer_total_value'] ?? 00 }}
-                </div>
-            </div>
-
-            <div class="grid grid-cols-2 gap-3">
-                <button id="upsell-reject" wire:click.prevent="rejectUpsell"
-                    class="py-3 text-white font-medium rounded-lg border border-gray-600 hover:bg-[#2D2D2D] transition-colors">
-                    {{ __('payment.keep_plan') }}
-                </button>
-                <button id="upsell-accept" wire:click.prevent="acceptUpsell"
-                    class="py-3 bg-[#E50914] hover:bg-[#B8070F] text-white font-bold rounded-lg transition-colors">
-                    {{ __('payment.want_to_save') }}
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Processing Modal -->
-<div id="processing-modal"
-    class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 @if (!$showProcessingModal) hidden @endif">
-    <div class="bg-[#1F1F1F] rounded-xl p-8 max-w-md w-full mx-4 text-center">
-        <div class="mb-4">
-            <div
-                class="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-[#E50914] border-r-2 border-b-2 border-transparent">
-            </div>
-        </div>
-        <h3 class="text-xl font-bold text-white mb-2">{{ $loadingMessage }}</h3>
-        <p class="text-gray-300">{{ __('payment.please_wait') }}</p>
-    </div>
-</div>
-
-<!-- PIX Modal - Novo do zero baseado em código simples -->
+<!-- PIX Modal - NOVO COM TAILWIND PURO -->
 @if($showPixModal)
-<div class="modal-overlay" id="pix-modal-overlay" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.6); display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 9999; overflow-y: auto;">
-    <div class="modal" style="background: linear-gradient(135deg, #0f1419 0%, #1a1f2e 100%); border-radius: 16px; border: 1px solid rgba(76, 175, 80, 0.2); box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5), 0 0 40px rgba(76, 175, 80, 0.1); max-width: 900px; width: 100%; overflow: hidden; my-auto: auto;">
+<!-- Modal Background -->
+<div class="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-4" id="pixModalBackdrop">
+    <!-- Modal Container - Premium Design -->
+    <div class="bg-gradient-to-b from-gray-950 via-gray-900 to-gray-950 rounded-2xl shadow-2xl max-w-2xl w-full max-h-[95vh] overflow-y-auto border border-gray-800">
         
-        <!-- Header -->
-        <div class="modal-header" style="background: linear-gradient(135deg, #1db854 0%, #149c3d 100%); padding: 24px; display: flex; align-items: center; justify-content: space-between; color: white;">
-            <div class="modal-header-title" style="display: flex; align-items: center; gap: 12px; font-size: 18px; font-weight: 600;">
-                <div class="modal-header-icon" style="width: 24px; height: 24px; background: rgba(255, 255, 255, 0.2); border-radius: 50%; display: flex; align-items: center; justify-content: center;"><svg class="w-3 h-3 sm:w-4 sm:h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg></div>
-                PIX
+        <!-- Header - Clean & Minimal -->
+        <div class="sticky top-0 bg-gradient-to-r from-green-600 to-emerald-600 px-6 sm:px-8 py-6 sm:py-7 flex items-center justify-between z-10 rounded-t-2xl">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 bg-white bg-opacity-20 rounded-full flex items-center justify-center backdrop-blur-md">
+                    <svg class="w-5 h-5 text-white" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
+                </div>
+                <h2 class="text-white text-xl sm:text-2xl font-bold tracking-tight">PIX</h2>
             </div>
-            <button class="close-btn" onclick="document.getElementById('pix-modal-overlay').style.display='none'; @this.dispatch('closeModal');" style="background: none; border: none; color: white; font-size: 24px; cursor: pointer; opacity: 0.8; transition: opacity 0.3s; padding: 0; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">×</button>
+            <button onclick="@this.dispatch('closeModal');" class="text-white hover:bg-white hover:bg-opacity-10 rounded-lg p-2 transition-all duration-200">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+            </button>
         </div>
 
         <!-- Content -->
-        <div class="modal-content" style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px; padding: 40px;">
-            
-            <!-- QR Code Section -->
-            <div class="qr-section" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px;">
-                <div class="qr-label" style="color: #a0aec0; font-size: 14px; font-weight: 500; text-transform: uppercase; letter-spacing: 1px;">Escanear o QR Code</div>
-                <div class="qr-code" style="width: 220px; height: 220px; background: white; border-radius: 12px; padding: 12px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3); display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);">
-                    @if(!empty($pixQrImage))
-                        <img src="@if(strpos($pixQrImage, 'data:') === false)data:image/png;base64,@endif{{ $pixQrImage }}" alt="QR Code" style="width: 100%; height: 100%; object-fit: contain;">
-                    @else
-                        <div style="width: 100%; height: 100%; background: #f0f0f0; display: flex; align-items: center; justify-content: center; text-align: center; color: #999; font-size: 12px;">Carregando...</div>
-                    @endif
+        <div class="p-6 sm:p-8 space-y-6">
+            <!-- Main Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-5 gap-6">
+                
+                <!-- QR Code Section - Left Column -->
+                <div class="md:col-span-2 flex flex-col items-center justify-center">
+                    <div class="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-5">Scan para pagar</div>
+                    <div class="w-40 h-40 sm:w-48 sm:h-48 bg-white rounded-2xl p-4 shadow-lg flex items-center justify-center relative">
+                        @if(!empty($pixQrImage))
+                            @php
+                                $pixSrc = strpos($pixQrImage, 'data:') === false ? 'data:image/png;base64,' . $pixQrImage : $pixQrImage;
+                            @endphp
+                            <img src="{{ $pixSrc }}" alt="QR Code PIX" class="w-full h-full object-contain">
+                        @else
+                            <div class="flex flex-col items-center justify-center text-center">
+                                <div class="animate-spin w-10 h-10 border-3 border-emerald-500 border-t-transparent rounded-full mb-3"></div>
+                                <span class="text-sm text-gray-500">Carregando...</span>
+                            </div>
+                        @endif
+                    </div>
                 </div>
-                <div class="qr-footer" style="font-size: 12px; color: #718096; text-align: center;">Câmera do banco</div>
+
+                <!-- Payment Details - Right Column -->
+                <div class="md:col-span-3 flex flex-col gap-5">
+                    
+                    <!-- Código PIX Section -->
+                    <div class="bg-gray-800/60 border border-gray-700 rounded-xl p-5 sm:p-6 backdrop-blur-sm">
+                        <div class="text-xs font-semibold text-emerald-400 uppercase tracking-widest mb-3">Código PIX (Copiar e Colar)</div>
+                        <div id="pixCodeDisplay" class="bg-gray-950 rounded-lg p-4 mb-4 text-gray-300 text-xs sm:text-sm font-mono max-h-20 overflow-y-auto border border-gray-600 cursor-pointer hover:border-emerald-500 transition-colors select-all">
+                            {{ $pixQrCodeText ?? 'Código PIX' }}
+                        </div>
+                        <button onclick="copyPixCode(event)" type="button" class="w-full bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-semibold py-3 sm:py-3.5 rounded-lg transition-all duration-200 flex items-center justify-center gap-2 shadow-lg hover:shadow-emerald-500/25">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></svg>
+                            <span id="copyText">Copiar Código</span>
+                        </button>
+                        <div id="copyMessage" class="hidden text-emerald-300 text-xs sm:text-sm font-semibold text-center mt-3 p-3 bg-emerald-500/10 rounded-lg border border-emerald-500/30 animate-in fade-in duration-300">
+                            ✓ Código copiado. Abra o app do seu banco e conclua a transação.
+                        </div>
+                    </div>
+
+                    <!-- Price Summary -->
+                    <div class="bg-gray-800 bg-opacity-70 border border-gray-600 rounded-xl p-5 sm:p-6 space-y-3 sm:space-y-4">
+                        <!-- Product -->
+                        <div class="flex justify-between items-center text-sm">
+                            <span class="text-gray-100 font-medium">{{ str_replace(['1/month', '1 mês', '1/mes'], '1x/mês', substr($product['title'] ?? 'Produto', 0, 40)) }}</span>
+                            <span class="text-white font-bold">{{ $currencies[$selectedCurrency]['symbol'] }}{{ number_format(($totals['total_price'] ?? 0) - ($totals['bumps_total'] ?? 0), 2, ',', '.') }}</span>
+                        </div>
+
+                        <!-- Bumps - Debug -->
+                        @php
+                            // Debug: Log what we have
+                            $activeBumps = [];
+                            if (is_array($bumps) && !empty($bumps)) {
+                                foreach ($bumps as $index => $bump) {
+                                    if (is_array($bump)) {
+                                        // Check multiple ways to detect active
+                                        $isActive = false;
+                                        if (isset($bump['active'])) {
+                                            $isActive = (bool)$bump['active'];
+                                        }
+                                        if ($isActive) {
+                                            $activeBumps[] = $bump;
+                                        }
+                                    }
+                                }
+                            }
+                        @endphp
+
+                        <!-- Show bumps if any -->
+                        @forelse($activeBumps as $bump)
+                            <div class="flex justify-between items-center text-sm pt-3 border-t border-gray-700">
+                                <span class="text-emerald-400 font-medium">+ {{ $bump['title'] ?? 'Bump' }}</span>
+                                <span class="text-emerald-400 font-semibold">+ {{ $currencies[$selectedCurrency]['symbol'] }}{{ number_format($bump['price'] ?? $bump['original_price'] ?? $bump['amount'] ?? 0, 2, ',', '.') }}</span>
+                            </div>
+                        @empty
+                            {{-- Sem bumps adicionais --}}
+                        @endforelse
+
+                        <!-- Divider -->
+                        <div class="border-t border-gray-600"></div>
+
+                        <!-- Subtotal & Discount -->
+                        <div class="flex justify-between items-center text-xs text-gray-200 pt-3 border-t border-gray-600">
+                            <span class="font-medium">Subtotal</span>
+                            <span class="font-semibold">{{ $currencies[$selectedCurrency]['symbol'] }}{{ number_format($totals['total_price'] ?? 0, 2, ',', '.') }}</span>
+                        </div>
+
+                        @if(isset($totals['total_discount']) && $totals['total_discount'] > 0)
+                            <div class="flex justify-between items-center text-xs text-blue-300">
+                                <span class="font-medium">Desconto PIX</span>
+                                <span class="font-semibold">- {{ $currencies[$selectedCurrency]['symbol'] }}{{ number_format($totals['total_discount'], 2, ',', '.') }}</span>
+                            </div>
+                        @endif
+
+                        <!-- Total -->
+                        <div class="border-t border-gray-600 pt-4 flex justify-between items-center">
+                            <span class="text-white font-bold text-base">Total a Pagar</span>
+                            <span class="text-emerald-400 font-bold text-2xl">{{ $currencies[$selectedCurrency]['symbol'] }}{{ number_format($totals['final_price'] ?? $totals['total_price'] ?? 0, 2, ',', '.') }}</span>
+                        </div>
+                    </div>
+                </div>
             </div>
 
-            <!-- Payment Section -->
-            <div class="payment-section" style="display: flex; flex-direction: column; gap: 24px;">
+            <!-- Footer Info -->
+            <div class="bg-gray-800 bg-opacity-60 rounded-xl p-5 sm:p-6 border border-gray-600">
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div class="flex gap-3">
+                        <svg class="w-5 h-5 text-emerald-400 flex-shrink-0 mt-0.5" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></svg>
+                        <div>
+                            <div class="text-xs font-semibold text-gray-200">Confirmação</div>
+                            <div class="text-xs text-gray-400">Em segundos</div>
+                        </div>
+                    </div>
+                    <div class="flex gap-3">
+                        <svg class="w-5 h-5 text-emerald-400 flex-shrink-0 mt-0.5" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></svg>
+                        <div>
+                            <div class="text-xs font-semibold text-gray-200">Acesso 24/7</div>
+                            <div class="text-xs text-gray-400">Suporte incluso</div>
+                        </div>
+                    </div>
+                    <div class="flex gap-3">
+                        <svg class="w-5 h-5 text-emerald-400 flex-shrink-0 mt-0.5" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></svg>
+                        <div>
+                            <div class="text-xs font-semibold text-gray-200">100% Seguro</div>
+                            <div class="text-xs text-gray-400">Criptografado</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Timer - Premium Design -->
+            <div class="relative overflow-hidden rounded-2xl bg-gradient-to-br from-red-600/20 via-orange-600/20 to-amber-600/20 border border-red-500/40 p-6 sm:p-7">
+                <!-- Background gradient animation -->
+                <div class="absolute inset-0 bg-gradient-to-r from-red-500/5 via-transparent to-orange-500/5 animate-pulse"></div>
                 
-                <!-- Código PIX -->
-                <div class="payment-info" style="background: rgba(45, 212, 191, 0.05); border: 1px solid rgba(45, 212, 191, 0.2); border-radius: 12px; padding: 20px;">
-                    <div class="info-label" style="color: #a0aec0; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">Código PIX</div>
-                    <div class="info-value" style="color: #e2e8f0; font-size: 14px; line-height: 1.6; word-break: break-all; font-family: 'Monaco', 'Courier New', monospace; max-height: 80px; overflow-y: auto;" id="pix-code-display">{{ $pixQrCodeText ?? 'Código PIX' }}</div>
-                    <button class="copy-btn" onclick="copyPixCode(event)" style="width: 100%; background: linear-gradient(135deg, #1db854 0%, #149c3d 100%); color: white; border: none; padding: 14px 24px; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 8px;">
-                        <svg class="w-5 h-5 sm:w-6 sm:h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>
-                        <span id="copy-text">Copiar código</span>
-                    </button>
-                    <div id="copy-message" style="display: none; color: #4caf50; font-size: 14px; font-weight: 600; text-align: center; margin-top: 12px; padding: 12px; background: rgba(76, 175, 80, 0.1); border-radius: 8px; border: 1px solid rgba(76, 175, 80, 0.2);">
-                        Código copiado com sucesso - Vá até a opção "Copiar e colar do seu banco"
+                <div class="relative flex flex-col sm:flex-row items-center justify-center sm:justify-between gap-4">
+                    <!-- Left: Icon + Label -->
+                    <div class="flex items-center gap-3">
+                        <div class="relative w-12 h-12 bg-red-500/20 rounded-full flex items-center justify-center border border-red-500/50">
+                            <svg class="w-6 h-6 text-red-400 animate-spin" fill="none" stroke="currentColor" stroke-width="2.5">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <polyline points="12 6 12 12 16 14"></polyline>
+                            </svg>
+                        </div>
+                        <div class="flex flex-col">
+                            <span class="text-xs font-semibold text-gray-400 uppercase tracking-widest">Oferta expira em</span>
+                            <span class="text-sm text-gray-300">Aproveite agora</span>
+                        </div>
                     </div>
-                </div>
-
-                <!-- Price Section -->
-                <div class="price-section" style="background: rgba(76, 175, 80, 0.08); border: 1px solid rgba(76, 175, 80, 0.2); border-radius: 12px; padding: 24px;">
-                    <div class="price-item" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; color: #cbd5e0; font-size: 14px;">
-                        <span>{{ str_replace(['1/month', '1 mês', '1/mes'], '1x/mês', substr($product['title'] ?? 'Streaming', 0, 30)) }}</span>
-                        <span>R$ 49,90</span>
+                    
+                    <!-- Right: Timer Value -->
+                    <div class="flex items-baseline gap-2">
+                        <span id="timerValue" class="text-4xl sm:text-5xl font-black text-red-400 font-mono tracking-tighter">05:00</span>
+                        <span class="text-xs font-semibold text-gray-400 uppercase mb-1">minutos</span>
                     </div>
-                    <div class="price-item" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; color: #cbd5e0; font-size: 14px;">
-                        <span>Desconto PIX</span>
-                        <span style="display: inline-block; background: rgba(76, 175, 80, 0.15); color: #4caf50; font-size: 12px; padding: 4px 8px; border-radius: 6px; font-weight: 500;">-R$ 25,00</span>
-                    </div>
-                    <div class="price-item" style="display: flex; justify-content: space-between; align-items: center; padding-top: 16px; border-top: 1px solid rgba(76, 175, 80, 0.2); font-size: 16px; font-weight: 600; color: #4caf50;">
-                        <span>Total a Pagar:</span>
-                        <span>R$ {{ number_format($totals['final_price'] ?? 0, 2, ',', '.') }}</span>
-                    </div>
-                </div>
-
-                <!-- Security Section -->
-                <div class="security-section" style="display: flex; flex-direction: column; gap: 12px; margin-top: 20px; padding-top: 20px; border-top: 1px solid rgba(76, 175, 80, 0.1);">
-                    <div class="security-item" style="display: flex; align-items: center; gap: 10px; color: #cbd5e0; font-size: 13px;">
-                        <svg class="w-4 h-4 sm:w-5 sm:h-5 text-green-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-4M20.49 15a9 9 0 0 1-14.85 4"></path></svg>
-                        <span>Confirmação em segundos</span>
-                    </div>
-                    <div class="security-item" style="display: flex; align-items: center; gap: 10px; color: #cbd5e0; font-size: 13px;">
-                        <svg class="w-4 h-4 sm:w-5 sm:h-5 text-green-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                        <span>Acesso imediato - Suporte 24/7</span>
-                    </div>
-                    <div class="security-item" style="display: flex; align-items: center; gap: 10px; color: #cbd5e0; font-size: 13px;">
-                        <svg class="w-4 h-4 sm:w-5 sm:h-5 text-green-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
-                        <span>100% seguro</span>
-                    </div>
-                </div>
-
-                <!-- Timer -->
-                <div class="timer-section" style="display: flex; align-items: center; gap: 8px; color: #f97316; font-size: 13px; margin-top: 16px; padding: 12px; background: rgba(249, 115, 22, 0.08); border-radius: 8px;">
-                    <svg class="w-4 h-4 sm:w-5 sm:h-5 text-yellow-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-                    <span>Válido por <span id="pix-timer" style="font-weight: 600; color: #f97316;">05:00</span></span>
                 </div>
             </div>
         </div>
     </div>
 </div>
 
-<style>
-    @media (max-width: 1024px) {
-        .modal {
-            max-width: 90% !important;
+<script>
+let pixQRTimer = 300;
+
+// Debug: log bumps state toda vez que muda
+Livewire.on('updated', (propertyName, value) => {
+    if (propertyName === 'bumps') {
+        console.log('✅ Bumps atualizados:', value);
+        console.log('📊 Bumps ativos:', value.filter(b => b.active));
+    }
+});
+
+// Debug no console quando modal abre
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('🔍 [PIX Modal] Iniciado');
+    console.log('🔍 $bumps data:', @json($bumps ?? []));
+    console.log('🔍 $totals data:', @json($totals ?? []));
+});
+
+// Observar mudanças no modal
+const observer = new MutationObserver(() => {
+    const modal = document.getElementById('pixModalBackdrop');
+    if (modal && modal.offsetParent !== null) { // offsetParent !== null significa que está visível
+        console.log('✅ [PIX Modal] Visível');
+        console.log('✅ Bumps ativos no modal:', @json($bumps ?? []));
+        // Iniciar timer quando modal fica visível
+        const timerEl = document.getElementById('timerValue');
+        if (timerEl && !timerStarted) {
+            timerStarted = true;
+            startTimer(timerEl);
+            console.log('✅ Timer iniciado!');
+        }
+    } else {
+        // Modal foi fechado
+        timerStarted = false;
+        if (timerInterval) {
+            clearInterval(timerInterval);
+            timerInterval = null;
+            console.log('⏹️ Timer parado');
         }
     }
-    
-    @media (max-width: 768px) {
-        .modal {
-            max-width: 95% !important;
-            border-radius: 14px !important;
-        }
-        
-        .modal-header {
-            padding: 20px !important;
-        }
-        
-        .modal-header-title {
-            font-size: 16px !important;
-            gap: 8px !important;
-        }
-        
-        .modal-header-icon {
-            width: 20px !important;
-            height: 20px !important;
-            font-size: 12px !important;
-        }
-        
-        .close-btn {
-            font-size: 28px !important;
-            width: 32px !important;
-            height: 32px !important;
-            display: flex !important;
-            align-items: center !important;
-            justify-content: center !important;
-        }
-        
-        .modal-content {
-            grid-template-columns: 1fr !important;
-            gap: 24px !important;
-            padding: 20px !important;
-        }
-        
-        .qr-section {
-            order: 2 !important;
-            gap: 16px !important;
-        }
-        
-        .qr-label {
-            font-size: 12px !important;
-        }
-        
-        .qr-code {
-            width: 200px !important;
-            height: 200px !important;
-            padding: 10px !important;
-        }
-        
-        .qr-footer {
-            font-size: 11px !important;
-        }
-        
-        .payment-section {
-            order: 1 !important;
-            gap: 16px !important;
-        }
-        
-        .payment-info,
-        .price-section {
-            padding: 16px !important;
-        }
-        
-        .info-label {
-            font-size: 11px !important;
-            margin-bottom: 6px !important;
-        }
-        
-        .info-value {
-            font-size: 13px !important;
-            max-height: 70px !important;
-        }
-        
-        .copy-btn {
-            padding: 12px 16px !important;
-            font-size: 14px !important;
-            gap: 6px !important;
-        }
-        
-        .price-item {
-            font-size: 13px !important;
-            margin-bottom: 10px !important;
-            gap: 8px !important;
-        }
-        
-        .price-item:last-child {
-            font-size: 14px !important;
+});
+
+observer.observe(document.body, { subtree: true, attributes: true, childList: true });
+
+function updatePixTimer() {
+    if (pixQRTimer > 0) {
+        pixQRTimer--;
+        const minutes = Math.floor(pixQRTimer / 60);
+        const seconds = pixQRTimer % 60;
+        const timerDisplay = document.getElementById('timerValue');
+        if (timerDisplay) {
+            timerDisplay.textContent = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
         }
     }
-    
-    @media (max-width: 480px) {
-        .modal {
-            max-width: 98% !important;
-            border-radius: 12px !important;
-            max-height: 85vh !important;
-            overflow-y: auto !important;
-        }
-        
-        .modal-header {
-            padding: 16px !important;
-            gap: 8px !important;
-            flex-wrap: wrap !important;
-        }
-        
-        .modal-header-title {
-            font-size: 15px !important;
-            gap: 6px !important;
-        }
-        
-        .modal-header-icon {
-            width: 18px !important;
-            height: 18px !important;
-            font-size: 11px !important;
-        }
-        
-        .close-btn {
-            font-size: 26px !important;
-            width: 28px !important;
-            height: 28px !important;
-            padding: 0 !important;
-            min-width: 28px !important;
-        }
-        
-        .modal-content {
-            grid-template-columns: 1fr !important;
-            gap: 16px !important;
-            padding: 16px !important;
-        }
-        
-        .qr-section {
-            order: 2 !important;
-            gap: 12px !important;
-            padding-top: 0 !important;
-        }
-        
-        .qr-label {
-            font-size: 11px !important;
-            letter-spacing: 0.5px !important;
-        }
-        
-        .qr-code {
-            width: 160px !important;
-            height: 160px !important;
-            padding: 8px !important;
-            border-radius: 10px !important;
-        }
-        
-        .qr-footer {
-            font-size: 10px !important;
-        }
-        
-        .payment-section {
-            order: 1 !important;
-            gap: 12px !important;
-        }
-        
-        .payment-info,
-        .price-section {
-            padding: 12px !important;
-            border-radius: 10px !important;
-        }
-        
-        .info-label {
-            font-size: 10px !important;
-            margin-bottom: 6px !important;
-            letter-spacing: 0.3px !important;
-        }
-        
-        .info-value {
-            font-size: 12px !important;
-            max-height: 60px !important;
-            line-height: 1.4 !important;
-        }
-        
-        .copy-btn {
-            width: 100% !important;
-            padding: 10px 12px !important;
-            font-size: 13px !important;
-            gap: 4px !important;
-            border-radius: 8px !important;
-            margin-top: 6px !important;
-        }
-        
-        .price-item {
-            font-size: 12px !important;
-            margin-bottom: 8px !important;
-            flex-wrap: wrap !important;
-            gap: 4px !important;
-        }
-        
-        .price-item:last-child {
-            font-size: 13px !important;
-            padding-top: 12px !important;
-        }
-        
-        .security-section {
-            gap: 8px !important;
-            margin-top: 12px !important;
-            padding-top: 12px !important;
-        }
-        
-        .security-item {
-            font-size: 12px !important;
-            gap: 8px !important;
-        }
-        
-        .timer-section {
-            font-size: 12px !important;
-            margin-top: 12px !important;
-            padding: 10px !important;
-            gap: 6px !important;
-        }
-    }
-    
-    @media (max-width: 360px) {
-        .modal {
-            max-width: 100% !important;
-            margin: 0 10px !important;
-            border-radius: 10px !important;
-            max-height: 90vh !important;
-        }
-        
-        .modal-header {
-            padding: 12px !important;
-        }
-        
-        .modal-header-title {
-            font-size: 14px !important;
-        }
-        
-        .modal-content {
-            padding: 12px !important;
-            gap: 12px !important;
-        }
-        
-        .qr-code {
-            width: 140px !important;
-            height: 140px !important;
-        }
-        
-        .info-value {
-            font-size: 11px !important;
-            max-height: 50px !important;
-        }
-        
-        .copy-btn {
-            padding: 8px 10px !important;
-            font-size: 12px !important;
-        }
-        
-        .price-item {
-            font-size: 11px !important;
-        }
-    }
-</style>@endif
+}
+
+const timerInterval = setInterval(updatePixTimer, 1000);
+
+window.addEventListener('beforeunload', () => {
+    clearInterval(timerInterval);
+});
+</script>
+@endif
+
+
 
 <!-- Global Scripts para PIX Modal -->
 <script>
@@ -2164,77 +2146,58 @@ let pixQRTimer = 300; // 5 minutes
 function copyPixCode(e) {
     if (e) e.preventDefault();
     
-    console.log('🔍 copyPixCode chamado!');
-    
-    const pixCodeDisplay = document.getElementById('pix-code-display');
-    console.log('pixCodeDisplay:', pixCodeDisplay);
+    const pixCodeDisplay = document.getElementById('pixCodeDisplay');
     if (!pixCodeDisplay) {
-        console.error('❌ Elemento pix-code-display não encontrado');
+        console.error('❌ Elemento pixCodeDisplay não encontrado');
         return;
     }
     
     const pixCode = pixCodeDisplay.textContent.trim();
-    console.log('📋 Código PIX:', pixCode.substring(0, 20) + '...');
     
     if (!pixCode || pixCode === 'Código PIX') {
         alert('Código PIX não disponível');
         return;
     }
 
-    const btn = document.querySelector('.copy-btn');
-    const text = document.getElementById('copy-text');
-    const copyMessage = document.getElementById('copy-message');
-    const originalText = text.textContent;
-    
-    console.log('btn:', btn);
-    console.log('text:', text);
-    console.log('copyMessage:', copyMessage);
+    const copyText = document.getElementById('copyText');
+    const copyMessage = document.getElementById('copyMessage');
+    const originalText = copyText ? copyText.textContent : 'Copiar Código';
 
-    // Tentar com Clipboard API
-    if (navigator.clipboard) {
+    // Tentar com Clipboard API (navegadores modernos)
+    if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(pixCode).then(() => {
-            console.log('✅ Clipboard API sucesso!');
-            updateCopyUI(text, btn, copyMessage, originalText);
-        }).catch((err) => {
-            console.error('❌ Clipboard API falhou:', err);
-            fallbackCopy(pixCode, text, btn, copyMessage, originalText);
+            showCopySuccess(copyMessage, copyText, originalText);
+        }).catch(() => {
+            fallbackCopy(pixCode, copyMessage, copyText, originalText);
         });
     } else {
-        console.log('⚠️ Clipboard API não disponível, usando fallback');
-        fallbackCopy(pixCode, text, btn, copyMessage, originalText);
+        fallbackCopy(pixCode, copyMessage, copyText, originalText);
     }
 }
 
-function updateCopyUI(text, btn, copyMessage, originalText) {
-    // Atualizar texto do botão
-    text.textContent = 'Código copiado!';
-    if (btn) {
-        btn.style.background = 'linear-gradient(135deg, #4caf50 0%, #388e3c 100%)';
+function showCopySuccess(copyMessage, copyText, originalText) {
+    if (copyText) {
+        copyText.textContent = '✓ Copiado!';
     }
     
-    // Mostrar mensagem de instrução
     if (copyMessage) {
-        copyMessage.textContent = 'Código copiado com sucesso - Vá até a opção "Copiar e colar do seu banco"';
-        copyMessage.style.display = 'block';
-        copyMessage.style.visibility = 'visible';
-        copyMessage.style.opacity = '1';
-        console.log('✅ Copy message shown:', copyMessage);
+        copyMessage.classList.remove('hidden');
+        setTimeout(() => {
+            copyMessage.classList.add('hidden');
+            if (copyText) {
+                copyText.textContent = originalText;
+            }
+        }, 3000);
     } else {
-        console.error('❌ Copy message element not found!');
+        if (copyText) {
+            setTimeout(() => {
+                copyText.textContent = originalText;
+            }, 3000);
+        }
     }
-    
-    setTimeout(() => {
-        text.textContent = originalText;
-        if (btn) {
-            btn.style.background = 'linear-gradient(135deg, #1db854 0%, #149c3d 100%)';
-        }
-        if (copyMessage) {
-            copyMessage.style.display = 'none';
-        }
-    }, 4000);
 }
 
-function fallbackCopy(pixCode, text, btn, copyMessage, originalText) {
+function fallbackCopy(pixCode, copyMessage, copyText, originalText) {
     try {
         const textarea = document.createElement('textarea');
         textarea.value = pixCode;
@@ -2249,22 +2212,19 @@ function fallbackCopy(pixCode, text, btn, copyMessage, originalText) {
         document.body.removeChild(textarea);
         
         if (successful) {
-            updateCopyUI(text, btn, copyMessage, originalText);
+            showCopySuccess(copyMessage, copyText, originalText);
         } else {
-            alert('Falha ao copiar. Por favor, copie manualmente: ' + pixCode);
+            alert('Falha ao copiar. Por favor, copie manualmente.');
         }
     } catch (err) {
         console.error('Erro ao copiar:', err);
-        alert('Erro ao copiar o código. Por favor, tente novamente.');
+        alert('Erro ao copiar o código.');
     }
 }
 
 // Iniciar timer quando modal aparecer
 let timerInterval = null;
 let timerStarted = false;
-
-// MutationObserver removed: timer is now started via Livewire 'pix-ready' event
-// (see resources/js/pages/pay.js for the pix-ready handler which calls startTimer).
 
 function startTimer(timerEl) {
     function formatTime(seconds) {
@@ -2273,26 +2233,39 @@ function startTimer(timerEl) {
         return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
     }
     
+    // Reset timer to 5 minutes when modal opens
+    pixQRTimer = 300;
+    
     clearInterval(timerInterval); // Limpar interval anterior se existir
+    
+    console.log('⏱️ Timer iniciado: 5:00');
     
     function updateTimer() {
         if (timerEl && pixQRTimer >= 0) {
-            timerEl.textContent = formatTime(pixQRTimer);
+            const timeString = formatTime(pixQRTimer);
+            timerEl.textContent = timeString;
             
+            // Mudar cor conforme o tempo passa
             if (pixQRTimer === 0) {
-                timerEl.parentElement.style.color = '#ef4444';
+                timerEl.style.color = '#ef4444';
+                timerEl.style.fontSize = '3rem';
+                timerEl.parentElement.parentElement.style.borderColor = '#dc2626';
                 console.log('⏰ PIX expirado!');
                 clearInterval(timerInterval);
                 timerInterval = null;
             } else if (pixQRTimer <= 60) {
-                timerEl.style.color = '#ef4444';
+                // Piscar nos últimos 60 segundos
+                timerEl.style.color = '#ff6b6b';
+                timerEl.style.animation = 'pulse 1s infinite';
             }
             
             pixQRTimer--;
         }
     }
     
-    updateTimer(); // Executar uma vez imediatamente
+    // Executar uma vez imediatamente
+    updateTimer();
+    // Depois executar a cada segundo
     timerInterval = setInterval(updateTimer, 1000);
 }
 </script>
@@ -2320,18 +2293,6 @@ function startTimer(timerEl) {
             class="mt-6 bg-[#E50914] hover:bg-[#B8070F] text-white py-3 px-8 text-lg font-bold rounded-xl transition-all w-full transform hover:scale-105">
             {{ __('payment.close') }}
         </button>
-    </div>
-</div>
-
-<!-- Error Modal -->
-<div id="success-modal"
-    class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 @if (!$showSuccessModal) hidden @endif">
-    <div class="bg-[#1F1F1F] rounded-xl p-8 max-w-md w-full mx-4 text-center">
-        <h3 class="text-xl font-bold text-white mb-2">{{ __('payment.success') }}</h3>
-            <button id="close-error" wire:click.prevent="closeModal"
-                class="bg-[#42b70a] hover:bg-[#2a7904] text-white py-2 px-6 text-base font-semibold rounded-full shadow-lg w-auto min-w-[180px] max-w-xs mx-auto transition-all flex items-center justify-center cursor-pointer">
-                Close
-            </button>
     </div>
 </div>
 

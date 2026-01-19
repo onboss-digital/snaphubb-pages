@@ -39,8 +39,6 @@ Route::get('/upsell/thank-you-recused-card', function(){
 	return view('upsell.thank-you-recused');
 })->name('upsell.thank_recused_card');
 
-// Note: Only '-card' variants are enabled for card flows; do not accept '/card' variants.
-
 // QR-specific upsell pages (for PIX flows)
 Route::get('/upsell/painel-das-garotas-qr', function(){
 	return view('upsell.painel-qr');

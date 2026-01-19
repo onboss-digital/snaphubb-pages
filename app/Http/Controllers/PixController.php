@@ -179,6 +179,7 @@ class PixController extends Controller
                 Log::error('Erro ao criar PIX', [
                     'response' => $pixResponse,
                     'customer_email' => $validated['customer']['email'],
+                    'response_keys' => array_keys($pixResponse['data'] ?? []),
                 ]);
 
                 return response()->json([
@@ -188,39 +189,18 @@ class PixController extends Controller
             }
 
             // 6. LOG PARA AUDITORIA
-            Log::info('PIX criado com sucesso', [
+            Log::channel('payment_checkout')->info('PIX criado com sucesso', [
                 'payment_id' => $pixResponse['data']['payment_id'] ?? null,
                 'amount' => $validated['amount'],
                 'customer_email' => $validated['customer']['email'],
                 'plan_key' => $validated['plan_key'],
+                'has_qr_code_base64' => !empty($pixResponse['data']['qr_code_base64']),
+                'qr_code_base64_length' => strlen($pixResponse['data']['qr_code_base64'] ?? ''),
+                'has_qr_code' => !empty($pixResponse['data']['qr_code']),
             ]);
 
-            // 7. SALVAR ORDEM NO BANCO DE DADOS (OPCIONAL - NÃO BLOQUEIA PIX)
-            // Desabilitado: Não é crítico para gerar PIX
-            // try {
-            //     $order = \App\Models\Order::create([
-            //         'user_id' => auth()->id() ?? 1,
-            //         'plan' => $validated['plan_key'],
-            //         'currency' => $validated['currency_code'],
-            //         'price' => ($validated['amount'] / 100),
-            //         'pix_id' => $pixResponse['data']['payment_id'],
-            //         'external_payment_id' => $pixResponse['data']['payment_id'],
-            //         'payment_status' => 'pending',
-            //     ]);
-            //     
-            //     Log::info('Order salvo com sucesso', [
-            //         'order_id' => $order->id,
-            //         'pix_id' => $pixResponse['data']['payment_id'],
-            //     ]);
-            // } catch (\Exception $e) {
-            //     Log::error('Erro ao salvar order', [
-            //         'error' => $e->getMessage(),
-            //     ]);
-            //     // Continua mesmo se falhar ao salvar a ordem
-            // }
-
             // 8. RETORNAR DADOS DO PIX PARA O FRONTEND
-            return response()->json([
+            $responseData = [
                 'status' => 'success',
                 'data' => [
                     'payment_id' => $pixResponse['data']['payment_id'] ?? null,
@@ -230,7 +210,14 @@ class PixController extends Controller
                     'expiration_date' => $pixResponse['data']['expiration_date'] ?? null,
                     'status' => $pixResponse['data']['status'] ?? 'pending',
                 ],
-            ], 201);
+            ];
+
+            Log::debug('PixController::create - Resposta ao frontend', [
+                'has_qr_code_base64' => !empty($responseData['data']['qr_code_base64']),
+                'qr_code_base64_length' => strlen($responseData['data']['qr_code_base64'] ?? ''),
+            ]);
+
+            return response()->json($responseData, 201);
 
         } catch (\Illuminate\Validation\ValidationException $e) {
             Log::warning('Validação falhou ao criar PIX', [

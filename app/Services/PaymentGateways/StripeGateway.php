@@ -68,6 +68,9 @@ class StripeGateway implements PaymentGatewayInterface
     {
         try {
             try {
+                \Illuminate\Support\Facades\Log::channel('payment_checkout')->info('StripeGateway::processPayment - START', [
+                    'timestamp' => now()->toDateTimeString(),
+                ]);
                 \Illuminate\Support\Facades\Log::channel('payment_checkout')->info('StripeGateway::processPayment - incoming payload', [
                     'metadata' => $paymentData['metadata'] ?? null,
                     'cart' => $paymentData['cart'] ?? null,
@@ -77,6 +80,7 @@ class StripeGateway implements PaymentGatewayInterface
                 // ignore logging errors
             }
             $paymentMethodId = $paymentData['payment_method_id'] ?? null;
+            \Illuminate\Support\Facades\Log::channel('payment_checkout')->info('StripeGateway::processPayment - step 1: paymentMethodId', ['id' => $paymentMethodId ?? 'null']);
             if (!$paymentMethodId) {
                 // Try to resolve a default payment method from provided customer id
                 $custId = $paymentData['customer']['id'] ?? $paymentData['customer_id'] ?? $paymentData['customer']['stripe_id'] ?? null;
@@ -109,12 +113,14 @@ class StripeGateway implements PaymentGatewayInterface
             }
 
             $email = $paymentData['customer']['email'] ?? null;
+            \Illuminate\Support\Facades\Log::channel('payment_checkout')->info('StripeGateway::processPayment - step 2: email', ['email' => $email ?? 'null']);
 
             // 🔍 Buscar cliente existente
             $existing = $this->request('get', '/customers', [
                 'email' => $email,
                 'limit' => 1,
             ]);
+            \Illuminate\Support\Facades\Log::channel('payment_checkout')->info('StripeGateway::processPayment - step 3: customer lookup done', ['has_existing' => !empty($existing['data'])]);
 
             if (!empty($existing['data'])) {
                 $customer = $existing['data'][0];
@@ -125,9 +131,11 @@ class StripeGateway implements PaymentGatewayInterface
                     'phone' => $paymentData['customer']['phone_number'] ?? null,
                 ]);
             }
+            \Illuminate\Support\Facades\Log::channel('payment_checkout')->info('StripeGateway::processPayment - step 4: customer created', ['customer_id' => $customer['id'] ?? 'null']);
 
             // 🔗 Buscar PaymentMethod
             $paymentMethod = $this->request('get', "/payment_methods/{$paymentMethodId}");
+            \Illuminate\Support\Facades\Log::channel('payment_checkout')->info('StripeGateway::processPayment - step 5: payment method fetched', ['method_id' => $paymentMethodId]);
 
             if (empty($paymentMethod['customer'])) {
                 $this->request('post', "/payment_methods/{$paymentMethodId}/attach", [
@@ -137,15 +145,18 @@ class StripeGateway implements PaymentGatewayInterface
                 // Reusar o mesmo customer do cartão
                 $customer['id'] = $paymentMethod['customer'];
             }
+            \Illuminate\Support\Facades\Log::channel('payment_checkout')->info('StripeGateway::processPayment - step 6: payment method attached');
 
             // Definir PaymentMethod como padrão
             $this->request('post', "/customers/{$customer['id']}", [
                 'invoice_settings[default_payment_method]' => $paymentMethodId,
             ]);
+            \Illuminate\Support\Facades\Log::channel('payment_checkout')->info('StripeGateway::processPayment - step 7: set default payment method');
 
             $results = [];
 
             // 0) Validar o payment_method antes de tudo
+            \Illuminate\Support\Facades\Log::channel('payment_checkout')->info('StripeGateway::processPayment - step 8: creating setup intent');
             $setupIntent = $this->request('post', '/setup_intents', [
                 'customer' => $customer['id'],
                 'payment_method' => $paymentMethodId,
@@ -156,6 +167,7 @@ class StripeGateway implements PaymentGatewayInterface
                     'allow_redirects' => 'never' // 🔹 bloqueia redirect
                 ]
             ], $idempotencyKey ? ['Idempotency-Key' => $idempotencyKey . '-setup'] : []);
+            \Illuminate\Support\Facades\Log::channel('payment_checkout')->info('StripeGateway::processPayment - step 9: setup intent created', ['status' => $setupIntent['status'] ?? 'unknown']);
 
             // If setup intent requires action (SCA), return structured response so frontend can handle
             if (($setupIntent['status'] ?? null) !== 'succeeded') {
@@ -177,10 +189,13 @@ class StripeGateway implements PaymentGatewayInterface
             }
 
             // 1) Criar cobranças (agora temos certeza que o cartão é válido)
-            foreach ($paymentData['cart'] as $product) {
+            \Illuminate\Support\Facades\Log::channel('payment_checkout')->info('StripeGateway::processPayment - step 10: starting cart processing', ['cart_items' => count($paymentData['cart'])]);
+            foreach ($paymentData['cart'] as $idx => $product) {
+                \Illuminate\Support\Facades\Log::channel('payment_checkout')->info('StripeGateway::processPayment - processing cart item', ['index' => $idx, 'product' => $product['product_hash'] ?? 'unknown', 'recurring' => !empty($product['recurring'])]);
                 $isRecurring = !empty($product['recurring']);
 
                 if ($isRecurring) {
+                    \Illuminate\Support\Facades\Log::channel('payment_checkout')->info('StripeGateway::processPayment - product is recurring, preparing subscription', ['product' => $product['product_hash'] ?? 'unknown', 'price_id' => $product['price_id'] ?? 'unknown']);
                     // Criar assinatura já ativa (não precisa pré-autorizar)
                     $subscriptionData = [
                         'customer' => $customer['id'],
@@ -199,9 +214,12 @@ class StripeGateway implements PaymentGatewayInterface
                     ];
 
 
+                    \Illuminate\Support\Facades\Log::channel('payment_checkout')->info('StripeGateway::processPayment - calling Stripe API to create subscription', ['product' => $product['product_hash'] ?? 'unknown']);
                     $sub = $this->request('post', '/subscriptions', $subscriptionData, $idempotencyKey ? ['Idempotency-Key' => $idempotencyKey . '-sub'] : []);
+                    \Illuminate\Support\Facades\Log::channel('payment_checkout')->info('StripeGateway::processPayment - subscription created', ['product' => $product['product_hash'] ?? 'unknown', 'subscription_id' => $sub['id'] ?? 'unknown']);
 
                     // ⚡ Confirmar pagamento da primeira fatura
+                    \Illuminate\Support\Facades\Log::channel('payment_checkout')->info('StripeGateway::processPayment - checking subscription payment intent', ['product' => $product['product_hash'] ?? 'unknown', 'has_invoice' => !empty($sub['latest_invoice'])]);
                     if (!empty($sub['latest_invoice']['payment_intent'])) {
                         $pi = $sub['latest_invoice']['payment_intent'];
                         $piStatus = $pi['status'] ?? null;
@@ -224,6 +242,7 @@ class StripeGateway implements PaymentGatewayInterface
                     }
                     $results[] = $sub;
                 } else {
+                    \Illuminate\Support\Facades\Log::channel('payment_checkout')->info('StripeGateway::processPayment - product is one-time/non-recurring', ['product' => $product['product_hash'] ?? 'unknown']);
                     // Produto avulso -> pode criar PaymentIntent normalmente
                     // Se não houver `price_id` (ex: backend fallback), não chamar /prices/ sem id
                     if (!empty($product['price_id'])) {
@@ -301,9 +320,11 @@ class StripeGateway implements PaymentGatewayInterface
                             'title' => $product['title']
                         ]
                     ], $idempotencyKey ? ['Idempotency-Key' => $idempotencyKey . '-pi'] : []);
+                    \Illuminate\Support\Facades\Log::channel('payment_checkout')->info('StripeGateway::processPayment - payment intent created and confirmed', ['product' => $product['product_hash'] ?? 'unknown', 'pi_status' => $intent['status'] ?? 'unknown', 'pi_id' => $intent['id'] ?? 'unknown']);
 
                     // If PaymentIntent requires action (SCA), return structured response so frontend can handle
                     if (in_array($intent['status'] ?? '', ['requires_action','requires_confirmation']) && !empty($intent['client_secret'])) {
+                        \Illuminate\Support\Facades\Log::channel('payment_checkout')->warning('StripeGateway::processPayment - payment intent requires customer action', ['product' => $product['product_hash'] ?? 'unknown', 'status' => $intent['status'] ?? 'unknown']);
                         return [
                             'status' => 'requires_action',
                             'action' => 'payment_intent',
@@ -313,11 +334,16 @@ class StripeGateway implements PaymentGatewayInterface
                     }
 
                     $results[] = $intent;
+                    \Illuminate\Support\Facades\Log::channel('payment_checkout')->info('StripeGateway::processPayment - non-recurring product processed', ['product' => $product['product_hash'] ?? 'unknown']);
                 }
             }
+            \Illuminate\Support\Facades\Log::channel('payment_checkout')->info('StripeGateway::processPayment - STEP 11: all cart items processed successfully', ['total_results' => count($results), 'total_items' => count($paymentData['cart'])]);
+            \Illuminate\Support\Facades\Log::channel('payment_checkout')->info('StripeGateway::processPayment - STEP 13: building final response', ['customer_id' => $customer['id'] ?? 'unknown']);
             $redirect = $paymentData['upsell_success_url'] ?? $paymentData['upsell_url'] ?? (env('THANKS_URL', rtrim(config('app.url') ?? '', '/') . '/upsell/thank-you-card'));
 
             $offerId = $paymentData['offer_hash'] ?? $paymentData['product_id'] ?? $paymentData['metadata']['product_external_id'] ?? $paymentData['metadata']['offer_hash'] ?? null;
+
+            \Illuminate\Support\Facades\Log::channel('payment_checkout')->info('StripeGateway::processPayment - STEP 14: returning success response to frontend', ['customer_id' => $customer['id'] ?? 'unknown', 'offer_id' => $offerId ?? 'unknown', 'redirect_url' => $redirect ?? 'unknown']);
 
             return [
                 'status' => 'success',
@@ -327,7 +353,11 @@ class StripeGateway implements PaymentGatewayInterface
                     'redirect_url' => $redirect
                 ]
             ];
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::channel('payment_checkout')->error('StripeGateway::processPayment - EXCEPTION', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
             Log::channel('payment_checkout')->error('StripeGateway: API Error', [
                 'message' => $e->getMessage(),
             ]);
