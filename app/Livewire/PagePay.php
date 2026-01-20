@@ -10,6 +10,7 @@ use GuzzleHttp\Client;
 use GuzzleHttp\Psr7\Request;
 use Illuminate\Support\Facades\Http;
 use Livewire\Component;
+use Livewire\Attributes\On;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Log;
 use App\Services\FacebookConversionsService;
@@ -1365,13 +1366,21 @@ class PagePay extends Component
         $this->sendCheckout();
     }
 
-    public function getListeners()
+    #[On('updatePixPhone')]
+    public function updatePixPhone($payload)
     {
-        return [
-            'updatePhone' => 'updatePhone',
-            // Evento disparado pelo client-side para iniciar fluxo com loader
-            'clientGeneratePix' => 'generatePixPayment',
-        ];
+        $this->pixPhone = $payload['phone'] ?? null;
+    }
+
+    #[On('updatePhone')]
+    public function updatePhone($payload)
+    {
+        // Aceita payload array ou argumento direto para compatibilidade
+        if (is_array($payload) && isset($payload['phone'])) {
+            $this->phone = $payload['phone'];
+        } elseif (is_string($payload)) {
+            $this->phone = $payload;
+        }
     }
 
     /**
@@ -1590,17 +1599,15 @@ class PagePay extends Component
     /**
      * Consulta o status do pagamento PIX
      * Chamado via polling a cada 3-5 segundos
-     * ⚠️ DEPRECATED: Polling não é mais necessário - usar webhooks
-     * Este método foi mantido para compatibilidade mas não é mais chamado.
      * NOTA: A API Pushing Pay não fornece rota de consulta de status.
      * O status será atualizado via webhook quando o pagamento for confirmado.
+     * Mas mantemos o polling para fallback ou gateways que suportem.
      */
-    // ⚠️ DEPRECATED - comentado pois polling agora é feito via webhook
-    /*
+    #[On('checkPixPaymentStatus')]
     public function checkPixPaymentStatus()
     {
         if (empty($this->pixTransactionId)) {
-            Log::warning('PagePay: checkPixPaymentStatus chamado sem pixTransactionId');
+            // Log::warning('PagePay: checkPixPaymentStatus chamado sem pixTransactionId');
             return;
         }
 
@@ -1611,16 +1618,16 @@ class PagePay extends Component
             try {
                 $result = $this->pixService->getPaymentStatus($this->pixTransactionId);
             } catch (\Throwable $e) {
-                Log::warning('PagePay: falha ao consultar PixService para status', ['error' => $e->getMessage(), 'payment_id' => $this->pixTransactionId]);
+                // Log::warning('PagePay: falha ao consultar PixService para status', ['error' => $e->getMessage(), 'payment_id' => $this->pixTransactionId]);
             }
 
             if (empty($result) || !is_array($result) || empty($result['data'])) {
-                Log::debug('PagePay: getPaymentStatus retornou sem dado útil', ['payment_id' => $this->pixTransactionId, 'result' => $result]);
+                // Log::debug('PagePay: getPaymentStatus retornou sem dado útil', ['payment_id' => $this->pixTransactionId, 'result' => $result]);
                 return;
             }
 
             $status = strtolower($result['data']['status'] ?? ($result['data']['payment_status'] ?? ''));
-            Log::info('PagePay: checkPixPaymentStatus fetched status', ['payment_id' => $this->pixTransactionId, 'status' => $status]);
+            // Log::info('PagePay: checkPixPaymentStatus fetched status', ['payment_id' => $this->pixTransactionId, 'status' => $status]);
 
             if (in_array($status, ['approved', 'paid', 'confirmed'], true)) {
                 $this->pixStatus = 'approved';
@@ -1641,13 +1648,12 @@ class PagePay extends Component
             }
 
             // otherwise keep waiting
-            Log::debug('PagePay: checkPixPaymentStatus - status not terminal, keep waiting', ['payment_id' => $this->pixTransactionId, 'status' => $status]);
+            // Log::debug('PagePay: checkPixPaymentStatus - status not terminal, keep waiting', ['payment_id' => $this->pixTransactionId, 'status' => $status]);
 
         } catch (\Exception $e) {
             Log::error('PagePay: Erro em checkPixPaymentStatus', ['error' => $e->getMessage(), 'payment_id' => $this->pixTransactionId]);
         }
     }
-    */
 
     
 
@@ -1810,13 +1816,6 @@ class PagePay extends Component
         $this->pixError = null;
         $this->pixStatus = 'pending';
         $this->dispatch('stop-pix-polling');
-    }
-
-    public function updatePhone($event = null)
-    {
-        if (isset($event['phone'])) {
-            $this->phone = $event['phone'];
-        }
     }
 
     public function updateActivityCount()
@@ -2303,6 +2302,7 @@ class PagePay extends Component
         ];
     }
 
+    #[On('clientGeneratePix')]
     public function generatePixPayment()
     {
         try {
