@@ -7,9 +7,7 @@ import EmailValidator from 'email-deep-validator';
 function setupIntlTelInput(selector, livewireEventName) {
     const inputs = document.querySelectorAll(selector);
     inputs.forEach(input => {
-        if (input.iti) { // Evita reinicialização
-            return;
-        }
+        if (input.iti) return;
 
         const iti = intlTelInput(input, {
             initialCountry: "auto",
@@ -24,13 +22,11 @@ function setupIntlTelInput(selector, livewireEventName) {
             formatOnDisplay: true,
         });
 
-        input.iti = iti; // Armazena a instância para verificar se já existe
+        input.iti = iti;
 
         const changeHandler = () => {
             const fullNumber = iti.isValidNumber() ? iti.getNumber() : '';
-            Livewire.dispatch(livewireEventName, {
-                phone: fullNumber
-            });
+            Livewire.dispatch(livewireEventName, { phone: fullNumber });
         };
 
         input.addEventListener('change', changeHandler);
@@ -39,19 +35,17 @@ function setupIntlTelInput(selector, livewireEventName) {
 }
 
 function setupMasksAndValidators() {
-    // Máscara de CPF para o formulário PIX
     const cpfInput = document.querySelector('input[name="pix_cpf"]');
     if (cpfInput && !cpfInput.imask) {
-        IMask(cpfInput, { mask: '000.000.000-00' });
+        cpfInput.imask = IMask(cpfInput, { mask: '000.000.000-00' });
     }
 
-    // Validador de E-mail para o formulário PIX
     const emailInput = document.querySelector('input[name="pix_email"]');
     if (emailInput && !emailInput.hasAttribute('data-validator-attached')) {
         emailInput.setAttribute('data-validator-attached', 'true');
         const emailValidator = new EmailValidator();
-        let emailSuggestion = emailInput.parentNode.querySelector('.email-suggestion');
 
+        let emailSuggestion = emailInput.parentNode.querySelector('.email-suggestion');
         if (!emailSuggestion) {
             emailSuggestion = document.createElement('div');
             emailSuggestion.className = 'text-xs text-yellow-400 mt-1 email-suggestion';
@@ -80,9 +74,7 @@ document.addEventListener('livewire:init', () => {
 
     const hideClientPixLoader = () => {
         const loader = document.getElementById('client-pix-loader');
-        if (!loader) {
-            return;
-        }
+        if (!loader) return;
 
         loader.style.transition = 'opacity 0.5s ease-out';
         loader.style.opacity = '0';
@@ -94,52 +86,41 @@ document.addEventListener('livewire:init', () => {
     };
 
     function initializeAll() {
-        // Configura o intl-tel-input para o telefone do formulário principal
         setupIntlTelInput("input[name='phone']", 'updatePhone');
-        // E agora também para o telefone do modal PIX
         setupIntlTelInput("input[name='pix_phone']", 'updatePixPhone');
-        // Configura as máscaras para o modal PIX
         setupMasksAndValidators();
     }
 
-    // Carga inicial
     initializeAll();
 
-    // Após cada atualização do Livewire
-    Livewire.hook('message.processed', (message, component) => {
-        initializeAll();
+    Livewire.hook('commit', ({ succeed }) => {
+        succeed(() => {
+            initializeAll();
+        });
     });
 
-    // --- Lógica de Polling do PIX ---
-    Livewire.on('start-pix-polling', () => {
+    Livewire.listen('start-pix-polling', () => {
         if (pixPollingInterval) clearInterval(pixPollingInterval);
         pixPollingInterval = setInterval(() => {
             Livewire.dispatch('checkPixPaymentStatus');
         }, 3000);
     });
 
-    Livewire.on('stop-pix-polling', () => {
+    Livewire.listen('stop-pix-polling', () => {
         if (pixPollingInterval) clearInterval(pixPollingInterval);
     });
 
-    Livewire.on('pix-ready', (payload = {}) => {
+    Livewire.listen('pix-ready', (payload = {}) => {
         console.log('[JS] PIX modal should now be visible', payload);
-        
-        // Esconde loader do cliente se ainda estiver visível
+
         hideClientPixLoader();
-        console.log('[JS] Client loader hidden');
-        
-        // O modal agora é renderizado pelo Livewire @if($showPixModal)
-        // Não precisa de refresh forçado - o renderizado já ocorreu
+
         try {
-            // Se a função startTimer e o elemento #pix-timer existirem, (re)inicia o timer
             if (typeof window.startTimer === 'function') {
                 const timerEl = document.getElementById('pix-timer');
                 if (timerEl) {
-                    // reset global seconds to 300 (5 minutes) to match server behavior
                     if (typeof window.pixQRTimer !== 'undefined') window.pixQRTimer = 300;
                     window.startTimer(timerEl);
-                    console.log('[JS] startTimer called from pix-ready listener');
                 }
             }
         } catch (err) {
