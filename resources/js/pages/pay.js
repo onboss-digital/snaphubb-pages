@@ -43,29 +43,36 @@ function setupMasksAndValidators() {
     const emailInput = document.querySelector('input[name="pix_email"]');
     if (emailInput && !emailInput.hasAttribute('data-validator-attached')) {
         emailInput.setAttribute('data-validator-attached', 'true');
-        const emailValidator = new EmailValidator();
+        // EmailValidator might not be suitable for frontend bundle directly or needs polyfills,
+        // keeping original logic but wrapping in try-catch to be safe.
+        // Assuming EmailValidator is available from imports.
 
-        let emailSuggestion = emailInput.parentNode.querySelector('.email-suggestion');
-        if (!emailSuggestion) {
-            emailSuggestion = document.createElement('div');
-            emailSuggestion.className = 'text-xs text-yellow-400 mt-1 email-suggestion';
-            emailInput.parentNode.appendChild(emailSuggestion);
+        try {
+             const emailValidator = new EmailValidator();
+             let emailSuggestion = emailInput.parentNode.querySelector('.email-suggestion');
+             if (!emailSuggestion) {
+                 emailSuggestion = document.createElement('div');
+                 emailSuggestion.className = 'text-xs text-yellow-400 mt-1 email-suggestion';
+                 emailInput.parentNode.appendChild(emailSuggestion);
+             }
+
+             emailInput.addEventListener('blur', async () => {
+                 const email = emailInput.value;
+                 emailSuggestion.textContent = '';
+                 if (email) {
+                     try {
+                         const { wellFormed, validDomain, validMailbox } = await emailValidator.verify(email);
+                         if (wellFormed && validDomain && validMailbox === false) {
+                             emailSuggestion.textContent = 'E-mail parece inválido. Verifique, por favor.';
+                         }
+                     } catch (error) {
+                         console.warn("Falha na verificação do e-mail:", error);
+                     }
+                 }
+             });
+        } catch (e) {
+            console.warn('EmailValidator init failed', e);
         }
-
-        emailInput.addEventListener('blur', async () => {
-            const email = emailInput.value;
-            emailSuggestion.textContent = '';
-            if (email) {
-                try {
-                    const { wellFormed, validDomain, validMailbox } = await emailValidator.verify(email);
-                    if (wellFormed && validDomain && validMailbox === false) {
-                        emailSuggestion.textContent = 'E-mail parece inválido. Verifique, por favor.';
-                    }
-                } catch (error) {
-                    console.warn("Falha na verificação do e-mail:", error);
-                }
-            }
-        });
     }
 }
 
@@ -91,26 +98,43 @@ document.addEventListener('livewire:init', () => {
         setupMasksAndValidators();
     }
 
+    // Initial setup
     initializeAll();
 
+    // Re-initialize after Livewire updates DOM
     Livewire.hook('commit', ({ succeed }) => {
         succeed(() => {
-            initializeAll();
+            // Wait for DOM to be updated
+            setTimeout(initializeAll, 50);
         });
     });
 
-    Livewire.listen('start-pix-polling', () => {
+    // Also hook into navigated for SPA transitions if used
+    document.addEventListener('livewire:navigated', () => {
+        initializeAll();
+    });
+
+    // Replace Livewire.listen with Livewire.on for v3
+    Livewire.on('start-pix-polling', () => {
+        console.log('[JS] Starting PIX polling...');
         if (pixPollingInterval) clearInterval(pixPollingInterval);
+
+        // Immediate check
+        Livewire.dispatch('checkPixPaymentStatus');
+
         pixPollingInterval = setInterval(() => {
+            console.log('[JS] Polling checkPixPaymentStatus...');
             Livewire.dispatch('checkPixPaymentStatus');
         }, 3000);
     });
 
-    Livewire.listen('stop-pix-polling', () => {
+    Livewire.on('stop-pix-polling', () => {
+        console.log('[JS] Stopping PIX polling.');
         if (pixPollingInterval) clearInterval(pixPollingInterval);
+        pixPollingInterval = null;
     });
 
-    Livewire.listen('pix-ready', (payload = {}) => {
+    Livewire.on('pix-ready', (payload = {}) => {
         console.log('[JS] PIX modal should now be visible', payload);
 
         hideClientPixLoader();
@@ -118,6 +142,9 @@ document.addEventListener('livewire:init', () => {
         try {
             if (typeof window.startTimer === 'function') {
                 const timerEl = document.getElementById('pix-timer');
+                // The timer logic might be inside the blade view or a global script.
+                // If it relies on DOM elements being present, they should be there now.
+                // We trigger a custom event or call global function if it exists.
                 if (timerEl) {
                     if (typeof window.pixQRTimer !== 'undefined') window.pixQRTimer = 300;
                     window.startTimer(timerEl);
@@ -126,5 +153,11 @@ document.addEventListener('livewire:init', () => {
         } catch (err) {
             console.warn('[JS] pix-ready: could not start timer', err);
         }
+    });
+
+    Livewire.on('pix-expired', () => {
+        console.log('[JS] PIX expired event received');
+        if (pixPollingInterval) clearInterval(pixPollingInterval);
+        pixPollingInterval = null;
     });
 });

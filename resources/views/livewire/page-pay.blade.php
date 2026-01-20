@@ -2457,8 +2457,10 @@ function startTimer(timerEl) {
     document.addEventListener('livewire:init', () => {
         initializeStripe();
 
-        Livewire.hook('message.processed', (message, component) => {
-            initializeStripe();
+        Livewire.hook('commit', ({ succeed }) => {
+            succeed(() => {
+                initializeStripe();
+            });
         });
 
         Livewire.on('checkout-success', (event) => {
