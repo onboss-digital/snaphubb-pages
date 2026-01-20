@@ -1375,7 +1375,6 @@ class PagePay extends Component
     #[On('updatePhone')]
     public function updatePhone($payload)
     {
-        // Single source of truth for phone updates
         // Aceita payload array ou argumento direto para compatibilidade
         if (is_array($payload) && isset($payload['phone'])) {
             $this->phone = $payload['phone'];
