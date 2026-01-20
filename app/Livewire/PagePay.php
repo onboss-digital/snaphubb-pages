@@ -1373,7 +1373,7 @@ class PagePay extends Component
     }
 
     #[On('updatePhone')]
-    public function updatePhone($payload)
+    public function updatePhone($payload = null)
     {
         // Aceita payload array ou argumento direto para compatibilidade
         if (is_array($payload) && isset($payload['phone'])) {
