@@ -508,7 +508,9 @@ class StripeGateway implements PaymentGatewayInterface
             }
 
             // 🔹 Definição da chave do plano
-            $key = match ($plan['duration']) {
+            // ✅ IMPORTANTE: Usar o identifier do backend como chave, não derivar da duração
+            // Isso garante que 'streaming_snaphubb_br' seja mantido e não convertido para 'monthly'
+            $key = $plan['identifier'] ?? match ($plan['duration']) {
                 'week'  => 'weekly',
                 'month' => match ((int)$plan['duration_value']) {
                     3       => 'quarterly',
