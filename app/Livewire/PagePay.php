@@ -1818,13 +1818,6 @@ class PagePay extends Component
         $this->dispatch('stop-pix-polling');
     }
 
-    public function updatePhone($event = null)
-    {
-        if (isset($event['phone'])) {
-            $this->phone = $event['phone'];
-        }
-    }
-
     public function updateActivityCount()
     {
         $this->activityCount = rand(1, 50);
