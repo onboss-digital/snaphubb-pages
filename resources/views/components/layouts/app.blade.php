@@ -14,7 +14,7 @@
     <link rel="icon" type="image/ico" href="{{ asset('imgs/mini_logo.png') }}" />
 
     @php
-    $gateway = config('services.default_payment_gateway', 'stripe');
+        $gateway = config('services.default_payment_gateway', 'stripe');
     @endphp
 
     <style>
@@ -29,13 +29,8 @@
         }
 
         @keyframes fadeIn {
-            from {
-                opacity: 0;
-            }
-
-            to {
-                opacity: 1;
-            }
+            from { opacity: 0; }
+            to { opacity: 1; }
         }
 
         .sticky-summary {
@@ -67,7 +62,6 @@
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-G6FBHCNW8X"></script>
     <script>
         window.dataLayer = window.dataLayer || [];
-
         function gtag(){dataLayer.push(arguments);} 
         gtag('js', new Date());
         gtag('config', 'G-G6FBHCNW8X');
@@ -75,35 +69,34 @@
 
     @include('partials.analytics')
 
-    @vite(['resources/css/app.css', 'resources/js/app.js', 'resources/js/pages/pay.js'])
-
-    <!-- Alpine.js for lightweight reactivity used by PIX modal -->
+    {{-- Alpine PRIMEIRO --}}
     <script defer src="https://unpkg.com/alpinejs@3.13.3/dist/cdn.min.js"></script>
 
-    @stack('head')
+    {{-- Livewire PRIMEIRO --}}
     @livewireStyles
+    @livewireScripts
 
+    {{-- Vite POR ÚLTIMO --}}
+    @vite(['resources/css/app.css', 'resources/js/app.js', 'resources/js/pages/pay.js'])
+
+    @stack('head')
 </head>
 
 <body>
     {{ $slot }}
-    @stack('scripts')
-    @livewireScripts
 
-    <!-- Fallback estático para ambientes onde /livewire/* retorna 404 (ex: nginx try_files não roteando para index.php) -->
+    @stack('scripts')
+
+    {{-- FORÇAR BOOT DO LIVEWIRE --}}
     <script>
-        (function(){
-            function loadFallback(){
-                if (typeof Livewire === 'undefined') {
-                    var s = document.createElement('script');
-                    s.src = "{{ asset('vendor/livewire/livewire.js') }}";
-                    s.defer = true;
-                    (document.head || document.documentElement).appendChild(s);
-                }
+        document.addEventListener('DOMContentLoaded', () => {
+            if (window.Livewire && typeof window.Livewire.start === 'function') {
+                console.log('🔥 Livewire.start() forçado');
+                window.Livewire.start();
+            } else {
+                console.error('❌ Livewire não disponível no DOMContentLoaded');
             }
-            if (document.readyState === 'complete') { setTimeout(loadFallback, 100); } else { window.addEventListener('load', function(){ setTimeout(loadFallback, 100); }); }
-        })();
+        });
     </script>
 </body>
-
 </html>
