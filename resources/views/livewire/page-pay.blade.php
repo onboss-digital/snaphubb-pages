@@ -1885,6 +1885,20 @@ document.addEventListener('DOMContentLoaded', function(){
             document.body.classList.remove('pix-modal-open');
             console.log('[PIX Modal] Classe pix-modal-open removida do body');
         });
+
+        // Listen for start-pix-polling event from Livewire
+        Livewire.on('start-pix-polling', (data) => {
+            const transactionId = data.transactionId || @js($pixTransactionId ?? null);
+            const userEmail = @js(auth('web')->check() ? auth('web')->user()->email : '');
+            
+            console.log('[PIX Polling] Starting polling for transaction:', transactionId, 'email:', userEmail);
+            
+            if (transactionId && userEmail) {
+                startPixPaymentPolling(transactionId, userEmail);
+            } else {
+                console.warn('[PIX Polling] Missing transactionId or userEmail for polling');
+            }
+        });
     });
 </script>
 
@@ -2135,7 +2149,6 @@ window.addEventListener('beforeunload', () => {
     clearInterval(timerInterval);
 });
 </script>
-@endif
 
 
 
@@ -2269,6 +2282,8 @@ function startTimer(timerEl) {
     timerInterval = setInterval(updateTimer, 1000);
 }
 </script>
+@endif
+
 <div id="error-modal"
     class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 @if (!$showErrorModal) hidden @endif"
     x-data="{ show: @entangle('showErrorModal') }"
@@ -2365,8 +2380,6 @@ function startTimer(timerEl) {
         </div>
     </div>
 </div>
-
-
 
 
 <!-- Modal Usuário Existente -->

@@ -27,7 +27,7 @@ class PagePay extends Component
     public $selectedPaymentMethod = 'pix';
     public $selectedLanguage = 'br';
     public $selectedCurrency = 'BRL';
-    public $selectedPlan = 'monthly';
+    public $selectedPlan = null; // ✅ Iniciar como null e deixar mount definir o correto
 
     // Available languages shown in the UI
     public $availableLanguages = [
@@ -266,13 +266,16 @@ class PagePay extends Component
             Log::warning('PagePay::mount - failed to log plan keys', ['error' => $e->getMessage()]);
         }
 
-        // Se o plano selecionado padrão não existir no conjunto retornado,
-        // usar a primeira chave disponível para evitar valores vazios na UI.
-        if (!isset($this->plans[$this->selectedPlan]) && !empty($this->plans)) {
+        // ✅ CORRIGIDO: Verificar plano da sessão, fallback para primeira opção disponível
+        $sessionPlan = Session::get('selectedPlan', null);
+        if (!empty($sessionPlan) && isset($this->plans[$sessionPlan])) {
+            $this->selectedPlan = $sessionPlan;
+        } elseif (!empty($this->plans)) {
+            // Se a sessão não tem plano ou o plano da sessão não existe, usar primeira opção disponível
             $first = array_key_first($this->plans);
             if ($first) {
                 $this->selectedPlan = $first;
-                Log::info('PagePay::mount - selectedPlan ajustado para primeira opção disponível', ['selectedPlan' => $this->selectedPlan]);
+                Log::info('PagePay::mount - selectedPlan definido para primeira opção disponível', ['selectedPlan' => $this->selectedPlan]);
             }
         }
         Log::info('PagePay::mount - Carregando planos da API Stripe');
@@ -289,18 +292,6 @@ class PagePay extends Component
             $onlyForPix = ($this->selectedPaymentMethod === 'pix');
             $this->bumps = $this->sanitizeBumps($this->bumps, $onlyForPix);
             $this->dataOrigin['bumps'] = $this->dataOrigin['bumps'] ?? 'db';
-        }
-        
-        // Recuperar preferência do usuário, se existir
-        $this->selectedPlan = Session::get('selectedPlan', 'monthly');
-
-        // Se o plano da sessão não existir entre os planos carregados, usar a primeira opção disponível
-        if (!isset($this->plans[$this->selectedPlan]) && !empty($this->plans)) {
-            $first = array_key_first($this->plans);
-            if ($first) {
-                $this->selectedPlan = $first;
-                Log::info('PagePay::mount - session selectedPlan not found, adjusted to first available', ['selectedPlan' => $this->selectedPlan]);
-            }
         }
         $this->activityCount = rand(1, 50);
 
@@ -1378,7 +1369,6 @@ class PagePay extends Component
     {
         return [
             'updatePhone' => 'updatePhone',
-            'checkPixPaymentStatus' => 'checkPixPaymentStatus',
             // Evento disparado pelo client-side para iniciar fluxo com loader
             'clientGeneratePix' => 'generatePixPayment',
         ];
@@ -1540,7 +1530,7 @@ class PagePay extends Component
                 'description' => 'Pagamento - ' . ($this->product['title'] ?? 'Produto'),
                 'customerEmail' => $this->email,
                 'customerName' => $this->cardName,
-                'webhook_url' => url('/api/pix/webhook'),
+                'webhook_url' => env('SNAPHUBB_BACKEND_WEBHOOK_URL', 'http://127.0.0.1:8003/api/webhook/pushinpay'),
             ]);
 
             // Trata erros da criação do PIX
@@ -1600,9 +1590,13 @@ class PagePay extends Component
     /**
      * Consulta o status do pagamento PIX
      * Chamado via polling a cada 3-5 segundos
+     * ⚠️ DEPRECATED: Polling não é mais necessário - usar webhooks
+     * Este método foi mantido para compatibilidade mas não é mais chamado.
      * NOTA: A API Pushing Pay não fornece rota de consulta de status.
      * O status será atualizado via webhook quando o pagamento for confirmado.
      */
+    // ⚠️ DEPRECATED - comentado pois polling agora é feito via webhook
+    /*
     public function checkPixPaymentStatus()
     {
         if (empty($this->pixTransactionId)) {
@@ -1653,6 +1647,7 @@ class PagePay extends Component
             Log::error('PagePay: Erro em checkPixPaymentStatus', ['error' => $e->getMessage(), 'payment_id' => $this->pixTransactionId]);
         }
     }
+    */
 
     
 

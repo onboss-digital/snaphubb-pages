@@ -8,6 +8,7 @@ use App\Services\FacebookConversionsService;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use App\Models\User;
 use Modules\Subscriptions\Models\Plan;
 use Modules\Subscriptions\Models\Subscription;
@@ -38,6 +39,18 @@ class PushingPayWebhookController extends Controller
         ]);
 
         try {
+            // Validar token do webhook
+            $webhookToken = $request->header('x-pushinpay-token');
+            $expectedToken = env('PP_WEBHOOK_TOKEN', '55321|JaTW9wbkkKohC1cgIEyOLj1LhbQDwGg2zDAs3Iov67688d1b');
+            
+            if (empty($webhookToken) || $webhookToken !== $expectedToken) {
+                Log::warning('Pushing Pay webhook invalid token', [
+                    'received' => $webhookToken,
+                    'expected' => !empty($expectedToken) ? 'configured' : 'not configured',
+                ]);
+                return response()->json(['error' => 'Invalid token'], 401);
+            }
+
             // Extract webhook data
             $payload = $request->all();
             
@@ -298,6 +311,37 @@ class PushingPayWebhookController extends Controller
                                 'payment_id' => $paymentId,
                             ]);
 
+                            // ============== ENVIO DE E-MAIL ==============
+                            // Notificar back-end (snaphubb) para enviar e-mail
+                            try {
+                                $backendUrl = env('SNAPHUBB_API_URL', 'http://127.0.0.1:8003');
+                                $notifyUrl = $backendUrl . '/api/send-subscription-email';
+                                
+                                // Fazer request assíncrona ao back-end para enviar e-mail
+                                \Illuminate\Support\Facades\Http::timeout(10)
+                                    ->post($notifyUrl, [
+                                        'subscription_id' => $subscription->id,
+                                        'user_id' => $user->id,
+                                        'user_email' => $user->email,
+                                        'user_locale' => $user->locale ?? 'br',
+                                        'plan_name' => $plan->name,
+                                    ]);
+                                
+                                Log::info('PushingPay webhook: email request sent to backend', [
+                                    'user_id' => $user->id,
+                                    'subscription_id' => $subscription->id,
+                                    'backend_url' => $notifyUrl,
+                                ]);
+                            } catch (\Exception $e) {
+                                // Não interrompe fluxo se falhar em enviar email
+                                Log::warning('PushingPay webhook: backend email notification failed', [
+                                    'user_id' => $user->id,
+                                    'subscription_id' => $subscription->id,
+                                    'error' => $e->getMessage(),
+                                ]);
+                            }
+                            // ============== FIM ENVIO DE E-MAIL ==============
+
                             $existsTx = SubscriptionTransactions::where('transaction_id', $paymentId)->first();
                             if (!$existsTx) {
                                 SubscriptionTransactions::create([
@@ -323,7 +367,15 @@ class PushingPayWebhookController extends Controller
                 Log::error('Pushing Pay webhook subscription outer error', ['error' => $e->getMessage()]);
             }
 
-            return response()->json(['success' => true], 200);
+            // 🔥 Redirecionar para a página de upsell PIX (configurada no backend snaphubb)
+            $upsellUrl = 'http://127.0.0.1:8005/upsell/painel-das-garotas-qr';
+            Log::info('Webhook payment approved: redirecting to upsell page', [
+                'paymentId' => $paymentId,
+                'orderId' => $order->id,
+                'redirectUrl' => $upsellUrl,
+            ]);
+            
+            return redirect($upsellUrl);
         } catch (\Exception $e) {
             Log::error('Error processing payment approved', [
                 'paymentId' => $paymentId,
