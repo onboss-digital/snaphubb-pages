@@ -943,11 +943,13 @@ document.addEventListener('DOMContentLoaded', function(){
                                         @enderror
                                     </div>
 
-                                    <div>
+                                    <div x-data>
                                         <label
                                             class="block text-xs sm:text-sm font-medium text-gray-300 mb-1 sm:mb-2">{{ __('payment.card_field_phone_label') }} ({{ __('payment.optional') }}):</label>
                                         <input name="phone" id="phone" type="tel" placeholder="{{ __('payment.card_field_phone_hint') }}"
-                                            wire:model="phone" inputmode="tel" autocomplete="tel"
+                                            wire:model.live.debounce.500ms="phone"
+                                            x-on:input="$el.value = $el.value.replace(/[^0-9]/g, '')"
+                                            inputmode="numeric" autocomplete="tel"
                                             class="w-full bg-[#2D2D2D] text-white rounded-lg p-2 sm:p-3 text-sm sm:text-base @if(isset($fieldErrors['phone'])) border-2 border-red-500 @else border border-gray-700 @endif focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
                                         @if(isset($fieldErrors['phone']))
                                             <span class="text-red-500 text-xs sm:text-sm mt-1 sm:mt-2 block">{{ $fieldErrors['phone'] }}</span>
@@ -958,11 +960,19 @@ document.addEventListener('DOMContentLoaded', function(){
                                     </div>
 
                                     @if ($selectedLanguage === 'br')
-                                        <div>
+                                        <div x-data>
                                             <label
                                                 class="block text-xs sm:text-sm font-medium text-gray-300 mb-1 sm:mb-2">CPF</label>
                                             <input name="cpf" type="text"
-                                                placeholder="000.000.000-00" wire:model.live="cpf" inputmode="numeric" autocomplete="off"
+                                                placeholder="000.000.000-00" wire:model.live.debounce.500ms="cpf"
+                                                x-on:input="
+                                                    let v = $el.value.replace(/\D/g, '');
+                                                    if (v.length > 11) v = v.substring(0, 11);
+                                                    $el.value = v.replace(/(\d{3})(\d)/, '$1.$2')
+                                                                 .replace(/(\d{3})(\d)/, '$1.$2')
+                                                                 .replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+                                                "
+                                                inputmode="numeric" autocomplete="off" maxlength="14"
                                                 class="w-full bg-[#2D2D2D] text-white rounded-lg p-2 sm:p-3 text-sm sm:text-base @if(isset($fieldErrors['cpf'])) border-2 border-red-500 @else border border-gray-700 @endif focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
                                             @if(isset($fieldErrors['cpf']))
                                                 <span class="text-red-500 text-xs sm:text-sm mt-1 sm:mt-2 block">{{ $fieldErrors['cpf'] }}</span>
@@ -1023,20 +1033,30 @@ document.addEventListener('DOMContentLoaded', function(){
                                         @enderror
                                     </div>
 
-                                    <div>
+                                    <div x-data>
                                         <label class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.pix_field_cpf_label') }}</label>
                                         <input name="pix_cpf" type="text" placeholder="000.000.000-00"
-                                            wire:model.defer="pixCpf" inputmode="numeric" autocomplete="off"
+                                            wire:model.defer="pixCpf"
+                                            x-on:input="
+                                                let v = $el.value.replace(/\D/g, '');
+                                                if (v.length > 11) v = v.substring(0, 11);
+                                                $el.value = v.replace(/(\d{3})(\d)/, '$1.$2')
+                                                             .replace(/(\d{3})(\d)/, '$1.$2')
+                                                             .replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+                                            "
+                                            inputmode="numeric" autocomplete="off" maxlength="14"
                                             class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-green-500 transition-all" />
                                         @error('pixCpf')
                                             <span class="text-red-500 text-xs mt-1">{{ $message }}</span>
                                         @enderror
                                     </div>
 
-                                    <div>
+                                    <div x-data>
                                         <label class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.pix_field_phone_label') }} ({{ __('payment.optional') }}):</label>
                                         <input name="pix_phone" id="pix_phone" type="tel" placeholder="{{ __('payment.pix_field_phone_hint') }}"
-                                            wire:model="pixPhone" inputmode="tel" autocomplete="tel"
+                                            wire:model.defer="pixPhone"
+                                            x-on:input="$el.value = $el.value.replace(/[^0-9]/g, '')"
+                                            inputmode="numeric" autocomplete="tel"
                                             class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-green-500 transition-all" />
                                         @error('pixPhone')
                                             <span class="text-red-500 text-xs mt-1">{{ $message }}</span>

@@ -1373,7 +1373,7 @@ class PagePay extends Component
     }
 
     #[On('updatePhone')]
-    public function updatePhone($payload)
+    public function updatePhone($payload = null)
     {
         // Aceita payload array ou argumento direto para compatibilidade
         if (is_array($payload) && isset($payload['phone'])) {
@@ -1816,13 +1816,6 @@ class PagePay extends Component
         $this->pixError = null;
         $this->pixStatus = 'pending';
         $this->dispatch('stop-pix-polling');
-    }
-
-    public function updatePhone($event = null)
-    {
-        if (isset($event['phone'])) {
-            $this->phone = $event['phone'];
-        }
     }
 
     public function updateActivityCount()
