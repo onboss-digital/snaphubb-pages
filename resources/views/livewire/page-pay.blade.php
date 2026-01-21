@@ -943,12 +943,12 @@ document.addEventListener('DOMContentLoaded', function(){
                                         @enderror
                                     </div>
 
-                                    <div x-data>
+                                    <div wire:ignore>
                                         <label
                                             class="block text-xs sm:text-sm font-medium text-gray-300 mb-1 sm:mb-2">{{ __('payment.card_field_phone_label') }} ({{ __('payment.optional') }}):</label>
                                         <input name="phone" id="phone" type="tel" placeholder="{{ __('payment.card_field_phone_hint') }}"
-                                            wire:model.live.debounce.500ms="phone"
-                                            x-on:input="$el.value = $el.value.replace(/[^0-9]/g, '')"
+                                            wire:model.blur="phone"
+                                            oninput="this.value = this.value.replace(/[^0-9]/g, '')"
                                             inputmode="numeric" autocomplete="tel"
                                             class="w-full bg-[#2D2D2D] text-white rounded-lg p-2 sm:p-3 text-sm sm:text-base @if(isset($fieldErrors['phone'])) border-2 border-red-500 @else border border-gray-700 @endif focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
                                         @if(isset($fieldErrors['phone']))
@@ -960,15 +960,15 @@ document.addEventListener('DOMContentLoaded', function(){
                                     </div>
 
                                     @if ($selectedLanguage === 'br')
-                                        <div x-data>
+                                        <div>
                                             <label
                                                 class="block text-xs sm:text-sm font-medium text-gray-300 mb-1 sm:mb-2">CPF</label>
                                             <input name="cpf" type="text"
-                                                placeholder="000.000.000-00" wire:model.live.debounce.500ms="cpf"
-                                                x-on:input="
-                                                    let v = $el.value.replace(/\D/g, '');
+                                                placeholder="000.000.000-00" wire:model.blur="cpf"
+                                                oninput="
+                                                    let v = this.value.replace(/\D/g, '');
                                                     if (v.length > 11) v = v.substring(0, 11);
-                                                    $el.value = v.replace(/(\d{3})(\d)/, '$1.$2')
+                                                    this.value = v.replace(/(\d{3})(\d)/, '$1.$2')
                                                                  .replace(/(\d{3})(\d)/, '$1.$2')
                                                                  .replace(/(\d{3})(\d{1,2})$/, '$1-$2');
                                                 "
@@ -1033,14 +1033,14 @@ document.addEventListener('DOMContentLoaded', function(){
                                         @enderror
                                     </div>
 
-                                    <div x-data>
+                                    <div>
                                         <label class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.pix_field_cpf_label') }}</label>
                                         <input name="pix_cpf" type="text" placeholder="000.000.000-00"
-                                            wire:model.defer="pixCpf"
-                                            x-on:input="
-                                                let v = $el.value.replace(/\D/g, '');
+                                            wire:model.blur="pixCpf"
+                                            oninput="
+                                                let v = this.value.replace(/\D/g, '');
                                                 if (v.length > 11) v = v.substring(0, 11);
-                                                $el.value = v.replace(/(\d{3})(\d)/, '$1.$2')
+                                                this.value = v.replace(/(\d{3})(\d)/, '$1.$2')
                                                              .replace(/(\d{3})(\d)/, '$1.$2')
                                                              .replace(/(\d{3})(\d{1,2})$/, '$1-$2');
                                             "
@@ -1051,11 +1051,11 @@ document.addEventListener('DOMContentLoaded', function(){
                                         @enderror
                                     </div>
 
-                                    <div x-data>
+                                    <div wire:ignore>
                                         <label class="block text-sm font-medium text-gray-300 mb-1">{{ __('payment.pix_field_phone_label') }} ({{ __('payment.optional') }}):</label>
                                         <input name="pix_phone" id="pix_phone" type="tel" placeholder="{{ __('payment.pix_field_phone_hint') }}"
-                                            wire:model.defer="pixPhone"
-                                            x-on:input="$el.value = $el.value.replace(/[^0-9]/g, '')"
+                                            wire:model.blur="pixPhone"
+                                            oninput="this.value = this.value.replace(/[^0-9]/g, '')"
                                             inputmode="numeric" autocomplete="tel"
                                             class="w-full bg-[#2D2D2D] text-white rounded-lg p-3 border border-gray-700 focus:outline-none focus:ring-1 focus:ring-green-500 transition-all" />
                                         @error('pixPhone')
@@ -1328,8 +1328,7 @@ document.addEventListener('DOMContentLoaded', function(){
                 <!-- Coluna de Resumo do Pedido -->
                 <div class="md:col-span-1 order-1">
                     <!-- Card de resumo de cartão - oculto quando PIX é selecionado -->
-                    <div class="bg-[#1F1F1F] rounded-xl p-6 sticky top-6" wire:poll.1s="decrementTimer"
-                        wire:poll.15000ms="decrementSpotsLeft" wire:poll.8000ms="updateLiveActivity">
+                    <div class="bg-[#1F1F1F] rounded-xl p-6 sticky top-6">
                         <h2 class="text-xl font-semibold text-white mb-4 text-center">
                             {{ __('checkout.order_summary_title') }}</h2>
 
@@ -1552,7 +1551,7 @@ document.addEventListener('DOMContentLoaded', function(){
 
                         <!-- ========== RESUMO PIX - Aparece quando PIX é selecionado ========== -->
                         @if($selectedPaymentMethod === 'pix')
-                        <div class="mt-8 pt-8 border-t border-gray-700" wire:poll.15000ms="decrementSpotsLeft">
+                        <div class="mt-8 pt-8 border-t border-gray-700">
                             <!-- Product Image - Topo -->
                             <div class="mb-6 rounded-lg overflow-hidden bg-gray-800/50">
                                 @if(!empty($product['image']))

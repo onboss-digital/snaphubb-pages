@@ -133,6 +133,9 @@ class PagePay extends Component
         'totals' => 'fallback',     // 'fallback' ou 'backend'
     ];
 
+    // Explicitly disable legacy listeners to prevent re-render loops
+    protected $listeners = [];
+
     private PaymentGatewayInterface $paymentGateway; // Added
 
     public $gateway;
