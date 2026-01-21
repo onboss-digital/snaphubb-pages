@@ -87,7 +87,8 @@
 
     @stack('scripts')
 
-    {{-- FORÇAR BOOT DO LIVEWIRE --}}
+    {{-- FORÇAR BOOT DO LIVEWIRE (Desativado para evitar execução duplicada) --}}
+    {{--
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             if (window.Livewire && typeof window.Livewire.start === 'function') {
@@ -98,5 +99,6 @@
             }
         });
     </script>
+    --}}
 </body>
 </html>

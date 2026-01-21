@@ -1367,9 +1367,12 @@ class PagePay extends Component
     }
 
     #[On('updatePixPhone')]
-    public function updatePixPhone($payload)
+    public function updatePixPhone($payload = null)
     {
-        $this->pixPhone = $payload['phone'] ?? null;
+        // Ensure payload is an array to avoid access errors
+        if (is_array($payload)) {
+            $this->pixPhone = $payload['phone'] ?? null;
+        }
     }
 
     #[On('updatePhone')]

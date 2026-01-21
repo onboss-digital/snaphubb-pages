@@ -2305,7 +2305,9 @@ function startTimer(timerEl) {
 @endif
 
 <div id="error-modal"
-    class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 @if (!$showErrorModal) hidden @endif"
+    class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+    style="display: none;"
+    x-cloak
     x-data="{ show: @entangle('showErrorModal') }"
     x-show="show"
     x-transition:enter="transition ease-out duration-300"
@@ -2333,7 +2335,18 @@ function startTimer(timerEl) {
 
 <!-- Downsell Modal -->
 <div id="downsell-modal"
-    class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 @if (!$showDownsellModal) hidden @endif">
+    class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+    style="display: none;"
+    x-cloak
+    x-data="{ show: @entangle('showDownsellModal') }"
+    x-show="show"
+    x-transition:enter="transition ease-out duration-300"
+    x-transition:enter-start="opacity-0 scale-90"
+    x-transition:enter-end="opacity-100 scale-100"
+    x-transition:leave="transition ease-in duration-200"
+    x-transition:leave-start="opacity-100 scale-100"
+    x-transition:leave-end="opacity-0 scale-90"
+>
     <div class="bg-[#1F1F1F] rounded-xl max-w-md w-full mx-4">
         <div class="p-6">
             <button id="close-downsell" wire:click.prevent="rejectDownsell"
