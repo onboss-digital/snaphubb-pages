@@ -2446,8 +2446,8 @@ class PagePay extends Component
                 $this->showPixModal = true;
                 $this->showProcessingModal = false;
 
-                // Abrir modal de status de pagamento
-                $this->showPixPaymentStatusModal = true;
+                // NÃO abrir o modal de status aqui! Abrir apenas após confirmação de pagamento
+                $this->showPixPaymentStatusModal = false;
                 $this->pixPaymentState = 'waiting';
                 $this->pixPaymentMessage = 'Aguarde, identificando pagamento…';
 
