@@ -1669,7 +1669,25 @@ class PagePay extends Component
         }
     }
 
-    
+    /**
+     * Verifica se é a primeira compra do usuário (compra do plano principal)
+     * vs upsell (compra adicional)
+     */
+    private function isFirstPurchase(): bool
+    {
+        // Se está comprando um produto que não é o plano principal (tem upsell/bumps)
+        // então não é primeira compra
+        $selectedProduct = $this->product['id'] ?? null;
+        $mainPlanProduct = $this->plans[$this->selectedPlan]['product_id'] ?? null;
+        
+        // Se o produto selecionado é diferente do produto principal do plano,
+        // é considerado upsell
+        if ($selectedProduct && $mainPlanProduct && $selectedProduct !== $mainPlanProduct) {
+            return false; // É upsell
+        }
+        
+        return true; // É primeira compra
+    }
 
     /**
      * Processa PIX aprovado
@@ -1745,19 +1763,33 @@ class PagePay extends Component
 
         // **REDIRECIONAMENTO - CRITICAL SECTION**
         try {
-            // Prefer plan-level upsell success URL when available
+            // Para PIX, usar URLs específicas
             $redirectUrl = null;
-            $plan = $this->plans[$this->selectedPlan] ?? null;
-            if ($plan) {
-                $redirectUrl = $plan['pages_upsell_succes_url'] ?? $plan['upsell_success_url'] ?? $plan['upsell_url'] ?? null;
+            
+            if ($this->selectedPaymentMethod === 'pix') {
+                // PIX: Redirecionar para painel de garotas (primeira compra) ou thank-you-qr (upsell)
+                if ($this->isFirstPurchase()) {
+                    // Primeira compra via PIX
+                    $redirectUrl = rtrim(config('app.url') ?? '', '/') . '/upsell/painel-das-garotas-qr';
+                } else {
+                    // Upsell via PIX
+                    $redirectUrl = rtrim(config('app.url') ?? '', '/') . '/upsell/thank-you-qr';
+                }
+            } else {
+                // Stripe/Cartão: Usar URL do plano (thank-you-card)
+                $plan = $this->plans[$this->selectedPlan] ?? null;
+                if ($plan) {
+                    $redirectUrl = $plan['pages_upsell_succes_url'] ?? $plan['upsell_success_url'] ?? $plan['upsell_url'] ?? null;
+                }
             }
 
-            // For PIX flows we must NOT redirect to card-only upsell pages.
-            // Only redirect if the plan provides an explicit upsell/thank-you URL.
+            // Executar redirecionamento se houver URL
             if (!empty($redirectUrl)) {
                 Log::info('PagePay: DISPATCHING REDIRECT (PIX)', [
                     'url' => $redirectUrl,
                     'payment_id' => $this->pixTransactionId,
+                    'payment_method' => $this->selectedPaymentMethod,
+                    'is_first_purchase' => $this->isFirstPurchase(),
                 ]);
 
                 $this->dispatch('redirect-success', url: $redirectUrl);
@@ -1766,7 +1798,7 @@ class PagePay extends Component
                     'url' => $redirectUrl,
                 ]);
             } else {
-                Log::info('PagePay: No plan-level upsell URL for PIX; skipping redirect (card-only upsell pages are not used for PIX)');
+                Log::info('PagePay: No redirect URL determined for PIX payment');
             }
         } catch (\Throwable $e) {
             Log::error('PagePay: REDIRECT DISPATCH FAILED', [
