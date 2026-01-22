@@ -109,7 +109,11 @@
                         <p class="text-center text-gray-400 text-sm mb-6">Escaneie com seu celular</p>
                         
                         <div class="bg-white p-4 rounded-xl mb-4 flex justify-center">
-                            <img src="data:image/png;base64,{{ $pixQrImage }}" alt="QR PIX" class="w-48 h-48 object-contain">
+                            @php
+                                // $pixQrImage já vem com prefixo data:image/png;base64 da API
+                                $imgSrc = strpos($pixQrImage, 'data:') === 0 ? $pixQrImage : 'data:image/png;base64,' . $pixQrImage;
+                            @endphp
+                            <img src="{{ $imgSrc }}" alt="QR PIX" class="w-48 h-48 object-contain">
                         </div>
 
                         <p class="text-center text-gray-500 text-sm">Abra seu app bancário e escaneie</p>
@@ -139,11 +143,16 @@
                     </div>
 
                     <!-- Status -->
-                    <div class="bg-yellow-600/10 border border-yellow-600/30 rounded-lg p-4">
+                    <div class="bg-yellow-600/10 border border-yellow-600/30 rounded-lg p-4 mb-6">
                         <p class="text-yellow-500 font-semibold text-sm mb-1"><svg class="w-4 h-4 sm:w-5 sm:h-5 inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> Aguardando Pagamento</p>
                         <p class="text-gray-400 text-sm">Você será redirecionado automaticamente ao confirmar</p>
                         <p class="text-gray-500 text-xs mt-2">Status: <strong id="pix-status">{{ $pixStatus }}</strong></p>
                     </div>
+
+                    <!-- Botão: Continuar apenas com streaming -->
+                    <button onclick="window.location.href='/upsell/thank-you-recused-qr'" class="w-full bg-gray-900 hover:bg-gray-800 text-gray-300 font-semibold py-4 rounded-lg transition-all duration-300 border border-gray-700 cursor-pointer">
+                        Continuar apenas com streaming
+                    </button>
                 </div>
             </div>
         </div>

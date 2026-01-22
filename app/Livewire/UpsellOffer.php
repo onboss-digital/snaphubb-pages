@@ -35,7 +35,7 @@ class UpsellOffer extends Component
         $this->product = [
             'hash' => 'painel_das_garotas',
             'label' => 'Painel das garotas',
-            'price' => 3700,
+            'price' => null, // Will be loaded from database/API
             'currency' => 'BRL',
             'image' => null,
         ];
@@ -48,7 +48,7 @@ class UpsellOffer extends Component
                     $p = $data['painel_das_garotas'];
                     $this->product['hash'] = $p['hash'] ?? null;
                     $this->product['label'] = $p['label'] ?? $this->product['label'];
-                    $this->product['price'] = isset($p['prices']['BRL']['descont_price']) ? (int)round($p['prices']['BRL']['descont_price'] * 100) : $this->product['price'];
+                    $this->product['price'] = isset($p['prices']['BRL']['descont_price']) ? (int)round($p['prices']['BRL']['descont_price'] * 100) : null;
                     $this->product['origin_price'] = $p['prices']['BRL']['origin_price'] ?? null;
                     $this->product['recurring'] = $p['prices']['BRL']['recurring'] ?? false;
                     $this->product['image'] = $p['image'] ?? null;
@@ -416,7 +416,7 @@ class UpsellOffer extends Component
                         'is_upsell' => true,
                         'upsell_success_url' => $pixUpsellSuccessUrl,
                         'upsell_fail_url' => $pixUpsellFailUrl,
-                        'webhook_url' => url('/api/pix/webhook'),
+                        'webhook_url' => env('SNAPHUBB_BACKEND_WEBHOOK_URL'),
                     ],
                 ];
 

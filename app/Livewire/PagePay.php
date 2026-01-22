@@ -1735,13 +1735,7 @@ class PagePay extends Component
             Log::error('PagePay: Failed to dispatch checkout-success', ['error' => $e->getMessage()]);
         }
 
-        // Dispatch browser event
-        try {
-            $this->dispatchBrowserEvent('checkout-success', $purchaseData);
-            Log::info('PagePay: checkout-success browser event dispatched');
-        } catch (\Exception $e) {
-            Log::warning('PagePay: Could not dispatch browser event checkout-success (pix): ' . $e->getMessage());
-        }
+        // Browser event removed - using Livewire dispatch() instead of deprecated dispatchBrowserEvent()
 
         // Salvar dados do cliente na sessão
         try {
@@ -2515,16 +2509,9 @@ class PagePay extends Component
                 }
                 // Notifica o front-end que o PIX está pronto (para esconder loader cliente)
                 try {
-                    $this->dispatchBrowserEvent('pix-ready', ['payment_id' => $this->pixTransactionId]);
-                } catch (\Exception $_) {
-                    // não-fatal
-                }
-
-                // Livewire event paralelo para listeners JS (garante fechamento do loader)
-                try {
                     $this->dispatch('pix-ready', paymentId: $this->pixTransactionId);
                 } catch (\Exception $_) {
-                    // evitar quebra do fluxo caso dispatch falhe
+                    // não-fatal
                 }
             } else {
                 $this->errorMessage = $response['message'] ?? __('payment.pix_generation_failed');
@@ -2645,10 +2632,10 @@ class PagePay extends Component
     {
         try {
             $text = $this->{$field} ?? null;
-            $this->dispatchBrowserEvent('copy-to-clipboard', ['text' => $text]);
+            $this->dispatch('copy-to-clipboard', text: $text);
         } catch (\Exception $e) {
             Log::error('copyToClipboard failed: ' . $e->getMessage(), ['field' => $field]);
-            $this->dispatchBrowserEvent('copy-to-clipboard', ['text' => '']);
+            $this->dispatch('copy-to-clipboard', text: '');
         }
     }
 

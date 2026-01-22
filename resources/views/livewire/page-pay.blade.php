@@ -2129,7 +2129,7 @@ document.addEventListener('DOMContentLoaded', function(){
 </div>
 
 <script>
-let pixQRTimer = 300;
+let pixQRTimer = 300; // 5 minutes
 
 // Debug: log bumps state toda vez que muda
 Livewire.on('updated', (propertyName, value) => {
@@ -2171,24 +2171,6 @@ const observer = new MutationObserver(() => {
 });
 
 observer.observe(document.body, { subtree: true, attributes: true, childList: true });
-
-function updatePixTimer() {
-    if (pixQRTimer > 0) {
-        pixQRTimer--;
-        const minutes = Math.floor(pixQRTimer / 60);
-        const seconds = pixQRTimer % 60;
-        const timerDisplay = document.getElementById('timerValue');
-        if (timerDisplay) {
-            timerDisplay.textContent = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-        }
-    }
-}
-
-const timerInterval = setInterval(updatePixTimer, 1000);
-
-window.addEventListener('beforeunload', () => {
-    clearInterval(timerInterval);
-});
 </script>
 
 
@@ -2682,34 +2664,36 @@ function startTimer(timerEl) {
             }
         });
 
-        // Clipboard copy listener triggered by Livewire server event
-        window.addEventListener('copy-to-clipboard', (e) => {
-            const text = e.detail && e.detail.text ? e.detail.text : '';
-            if (!text) {
-                alert('Nada para copiar');
-                return;
-            }
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-                navigator.clipboard.writeText(text).then(() => {
-                    alert('Código copiado para área de transferência');
-                }).catch(() => {
-                    alert('Falha ao copiar o código');
-                });
-            } else {
-                // Fallback
-                const textarea = document.createElement('textarea');
-                textarea.value = text;
-                document.body.appendChild(textarea);
-                textarea.select();
-                try {
-                    document.execCommand('copy');
-                    alert('Código copiado para área de transferência');
-                } catch (err) {
-                    alert('Falha ao copiar o código');
+        // Clipboard copy listener triggered by Livewire server event (Livewire 3.x)
+        if (window.Livewire) {
+            window.Livewire.on('copy-to-clipboard', (data) => {
+                const text = data.text || '';
+                if (!text) {
+                    alert('Nada para copiar');
+                    return;
                 }
-                document.body.removeChild(textarea);
-            }
-        });
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(text).then(() => {
+                        alert('Código copiado para área de transferência');
+                    }).catch(() => {
+                        alert('Falha ao copiar o código');
+                    });
+                } else {
+                    // Fallback para browsers antigos
+                    const textarea = document.createElement('textarea');
+                    textarea.value = text;
+                    document.body.appendChild(textarea);
+                    textarea.select();
+                    try {
+                        document.execCommand('copy');
+                        alert('Código copiado para área de transferência');
+                    } catch (err) {
+                        alert('Falha ao copiar o código');
+                    }
+                    document.body.removeChild(textarea);
+                }
+            });
+        }
     });
 
     window.addEventListener('redirectToExternal', event => {
