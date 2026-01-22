@@ -149,6 +149,10 @@ class PagePay extends Component
     public $pixStatus = 'pending';
     public $pixError = null;
     public $pixValidationError = null;
+    // PIX payment status modal (shows during polling)
+    public $showPixPaymentStatusModal = false; // Modal que aparece durante polling
+    public $pixPaymentState = 'waiting'; // 'waiting' | 'success' | 'error' | 'expired'
+    public $pixPaymentMessage = 'Aguarde, identificando pagamento…';
     // Payment processing flags
     public $isProcessingCard = false; // Cartão apenas
     public $showProcessingModal = false; // PIX apenas
@@ -1174,18 +1178,14 @@ class PagePay extends Component
             // Set the redirect URL (Livewire will emit this change to frontend automatically)
             $this->redirectAfterPayment = $redirectUrl;
             
-            // Use dispatchBrowserEvent for Livewire 2.x compatibility
-            try {
-                $this->dispatchBrowserEvent('payment-success', ['redirectUrl' => $redirectUrl]);
-                \Illuminate\Support\Facades\Log::info('PagePay::sendCheckout - dispatchBrowserEvent sent', ['redirect_url' => $redirectUrl]);
-            } catch (\Exception $e) {
-                \Illuminate\Support\Facades\Log::warning('PagePay::sendCheckout - dispatchBrowserEvent failed', ['error' => $e->getMessage()]);
-            }
+            // Dispatch event for Livewire 3.x - this triggers JavaScript event listener on frontend
+            $this->dispatch('payment-success', redirectUrl: $redirectUrl);
+            \Illuminate\Support\Facades\Log::info('PagePay::sendCheckout - payment-success event dispatched', ['redirect_url' => $redirectUrl]);
             
-            // ALSO dispatch event for redundancy (some versions may use it)
+            // ALSO dispatch checkout-success event for redundancy
             $this->dispatch('checkout-success', purchaseData: $purchaseData);
             
-            \Illuminate\Support\Facades\Log::info('PagePay::sendCheckout - redirectAfterPayment property updated, event dispatched', ['redirect_url' => $redirectUrl]);
+            \Illuminate\Support\Facades\Log::info('PagePay::sendCheckout - checkout-success event dispatched', ['redirect_url' => $redirectUrl]);
         } else {
             \Illuminate\Support\Facades\Log::error('PagePay::sendCheckout - Payment FAILED, response status is not success', [
                 'status' => $response['status'] ?? 'unknown',
@@ -1581,6 +1581,14 @@ class PagePay extends Component
             $this->pixAmount = $pixData['amount'] ?? $amountInCents;
             $this->pixExpiresAt = now()->addMinutes(30); // PIX expira em 30 minutos por padrão
             $this->showPixModal = true;
+
+            // Abrir modal de status de pagamento (vai mostrar "Aguarde, identificando pagamento…")
+            $this->showPixPaymentStatusModal = true;
+            $this->pixPaymentState = 'waiting';
+            $this->pixPaymentMessage = 'Aguarde, identificando pagamento…';
+
+            // ✅ Disparar evento para JavaScript iniciar polling
+            $this->dispatch('pix-modal-opened', payment_id: $this->pixTransactionId);
 
             Log::channel('payment_checkout')->info('PagePay: PIX gerado com sucesso', [
                 'payment_id' => $this->pixTransactionId,
@@ -2435,6 +2443,14 @@ class PagePay extends Component
                 $this->showPixModal = true;
                 $this->showProcessingModal = false;
 
+                // Abrir modal de status de pagamento
+                $this->showPixPaymentStatusModal = true;
+                $this->pixPaymentState = 'waiting';
+                $this->pixPaymentMessage = 'Aguarde, identificando pagamento…';
+
+                // ✅ Disparar evento para JavaScript iniciar polling
+                $this->dispatch('pix-modal-opened', payment_id: $this->pixTransactionId);
+
                 Log::info('PIX Generated Successfully - Controller Path', [
                     'payment_id' => $this->pixTransactionId,
                     'qr_code_found' => !empty($qrCode),
@@ -2689,6 +2705,94 @@ class PagePay extends Component
             'index' => $index,
             'active' => $this->bumps[$index]['active'] ?? false,
             'totals' => $this->totals ?? [],
+        ]);
+    }
+
+    /**
+     * Fecha todos os modais e notifica JavaScript para parar polling
+     */
+    /**
+     * Chamado pelo polling JavaScript quando pagamento PIX é APROVADO
+     * Mostra modal de sucesso por 3 segundos e depois redireciona
+     */
+    #[On('pix-payment-confirmed')]
+    public function onPixPaymentConfirmed($data = [])
+    {
+        Log::info('PagePay: Pagamento PIX confirmado', [
+            'payment_id' => $data['payment_id'] ?? null,
+            'redirect_url' => $data['redirect_url'] ?? null,
+        ]);
+
+        // Trocar estado do modal para sucesso
+        $this->pixPaymentState = 'success';
+        $this->pixPaymentMessage = 'Parabéns! Conta ativada com sucesso.';
+
+        // Manter modal visível (JavaScript vai redirecionar após 3s)
+    }
+
+    /**
+     * Chamado pelo polling JavaScript quando pagamento PIX EXPIROU ou foi RECUSADO
+     * Mostra modal de erro e permite gerar novo código
+     */
+    #[On('pix-payment-failed')]
+    public function onPixPaymentFailed($data = [])
+    {
+        $failureReason = $data['reason'] ?? 'unknown'; // 'expired' | 'declined' | 'error'
+        
+        Log::info('PagePay: Pagamento PIX falhou', [
+            'reason' => $failureReason,
+            'payment_id' => $data['payment_id'] ?? null,
+        ]);
+
+        // Trocar estado do modal para erro
+        $this->pixPaymentState = 'error';
+
+        if ($failureReason === 'expired') {
+            $this->pixPaymentMessage = 'PIX expirou. Por favor, gere um novo código.';
+        } elseif ($failureReason === 'declined') {
+            $this->pixPaymentMessage = 'Pagamento recusado. Tente novamente.';
+        } else {
+            $this->pixPaymentMessage = 'Erro ao identificar pagamento. Tente novamente.';
+        }
+    }
+
+    /**
+     * Regenerar código PIX após falha ou expiração
+     */
+    public function regeneratePixCode()
+    {
+        Log::info('PagePay: Regenerando código PIX');
+
+        // Fechar modal de erro
+        $this->showPixPaymentStatusModal = false;
+        $this->pixPaymentState = 'waiting';
+        $this->pixPaymentMessage = 'Aguarde, identificando pagamento…';
+
+        // Limpar dados antigos
+        $this->pixTransactionId = null;
+        $this->pixQrImage = null;
+        $this->pixQrCodeText = null;
+        $this->pixError = null;
+
+        // Chamar startPixPayment novamente para gerar novo código
+        $this->startPixPayment();
+    }
+
+    #[On('closeModal')]
+    public function closeModal()
+    {
+        $this->showPixModal = false;
+        $this->showPixPaymentStatusModal = false;
+        $this->showSuccessModal = false;
+        $this->showProcessingModal = false;
+        $this->isProcessing = false;
+        $this->pixPaymentState = 'waiting';
+
+        // Notificar JavaScript para parar polling
+        $this->dispatch('pix-modal-closed');
+
+        Log::info('PagePay: Modal fechado', [
+            'showPixModal' => $this->showPixModal,
         ]);
     }
 }

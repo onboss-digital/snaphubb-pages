@@ -228,6 +228,13 @@ class UpsellOffer extends Component
 
                 // If this component is rendered in QR mode, force PIX flow instead of attempting
                 // an off-session Stripe charge. QR pages must always generate PIX on button click.
+                \Illuminate\Support\Facades\Log::channel('payment_checkout')->info('UpsellOffer: DEBUG - Checking conditions for card charge', [
+                    'qr_mode' => $this->qr_mode,
+                    'stripeCustomerId' => $stripeCustomerId,
+                    'upsellProductId' => $upsellProductId,
+                    'condition_result' => (!$this->qr_mode && !empty($stripeCustomerId) && !empty($upsellProductId)),
+                ]);
+
                 if (!$this->qr_mode && !empty($stripeCustomerId) && !empty($upsellProductId)) {
                     // Safety guard: if upsellProductId looks like a local hash (not a Stripe product id),
                     // do not attempt a Stripe off-session charge to avoid wrong amounts.
@@ -331,12 +338,9 @@ class UpsellOffer extends Component
                     $payload = ['redirect_url' => $redirect, 'purchaseData' => $purchaseData, 'message' => 'Compra aprovada'];
                     // Hide loader state so frontend can show success state
                     $this->isProcessing = false;
-                    try {
-                        $this->dispatch('upsell-success', $payload);
-                        $this->dispatchBrowserEvent('upsell-success', $payload);
-                    } catch (\Throwable $_) {
-                        // ignore
-                    }
+                    // Dispatch event for Livewire 3.x
+                    $this->dispatch('upsell-success', $payload);
+                    \Illuminate\Support\Facades\Log::info('UpsellOffer: upsell-success event dispatched', ['redirect_url' => $redirect]);
 
                     // Keep loader visible until client handles redirect
                     return;
@@ -348,10 +352,9 @@ class UpsellOffer extends Component
                 
                 // Hide loader state so frontend can show error state
                 $this->isProcessing = false;
-                try {
-                    $this->dispatch('upsell-failed', ['message' => $errorMessage, 'redirect_url' => $failUrl]);
-                    $this->dispatchBrowserEvent('upsell-failed', ['message' => $errorMessage, 'redirect_url' => $failUrl]);
-                } catch (\Throwable $_) {}
+                // Dispatch event for Livewire 3.x
+                $this->dispatch('upsell-failed', ['message' => $errorMessage, 'redirect_url' => $failUrl]);
+                \Illuminate\Support\Facades\Log::warning('UpsellOffer: upsell-failed event dispatched', ['message' => $errorMessage, 'redirect_url' => $failUrl]);
                 
                 // Keep loader visible for error message display
                 return;
@@ -437,7 +440,8 @@ class UpsellOffer extends Component
 
                         // Hide loader - view will show QR code screen
                         $this->isProcessing = false;
-                        $this->dispatchBrowserEvent('upsell:pix-generated', ['payment_id' => $this->pixTransactionId]);
+                        // PIX generated event for Livewire 3.x
+                        $this->dispatch('upsell:pix-generated', ['payment_id' => $this->pixTransactionId]);
                         return;
                     } else {
                         $this->errorMessage = $json['message'] ?? 'Erro ao gerar PIX para upsell.';

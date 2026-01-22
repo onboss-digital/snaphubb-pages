@@ -9,6 +9,10 @@
 $gateway = config('services.default_payment_gateway', 'stripe');
 @endphp
 
+@if($gateway === 'stripe')
+    <script src="https://js.stripe.com/v3/"></script>
+@endif
+
 <style>
     body {
         font-family: 'Urbanist', sans-serif;
@@ -337,6 +341,18 @@ document.addEventListener('DOMContentLoaded', function(){
                 var value = parseFloat(purchase.value || window.checkoutData.value || 0);
                 var currency = purchase.currency || window.checkoutData.currency || 'BRL';
                 var content_ids = purchase.content_ids || window.checkoutData.content_ids || [];
+
+                // ✅ SHOW LOADER IMEDIATAMENTE
+                console.log('🔄 Showing loader for checkout-success');
+                var loader = document.getElementById('simple-payment-loader');
+                if (loader) {
+                    loader.style.display = 'block';
+                    loader.style.visibility = 'visible';
+                    loader.style.pointerEvents = 'auto';
+                    loader.classList.add('show', 'success');
+                    var titleEl = document.querySelector('.loader-text');
+                    if (titleEl) titleEl.textContent = 'Parabéns! Compra aprovada.';
+                }
 
                 // ✅ REDIRECT se houver URL
                 if (purchase.redirect_url) {
@@ -848,11 +864,12 @@ document.addEventListener('DOMContentLoaded', function(){
                                         <div>
                                             <label
                                                 class="block text-xs sm:text-sm font-medium text-gray-300 mb-1 sm:mb-2">{{ __('payment.card_number') }} @if(isset($fieldErrors['cardNumber']))<span class="text-red-500">*</span>@endif</label>
-                                            <input name="card_number" type="text" id="card-number"
-                                                placeholder="0000 0000 0000 0000"
-                                                wire:model.defer="cardNumber"
-                                                inputmode="numeric" autocomplete="cc-number" pattern="[0-9\s]{13,19}" maxlength="19"
-                                                class="w-full bg-[#2D2D2D] text-white rounded-lg p-2 sm:p-3 text-sm sm:text-base @if(isset($fieldErrors['cardNumber'])) border-2 border-red-500 @else border border-gray-700 @endif focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
+                                            <div wire:ignore>
+                                                <input name="card_number" type="text" id="card-number"
+                                                    placeholder="0000 0000 0000 0000"
+                                                    inputmode="numeric" autocomplete="cc-number" pattern="[0-9\s]{13,19}" maxlength="19"
+                                                    class="w-full bg-[#2D2D2D] text-white rounded-lg p-2 sm:p-3 text-sm sm:text-base @if(isset($fieldErrors['cardNumber'])) border-2 border-red-500 @else border border-gray-700 @endif focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
+                                            </div>
                                             @if(isset($fieldErrors['cardNumber']))
                                                 <span class="text-red-500 text-xs sm:text-sm mt-1 sm:mt-2 block">{{ $fieldErrors['cardNumber'] }}</span>
                                             @endif
@@ -864,10 +881,12 @@ document.addEventListener('DOMContentLoaded', function(){
                                             <div>
                                                 <label
                                                     class="block text-xs sm:text-sm font-medium text-gray-300 mb-1 sm:mb-2">{{ __('payment.expiry_date') }} @if(isset($fieldErrors['cardExpiry']))<span class="text-red-500">*</span>@endif</label>
-                                                <input name="card_expiry" type="text" id="card-expiry"
-                                                    placeholder="MM/YY" wire:model.defer="cardExpiry"
-                                                    inputmode="numeric" autocomplete="cc-exp" pattern="(0[1-9]|1[0-2])\/([0-9]{2})" maxlength="5"
-                                                    class="w-full bg-[#2D2D2D] text-white rounded-lg p-2 sm:p-3 text-sm sm:text-base @if(isset($fieldErrors['cardExpiry'])) border-2 border-red-500 @else border border-gray-700 @endif focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
+                                                <div wire:ignore>
+                                                    <input name="card_expiry" type="text" id="card-expiry"
+                                                        placeholder="MM/YY"
+                                                        inputmode="numeric" autocomplete="cc-exp" pattern="(0[1-9]|1[0-2])\/([0-9]{2})" maxlength="5"
+                                                        class="w-full bg-[#2D2D2D] text-white rounded-lg p-2 sm:p-3 text-sm sm:text-base @if(isset($fieldErrors['cardExpiry'])) border-2 border-red-500 @else border border-gray-700 @endif focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
+                                                </div>
                                                 @if(isset($fieldErrors['cardExpiry']))
                                                     <span class="text-red-500 text-xs sm:text-sm mt-1 sm:mt-2 block">{{ $fieldErrors['cardExpiry'] }}</span>
                                                 @endif
@@ -878,9 +897,11 @@ document.addEventListener('DOMContentLoaded', function(){
                                             <div>
                                                 <label
                                                     class="block text-xs sm:text-sm font-medium text-gray-300 mb-1 sm:mb-2">{{ __('payment.security_code') }} @if(isset($fieldErrors['cardCvv']))<span class="text-red-500">*</span>@endif</label>
-                                                <input name="card_cvv" type="text" id="card-cvv" placeholder="CVV"
-                                                    wire:model.defer="cardCvv" inputmode="numeric" autocomplete="cc-csc" pattern="[0-9]{3,4}" maxlength="4"
-                                                    class="w-full bg-[#2D2D2D] text-white rounded-lg p-2 sm:p-3 text-sm sm:text-base @if(isset($fieldErrors['cardCvv'])) border-2 border-red-500 @else border border-gray-700 @endif focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
+                                                <div wire:ignore>
+                                                    <input name="card_cvv" type="text" id="card-cvv" placeholder="CVV"
+                                                        inputmode="numeric" autocomplete="cc-csc" pattern="[0-9]{3,4}" maxlength="4"
+                                                        class="w-full bg-[#2D2D2D] text-white rounded-lg p-2 sm:p-3 text-sm sm:text-base @if(isset($fieldErrors['cardCvv'])) border-2 border-red-500 @else border border-gray-700 @endif focus:outline-none focus:ring-1 focus:ring-[#E50914] transition-all" />
+                                                </div>
                                                 @if(isset($fieldErrors['cardCvv']))
                                                     <span class="text-red-500 text-xs sm:text-sm mt-1 sm:mt-2 block">{{ $fieldErrors['cardCvv'] }}</span>
                                                 @endif
@@ -1496,6 +1517,7 @@ document.addEventListener('DOMContentLoaded', function(){
                         </div>
 
                         <button id="checkout-button" type="button" wire:click.prevent="startCheckout"
+                            @onclick="window.showPaymentLoader && window.showPaymentLoader()"
                             @if($isProcessingCard) disabled aria-busy="true" @endif
                             class="w-full bg-[#E50914] hover:bg-[#B8070F] text-white py-3 text-lg font-bold rounded-xl transition-all block cursor-pointer transform hover:scale-105 @if($isProcessingCard) opacity-70 cursor-not-allowed hover:scale-100 @endif">
                             @if($isProcessingCard)
@@ -2303,6 +2325,135 @@ function startTimer(timerEl) {
 </script>
 @endif
 
+<!-- PIX PAYMENT STATUS MODAL - Aparece durante polling de confirmação -->
+@if($showPixPaymentStatusModal)
+<div class="fixed inset-0 bg-black bg-opacity-75 backdrop-blur-sm flex items-center justify-center z-[9999] p-4">
+    <div class="bg-gradient-to-b from-gray-950 via-gray-900 to-gray-950 rounded-3xl shadow-2xl max-w-md w-full border border-gray-800 overflow-hidden">
+        
+        <!-- Content -->
+        <div class="p-8 sm:p-12 flex flex-col items-center justify-center min-h-[350px]">
+            
+            @if($pixPaymentState === 'waiting')
+                <!-- WAITING STATE: Spinner + Mensagem -->
+                <div class="flex flex-col items-center gap-6 w-full">
+                    <!-- Animated Spinner -->
+                    <div class="relative w-20 h-20">
+                        <div class="absolute inset-0 bg-gradient-to-r from-green-500 to-emerald-500 rounded-full animate-spin opacity-20"></div>
+                        <div class="absolute inset-2 bg-gradient-to-r from-green-400 to-emerald-400 rounded-full animate-pulse opacity-40"></div>
+                        <div class="absolute inset-0 flex items-center justify-center">
+                            <svg class="w-10 h-10 text-green-400 animate-bounce" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/>
+                            </svg>
+                        </div>
+                    </div>
+                    
+                    <!-- Message -->
+                    <div class="text-center space-y-2">
+                        <h3 class="text-xl sm:text-2xl font-bold text-white">{{ $pixPaymentMessage }}</h3>
+                        <p class="text-gray-400 text-sm">Não feche esta janela...</p>
+                    </div>
+                    
+                    <!-- Progress Bar -->
+                    <div class="w-full bg-gray-800 rounded-full h-1 overflow-hidden">
+                        <div class="bg-gradient-to-r from-green-500 to-emerald-500 h-full animate-pulse" style="animation: slideRight 2s infinite;"></div>
+                    </div>
+                </div>
+
+            @elseif($pixPaymentState === 'success')
+                <!-- SUCCESS STATE: Checkmark + Sucesso -->
+                <div class="flex flex-col items-center gap-6 w-full">
+                    <!-- Success Animation -->
+                    <div class="relative w-24 h-24">
+                        <svg class="w-full h-full" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                            <!-- Circle -->
+                            <circle cx="50" cy="50" r="45" fill="none" stroke="#10b981" stroke-width="3" opacity="0.2"/>
+                            <circle cx="50" cy="50" r="45" fill="none" stroke="#10b981" stroke-width="3" 
+                                stroke-dasharray="282" stroke-dashoffset="282" 
+                                style="animation: drawCircle 0.8s ease-out forwards;"/>
+                            
+                            <!-- Checkmark -->
+                            <path d="M30 50 L45 65 L70 35" fill="none" stroke="#10b981" stroke-width="4" 
+                                stroke-linecap="round" stroke-linejoin="round"
+                                stroke-dasharray="50" stroke-dashoffset="50"
+                                style="animation: drawCheck 0.6s ease-out 0.4s forwards;"/>
+                            
+                            <style>
+                                @keyframes drawCircle {
+                                    to { stroke-dashoffset: 0; }
+                                }
+                                @keyframes drawCheck {
+                                    to { stroke-dashoffset: 0; }
+                                }
+                            </style>
+                        </svg>
+                    </div>
+                    
+                    <!-- Message -->
+                    <div class="text-center space-y-3">
+                        <h3 class="text-2xl sm:text-3xl font-bold text-white">{{ $pixPaymentMessage }}</h3>
+                        <p class="text-green-400 text-sm font-semibold">Redirecionando em instantes...</p>
+                    </div>
+                </div>
+
+            @else
+                <!-- ERROR STATE: X + Mensagem de erro -->
+                <div class="flex flex-col items-center gap-6 w-full">
+                    <!-- Error Icon -->
+                    <div class="relative w-24 h-24">
+                        <svg class="w-full h-full" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                            <!-- Circle -->
+                            <circle cx="50" cy="50" r="45" fill="none" stroke="#ef4444" stroke-width="3" opacity="0.2"/>
+                            <circle cx="50" cy="50" r="45" fill="none" stroke="#ef4444" stroke-width="3"
+                                stroke-dasharray="282" stroke-dashoffset="282"
+                                style="animation: drawErrorCircle 0.8s ease-out forwards;"/>
+                            
+                            <!-- X Mark -->
+                            <path d="M35 35 L65 65" fill="none" stroke="#ef4444" stroke-width="4"
+                                stroke-linecap="round" stroke-dasharray="42" stroke-dashoffset="42"
+                                style="animation: drawX 0.5s ease-out 0.3s forwards;"/>
+                            <path d="M65 35 L35 65" fill="none" stroke="#ef4444" stroke-width="4"
+                                stroke-linecap="round" stroke-dasharray="42" stroke-dashoffset="42"
+                                style="animation: drawX 0.5s ease-out 0.5s forwards;"/>
+                            
+                            <style>
+                                @keyframes drawErrorCircle {
+                                    to { stroke-dashoffset: 0; }
+                                }
+                                @keyframes drawX {
+                                    to { stroke-dashoffset: 0; }
+                                }
+                            </style>
+                        </svg>
+                    </div>
+                    
+                    <!-- Message -->
+                    <div class="text-center space-y-3">
+                        <h3 class="text-xl sm:text-2xl font-bold text-white">{{ $pixPaymentMessage }}</h3>
+                    </div>
+                    
+                    <!-- Action Button -->
+                    <button wire:click="regeneratePixCode" type="button"
+                        class="w-full bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-bold py-3 rounded-xl transition-all duration-200 flex items-center justify-center gap-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                        </svg>
+                        Gerar novo código PIX
+                    </button>
+                </div>
+            @endif
+            
+        </div>
+    </div>
+</div>
+
+<style>
+    @keyframes slideRight {
+        0% { width: 0%; }
+        100% { width: 100%; }
+    }
+</style>
+@endif
+
 <div id="error-modal"
     class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
     style="display: none;"
@@ -2423,19 +2574,29 @@ function startTimer(timerEl) {
 <script src="https://js.stripe.com/v3/"></script>
 <script>
     let stripeCard = null;
+    let stripeElements = null;
     const stripe = Stripe("{{ config('services.stripe.api_public_key') }}");
 
     function initializeStripe() {
-        if (stripeCard) {
-            stripeCard.destroy();
-            stripeCard = null;
-        }
-
-        if (!document.getElementById('card-element')) {
+        // Only initialize if card-element exists and card is not already mounted
+        const cardElement = document.getElementById('card-element');
+        if (!cardElement) {
             return;
         }
 
-        const elements = stripe.elements();
+        // Check if already mounted by looking for Stripe's internal iframe
+        const hasStripeIframe = cardElement.querySelector('iframe[title*="Stripe"]') !== null;
+        if (hasStripeIframe && stripeCard) {
+            // Card is already mounted, don't reinitialize
+            return;
+        }
+
+        // Only initialize once
+        if (stripeCard && stripeElements) {
+            return;
+        }
+
+        stripeElements = stripe.elements();
         const style = {
             base: {
                 color: '#ffffffff',
@@ -2451,7 +2612,7 @@ function startTimer(timerEl) {
                 iconColor: '#fa755a'
             }
         };
-        stripeCard = elements.create('card', {
+        stripeCard = stripeElements.create('card', {
             style: style,
             hidePostalCode: true
         });
@@ -2491,7 +2652,10 @@ function startTimer(timerEl) {
 
         Livewire.hook('commit', ({ succeed }) => {
             succeed(() => {
-                initializeStripe();
+                // Don't reinitialize on every commit, only if card element is missing
+                if (!stripeCard || !document.getElementById('card-element')?.querySelector('iframe[title*="Stripe"]')) {
+                    initializeStripe();
+                }
             });
         });
 
@@ -2567,6 +2731,105 @@ function startTimer(timerEl) {
             console.log('🔴 [PagePay] REDIRECTING NOW to:', event.url);
             window.location.href = event.url;
         }, 100);
+    });
+
+    // ============ POLLING PARA DETECTAR PAGAMENTO PIX ============
+    // Quando o modal PIX é aberto, inicia polling para detectar pagamento
+    Livewire.on('pix-modal-opened', (event) => {
+        const paymentId = event.payment_id || event.paymentId;
+        
+        if (!paymentId) {
+            console.warn('[PIX Polling] Payment ID not provided');
+            return;
+        }
+        
+        console.log('[PIX Polling] Iniciando polling para payment_id:', paymentId);
+        
+        let pollCount = 0;
+        const maxPolls = 300; // 300 * 2s = 10 minutos
+        const pollInterval = 2000; // 2 segundos
+        
+        const pollPaymentStatus = setInterval(async () => {
+            pollCount++;
+            
+            try {
+                const response = await fetch(`/api/pix/status/${encodeURIComponent(paymentId)}`);
+                const data = await response.json();
+                
+                console.log(`[PIX Polling] Tentativa ${pollCount}: Status = ${data.status}`);
+                
+                // Se pagamento foi aprovado
+                if (data.status === 'paid' && data.redirect_url) {
+                    console.log('[PIX Polling] ✅ Pagamento aprovado! Notificando Livewire…');
+                    clearInterval(pollPaymentStatus);
+                    
+                    // Notificar Livewire que pagamento foi confirmado
+                    Livewire.dispatch('pix-payment-confirmed', {
+                        payment_id: paymentId,
+                        redirect_url: data.redirect_url
+                    });
+
+                    // Redirecionar após 3 segundos (Livewire mostra modal de sucesso)
+                    setTimeout(() => {
+                        console.log('[PIX Polling] Redirecionando para:', data.redirect_url);
+                        window.location.href = data.redirect_url;
+                    }, 3000);
+                    return;
+                }
+                
+                // Se pagamento foi recusado
+                if (data.status === 'declined') {
+                    console.log('[PIX Polling] ❌ Pagamento recusado');
+                    clearInterval(pollPaymentStatus);
+                    
+                    // Notificar Livewire do erro
+                    Livewire.dispatch('pix-payment-failed', {
+                        reason: 'declined',
+                        payment_id: paymentId
+                    });
+                    return;
+                }
+                
+                // Se expirou
+                if (data.status === 'expired') {
+                    console.log('[PIX Polling] ⏰ PIX expirou');
+                    clearInterval(pollPaymentStatus);
+                    
+                    // Notificar Livewire do erro
+                    Livewire.dispatch('pix-payment-failed', {
+                        reason: 'expired',
+                        payment_id: paymentId
+                    });
+                    return;
+                }
+                
+            } catch (error) {
+                console.warn(`[PIX Polling] Erro ao consultar status:`, error);
+            }
+            
+            // Se atingiu número máximo de tentativas, parar polling
+            if (pollCount >= maxPolls) {
+                console.log('[PIX Polling] ⏱️ Timeout: máximo de tentativas atingido');
+                clearInterval(pollPaymentStatus);
+                
+                // Notificar Livewire do timeout
+                Livewire.dispatch('pix-payment-failed', {
+                    reason: 'timeout',
+                    payment_id: paymentId
+                });
+            }
+        }, pollInterval);
+        
+        // Armazenar interval ID globalmente para poder parar se modal fechar
+        window.pixPollingInterval = pollPaymentStatus;
+    });
+    
+    // Para polling quando modal fecha
+    Livewire.on('pix-modal-closed', () => {
+        if (window.pixPollingInterval) {
+            clearInterval(window.pixPollingInterval);
+            console.log('[PIX Polling] Polling parado (modal fechado)');
+        }
     });
 
     // Sincronizar Alpine com Livewire

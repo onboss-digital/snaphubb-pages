@@ -2,12 +2,40 @@
 @import 'tailwindcss';
 @import './loader.css';
 
-.iti {
-    width: 100% !important;
+/* Dropdown list background */
+.iti__country-list {
+    background-color: #1a1a1a !important;
+    color: #fff !important;
 }
 
-.iti__country-list {
-    z-index: 100 !important;
+/* Country items */
+.iti__country {
+    color: #fff !important;
+    background-color: #1a1a1a !important;
+}
+
+.iti__country:hover {
+    background-color: #2a2a2a !important;
+}
+
+/* Search input */
+.iti__search-input {
+    background-color: #2a2a2a !important;
+    color: #fff !important;
+    border: 1px solid #404040 !important;
+}
+
+.iti__search-input::placeholder {
+    color: #888 !important;
+}
+
+/* No results message */
+.iti__no-countries {
+    color: #999 !important;
+    background-color: #1a1a1a !important;
+    padding: 15px !important;
+    text-align: center !important;
+    font-size: 14px !important;
 }
 
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';

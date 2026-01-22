@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Factories\PixServiceFactory;
+use App\Models\Order;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -504,43 +505,90 @@ class PixController extends Controller
      * GET /api/pix/status/:payment_id
      * Consulta o status de um pagamento PIX
      */
-    public function getPaymentStatus(Request $request, int $paymentId): JsonResponse
+    /**
+     * GET /api/pix/status/{paymentId}
+     * 
+     * Endpoint para frontend fazer polling e detectar quando pagamento foi aprovado
+     * Usado pelo componente Livewire para detectar pagamento sem depender de webhook
+     * 
+     * @param string $paymentId - ID do pagamento (PIX payment ID)
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getPaymentStatus(string $paymentId): \Illuminate\Http\JsonResponse
     {
         try {
-            // Validação do ID do pagamento
-            if ($paymentId <= 0) {
+            // Validação de entrada
+            if (empty($paymentId)) {
                 return response()->json([
                     'status' => 'error',
-                    'message' => 'ID de pagamento inválido.',
+                    'message' => 'Payment ID is required',
                 ], 400);
             }
 
-            Log::channel('payment_checkout')->debug('PixController: Consultando status do PIX', [
-                'payment_id' => $paymentId,
-            ]);
+            // Buscar ordem associada ao payment ID
+            $order = Order::where('pix_id', $paymentId)
+                ->orWhere('external_payment_id', $paymentId)
+                ->first();
 
-            // Consulta o status no serviço
-            $result = $this->pixService->getPaymentStatus($paymentId);
+            if (!$order) {
+                Log::warning('Order not found for payment status check', [
+                    'payment_id' => $paymentId,
+                ]);
 
-            if ($result['status'] === 'error') {
-                return response()->json($result, 400);
+                // Retornar erro amigável ao invés de 404 para não prender modal
+                return response()->json([
+                    'status' => 'not_found',
+                    'message' => 'Payment not found. Please check your transaction ID.',
+                    'payment_id' => $paymentId,
+                ], 200); // 200 ao invés de 404 para JavaScript continuar tentando
             }
 
-            // Retorna o status do pagamento
-            return response()->json([
-                'status' => 'success',
-                'data' => $result['data'],
-            ], 200);
-        } catch (\Exception $e) {
-            Log::error('PixController: Erro ao consultar status do PIX', [
+            Log::info('Payment status checked', [
                 'payment_id' => $paymentId,
-                'message' => $e->getMessage(),
+                'order_id' => $order->id,
+                'order_status' => $order->status,
+            ]);
+
+            // Retornar status simples para frontend saber se deve redirecionar
+            $response = [
+                'order_id' => $order->id,
+                'payment_id' => $paymentId,
+                'status' => $order->status, // 'pending', 'paid', 'declined', 'expired'
+                'amount' => (float) $order->price,
+                'currency' => $order->currency,
+                'created_at' => $order->created_at?->toIso8601String(),
+                'updated_at' => $order->updated_at?->toIso8601String(),
+            ];
+
+            // Se pagamento foi aprovado, adicionar redirect URL
+            if ($order->status === 'paid') {
+                $redirectUrl = $order->user_id 
+                    ? '/account' // Usuário foi criado, ir para conta
+                    : '/checkout'; // Algo deu errado, voltar para checkout
+
+                $response['redirect_url'] = $redirectUrl;
+                $response['message'] = 'Payment approved! Redirecting...';
+            } elseif ($order->status === 'declined') {
+                $response['message'] = 'Payment declined. Please try again.';
+            } elseif ($order->status === 'expired') {
+                $response['message'] = 'Payment expired. Please create a new transaction.';
+            } else {
+                $response['message'] = 'Payment still pending...';
+            }
+
+            return response()->json($response, 200);
+
+        } catch (\Exception $e) {
+            Log::error('Error checking payment status', [
+                'payment_id' => $paymentId,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
             ]);
 
             return response()->json([
                 'status' => 'error',
-                'message' => 'Erro ao consultar o status do pagamento.',
-            ], 500);
+                'message' => 'Error checking payment status. Please try again later.',
+                'payment_id' => $paymentId,
+            ], 200); // 200 para não quebrar polling
         }
     }
-}

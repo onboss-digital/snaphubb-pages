@@ -14,12 +14,15 @@ return new class extends Migration
         Schema::create('orders', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
+            $table->string('email')->nullable();
+            $table->string('customer_name')->nullable();
             $table->string('plan');
             $table->string('currency');
             $table->decimal('price', 10, 2);
             $table->string('pix_id')->nullable()->index();
             $table->string('external_payment_id')->nullable()->index();
-            $table->string('payment_status')->default('pending');
+            $table->string('status')->default('pending')->index();
+            $table->timestamp('paid_at')->nullable();
             $table->timestamps();
         });
     }

@@ -7,12 +7,7 @@ use App\Models\Order;
 use App\Services\FacebookConversionsService;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
-use App\Models\User;
-use Modules\Subscriptions\Models\Plan;
-use Modules\Subscriptions\Models\Subscription;
-use Modules\Subscriptions\Models\SubscriptionTransactions;
 
 class PushingPayWebhookController extends Controller
 {
@@ -122,67 +117,29 @@ class PushingPayWebhookController extends Controller
                 return response()->json(['success' => true], 200);
             }
 
-            // Update order/payment record
-            if (method_exists($order, 'payments')) {
-                $order->payments()->updateOrCreate(
-                    ['external_payment_id' => $paymentId],
-                    [
-                        'status' => 'refunded',
-                        'provider' => 'pushinpay',
-                        'data' => $data,
-                    ]
-                );
+            // Update order status to refunded
+            if ($order->status !== 'refunded') {
+                $order->update(['status' => 'refunded']);
+                Log::info('Order marked as refunded', ['orderId' => $order->id]);
             }
 
-            // Attempt to mark subscription inactive and record transaction
+            // Notify backend about refund
             try {
                 $cacheKey = 'pushinpay_refund_processed:' . $paymentId;
                 if (!Cache::has($cacheKey)) {
-                    DB::beginTransaction();
-                    try {
-                        $user = $order->user ?? null;
-                        if (!$user && !empty($data['payer']['email'])) {
-                            $user = User::where('email', $data['payer']['email'])->first();
-                        }
-
-                        // try to find related subscription transaction
-                        $tx = SubscriptionTransactions::where('transaction_id', $paymentId)->first();
-                        if (!$tx) {
-                            // fallback: try by order id in other_transactions_details
-                            $tx = SubscriptionTransactions::where('other_transactions_details', 'like', '%' . ($order->id ?? '') . '%')->first();
-                        }
-
-                        if ($tx) {
-                            $refundTxId = $data['refund_id'] ?? ($paymentId . '_refund');
-                            $exists = SubscriptionTransactions::where('transaction_id', $refundTxId)->first();
-                            if (!$exists) {
-                                SubscriptionTransactions::create([
-                                    'subscriptions_id' => $tx->subscriptions_id,
-                                    'user_id' => $tx->user_id,
-                                    'amount' => $tx->amount ?? 0,
-                                    'payment_type' => 'pix',
-                                    'payment_status' => 'refunded',
-                                    'transaction_id' => $refundTxId,
-                                    'other_transactions_details' => json_encode($data),
-                                ]);
-                            }
-
-                            $subscription = Subscription::find($tx->subscriptions_id);
-                            if ($subscription) {
-                                $subscription->status = config('constant.SUBSCRIPTION_STATUS.INACTIVE');
-                                $subscription->save();
-                            }
-                        }
-
-                        Cache::put($cacheKey, true, now()->addDays(7));
-                        DB::commit();
-                    } catch (\Throwable $e) {
-                        DB::rollBack();
-                        Log::error('Pushing Pay webhook refund processing error', ['error' => $e->getMessage()]);
+                    $backendUrl = env('SNAPHUBB_API_URL');
+                    if ($backendUrl) {
+                        Http::timeout(5)->post($backendUrl . '/api/webhook/pushinpay', [
+                            'event' => 'payment.refunded',
+                            'payment_id' => $paymentId,
+                            'order_id' => $order->id,
+                            'data' => $data,
+                        ]);
                     }
+                    Cache::put($cacheKey, true, now()->addDays(7));
                 }
-            } catch (\Throwable $e) {
-                Log::error('Pushing Pay webhook refund outer error', ['error' => $e->getMessage()]);
+            } catch (\Exception $e) {
+                Log::warning('Failed to notify backend of refund', ['error' => $e->getMessage()]);
             }
 
             return response()->json(['success' => true], 200);
@@ -191,7 +148,7 @@ class PushingPayWebhookController extends Controller
                 'paymentId' => $paymentId,
                 'error' => $e->getMessage(),
             ]);
-
+            
             return response()->json(['success' => true], 200);
         }
     }
@@ -265,117 +222,64 @@ class PushingPayWebhookController extends Controller
                 );
             }
 
-            // Create/Update Subscription when payment approved (idempotent)
+            // ============== NOTIFICAR BACKEND ==============
+            // Tudo é processado no backend (snaphubb): subscription, email, etc
+            // Frontend apenas notifica que pagamento foi aprovado
             try {
                 $cacheKey = 'pushinpay_webhook_processed:' . $paymentId;
                 if (!Cache::has($cacheKey)) {
-                    DB::beginTransaction();
-                    try {
-                        $user = $order->user ?? null;
-                        if (!$user && !empty($data['payer']['email'])) {
-                            $user = User::where('email', $data['payer']['email'])->first();
-                        }
-
-                        $productId = $data['product_id'] ?? $data['metadata']['product_id'] ?? $data['reference'] ?? null;
-                        $plan = null;
-                        if ($productId) {
-                            $plan = Plan::where('pushinpay_product_id', $productId)
-                                ->orWhere('pushinpay_reference', $productId)
-                                ->orWhere('external_product_id', $productId)
-                                ->first();
-                        }
-
-                        if ($user && $plan) {
-                            $now = now();
-                            $existing = Subscription::where('user_id', $user->id)
-                                ->where('status', config('constant.SUBSCRIPTION_STATUS.ACTIVE'))
-                                ->orderBy('end_date', 'desc')
-                                ->first();
-
-                            if ($existing && now()->lt(\Carbon\Carbon::parse($existing->end_date))) {
-                                $start = \Carbon\Carbon::parse($existing->end_date);
-                            } else {
-                                $start = $now;
-                            }
-
-                            $end = (clone $start)->addDays(30);
-
-                            $subscription = Subscription::create([
-                                'plan_id' => $plan->id,
-                                'user_id' => $user->id,
-                                'start_date' => $start->toDateTimeString(),
-                                'end_date' => $end->toDateTimeString(),
-                                'status' => config('constant.SUBSCRIPTION_STATUS.ACTIVE'),
-                                'amount' => $order->amount ?? null,
-                                'name' => $plan->name ?? null,
-                                'payment_id' => $paymentId,
-                            ]);
-
-                            // ============== ENVIO DE E-MAIL ==============
-                            // Notificar back-end (snaphubb) para enviar e-mail
-                            try {
-                                $backendUrl = env('SNAPHUBB_API_URL', 'http://127.0.0.1:8003');
-                                $notifyUrl = $backendUrl . '/api/send-subscription-email';
-                                
-                                // Fazer request assíncrona ao back-end para enviar e-mail
-                                \Illuminate\Support\Facades\Http::timeout(10)
-                                    ->post($notifyUrl, [
-                                        'subscription_id' => $subscription->id,
-                                        'user_id' => $user->id,
-                                        'user_email' => $user->email,
-                                        'user_locale' => $user->locale ?? 'br',
-                                        'plan_name' => $plan->name,
-                                    ]);
-                                
-                                Log::info('PushingPay webhook: email request sent to backend', [
-                                    'user_id' => $user->id,
-                                    'subscription_id' => $subscription->id,
-                                    'backend_url' => $notifyUrl,
-                                ]);
-                            } catch (\Exception $e) {
-                                // Não interrompe fluxo se falhar em enviar email
-                                Log::warning('PushingPay webhook: backend email notification failed', [
-                                    'user_id' => $user->id,
-                                    'subscription_id' => $subscription->id,
-                                    'error' => $e->getMessage(),
-                                ]);
-                            }
-                            // ============== FIM ENVIO DE E-MAIL ==============
-
-                            $existsTx = SubscriptionTransactions::where('transaction_id', $paymentId)->first();
-                            if (!$existsTx) {
-                                SubscriptionTransactions::create([
-                                    'subscriptions_id' => $subscription->id,
-                                    'user_id' => $user->id,
-                                    'amount' => $order->amount ?? 0,
-                                    'payment_type' => 'pix',
-                                    'payment_status' => 'approved',
-                                    'transaction_id' => $paymentId,
-                                    'other_transactions_details' => json_encode($data),
-                                ]);
-                            }
-                        }
-
-                        Cache::put($cacheKey, true, now()->addDays(7));
-                        DB::commit();
-                    } catch (\Throwable $e) {
-                        DB::rollBack();
-                        Log::error('Pushing Pay webhook subscription sync error', ['error' => $e->getMessage()]);
+                    $backendUrl = env('SNAPHUBB_API_URL');
+                    if (!$backendUrl) {
+                        Log::error('PushingPay webhook: SNAPHUBB_API_URL not configured in .env');
+                        return response()->json(['error' => 'Backend URL not configured'], 500);
                     }
+
+                    // Notificar backend sobre pagamento aprovado
+                    // Backend criará subscription, enviará email, tudo
+                    try {
+                        $notifyUrl = $backendUrl . '/api/webhook/pushinpay';
+                        
+                        \Illuminate\Support\Facades\Http::timeout(10)
+                            ->post($notifyUrl, [
+                                'event' => 'payment.approved',
+                                'order_id' => $order->id,
+                                'payment_id' => $paymentId,
+                                'user_email' => $order->user?->email ?? $data['payer']['email'] ?? null,
+                                'amount' => $order->amount ?? $data['value'] ?? null,
+                                'currency' => $order->currency ?? null,
+                                'payment_data' => $data,
+                            ]);
+                        
+                        Log::info('PushingPay webhook: notification sent to backend', [
+                            'order_id' => $order->id,
+                            'payment_id' => $paymentId,
+                            'backend_url' => $notifyUrl,
+                        ]);
+                    } catch (\Exception $e) {
+                        Log::warning('PushingPay webhook: backend notification failed', [
+                            'order_id' => $order->id,
+                            'payment_id' => $paymentId,
+                            'error' => $e->getMessage(),
+                        ]);
+                        // Não interrompe fluxo - webhook já foi salvo
+                    }
+
+                    Cache::put($cacheKey, true, now()->addDays(7));
+                } else {
+                    Log::info('PushingPay webhook: already processed', ['paymentId' => $paymentId]);
                 }
             } catch (\Throwable $e) {
-                Log::error('Pushing Pay webhook subscription outer error', ['error' => $e->getMessage()]);
+                Log::error('Pushing Pay webhook error', ['error' => $e->getMessage()]);
             }
+            // ============== FIM NOTIFICAÇÃO ==============
 
-            // 🔥 Redirecionar para a página de upsell PIX (configurada no backend snaphubb)
-            $upsellUrl = 'http://127.0.0.1:8005/upsell/painel-das-garotas-qr';
-            Log::info('Webhook payment approved: redirecting to upsell page', [
-                'paymentId' => $paymentId,
-                'orderId' => $order->id,
-                'redirectUrl' => $upsellUrl,
-            ]);
-            
-            return redirect($upsellUrl);
+            // ✅ Retornar JSON (frontend fará polling para detectar pagamento)
+            return response()->json([
+                'status' => 'ok',
+                'message' => 'Payment approved, check status via polling',
+                'order_id' => $order->id,
+                'payment_id' => $paymentId,
+            ], 200);
         } catch (\Exception $e) {
             Log::error('Error processing payment approved', [
                 'paymentId' => $paymentId,

@@ -31,6 +31,32 @@ function setupIntlTelInput(selector, livewireEventName) {
 
         input.addEventListener('change', changeHandler);
         input.addEventListener('countrychange', changeHandler);
+
+        // Monitorar busca de países
+        const searchInput = input.parentElement?.querySelector('.iti__search-input');
+        if (searchInput) {
+            searchInput.addEventListener('input', () => {
+                setTimeout(() => {
+                    const countryList = input.parentElement?.querySelector('.iti__country-list');
+                    const countries = countryList?.querySelectorAll('.iti__country');
+                    
+                    // Verificar se há países visíveis
+                    if (countries && countries.length === 0 && searchInput.value.trim() !== '') {
+                        let noResults = countryList?.querySelector('.iti__no-results');
+                        
+                        if (!noResults) {
+                            noResults = document.createElement('div');
+                            noResults.className = 'iti__no-results iti__no-countries';
+                            noResults.textContent = 'Não encontrado';
+                            countryList?.appendChild(noResults);
+                        }
+                    } else {
+                        const noResults = countryList?.querySelector('.iti__no-results');
+                        if (noResults) noResults.remove();
+                    }
+                }, 100);
+            });
+        }
     });
 }
 

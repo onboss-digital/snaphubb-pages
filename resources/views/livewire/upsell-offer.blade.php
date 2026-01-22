@@ -203,7 +203,7 @@
 
                     <!-- CTA Buttons - Below Video -->
                     <div class="space-y-3 mb-8">
-                        <button id="upsell-checkout-button" wire:click="aproveOffer" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-4 rounded-lg transition-all duration-300 flex items-center justify-center gap-2 text-lg group cursor-pointer">
+                        <button id="upsell-checkout-button" wire:click="aproveOffer" @onclick="window.showPaymentLoader && window.showPaymentLoader()" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-4 rounded-lg transition-all duration-300 flex items-center justify-center gap-2 text-lg group cursor-pointer">
                             <svg class="w-5 h-5 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
                             Ativar Painel
                         </button>
@@ -344,6 +344,33 @@
     @endif
 
     <script>
+        // ✅ Loader control functions - MUST RUN BEFORE Livewire listeners
+        (function(){
+            var loader = document.getElementById('simple-payment-loader');
+            var title = loader ? loader.querySelector('.loader-text') : null;
+            var sub = loader ? loader.querySelector('.loader-sub') : null;
+            var lang = document.documentElement.lang || 'br';
+            
+            var strings = {
+                processing: {br: 'Aguarde, estamos processando o pagamento…', en: 'Please wait, processing payment…', es: 'Aguarde, estamos procesando el pago…'},
+                success: {br: 'Parabéns! Compra aprovada.', en: 'Success! Payment approved.', es: '¡Felicidades! Compra aprobada.'},
+                failed: {br: 'Pagamento não aprovado. Verifique os dados e tente novamente.', en: 'Payment failed. Please verify details and try again.', es: 'Pago no aprobado. Verifique y vuelva a intentar.'}
+            };
+            
+            window.showPaymentLoader = function() {
+                if (!loader) {
+                    console.error('❌ Loader element not found!');
+                    return;
+                }
+                if (title) title.textContent = strings['processing'] ? (strings['processing'][lang] || strings['processing']['br']) : 'Processando...';
+                if (sub) sub.style.display = 'block';
+                loader.classList.add('show', 'loading');
+                loader.classList.remove('success', 'failed');
+                document.body.classList.add('overflow-hidden');
+                console.log('✅ Upsell Loader shown with state: processing');
+            };
+        })();
+
         function copyPixCode(){
             const code = document.getElementById('pix-code-container').textContent.trim();
             navigator.clipboard.writeText(code).then(() => {
@@ -383,5 +410,63 @@
                     }).catch(()=>{});
             }, 8000);
         });
+
+        // Listen for upsell success event from backend
+        if (window.Livewire) {
+            window.Livewire.on('upsell-success', function(payload) {
+                console.log('✅ upsell-success event received', payload);
+                const loader = document.getElementById('simple-payment-loader');
+                
+                if (loader) {
+                    // Show loader with success state
+                    loader.style.display = 'block';
+                    loader.style.visibility = 'visible';
+                    loader.style.pointerEvents = 'auto';
+                    loader.classList.remove('loading', 'failed');
+                    loader.classList.add('show', 'success');
+                    
+                    const titleEl = loader.querySelector('.loader-text') || document.querySelector('.loader-text');
+                    if (titleEl) titleEl.textContent = 'Parabéns! Compra aprovada.';
+                    
+                    setTimeout(function() {
+                        if (payload && payload.redirect_url) {
+                            window.location.href = payload.redirect_url;
+                        }
+                    }, 2000);
+                } else if (payload && payload.redirect_url) {
+                    setTimeout(function() {
+                        window.location.href = payload.redirect_url;
+                    }, 1000);
+                }
+            });
+
+            // Listen for upsell failed event from backend
+            window.Livewire.on('upsell-failed', function(payload) {
+                console.log('❌ upsell-failed event received', payload);
+                const loader = document.getElementById('simple-payment-loader');
+                
+                if (loader) {
+                    // Show loader with failed state
+                    loader.style.display = 'block';
+                    loader.style.visibility = 'visible';
+                    loader.style.pointerEvents = 'auto';
+                    loader.classList.remove('loading', 'success');
+                    loader.classList.add('show', 'failed');
+                    
+                    const titleEl = loader.querySelector('.loader-text') || document.querySelector('.loader-text');
+                    if (titleEl) titleEl.textContent = 'Pagamento não aprovado. Verifique os dados e tente novamente.';
+                    window.update('failed');
+                    setTimeout(function() {
+                        if (payload && payload.redirect_url) {
+                            window.location.href = payload.redirect_url;
+                        }
+                    }, 2000);
+                } else if (payload && payload.redirect_url) {
+                    setTimeout(function() {
+                        window.location.href = payload.redirect_url;
+                    }, 1000);
+                }
+            });
+        }
     </script>
 </div>
