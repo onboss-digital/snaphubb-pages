@@ -592,3 +592,4 @@ class PixController extends Controller
             ], 200); // 200 para não quebrar polling
         }
     }
+}
