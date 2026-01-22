@@ -1582,8 +1582,8 @@ class PagePay extends Component
             $this->pixExpiresAt = now()->addMinutes(30); // PIX expira em 30 minutos por padrão
             $this->showPixModal = true;
 
-            // Abrir modal de status de pagamento (vai mostrar "Aguarde, identificando pagamento…")
-            $this->showPixPaymentStatusModal = true;
+            // NÃO abrir o modal de status aqui! Abrir apenas após confirmação de pagamento
+            $this->showPixPaymentStatusModal = false;
             $this->pixPaymentState = 'waiting';
             $this->pixPaymentMessage = 'Aguarde, identificando pagamento…';
 
@@ -1684,8 +1684,11 @@ class PagePay extends Component
         // Para o polling
         $this->dispatch('stop-pix-polling');
 
-        // Fecha o modal PIX (não mostra modal de sucesso, apenas redireciona)
+        // Fecha o modal PIX do QR code e abre o modal de status de sucesso
         $this->showPixModal = false;
+        $this->showPixPaymentStatusModal = true;
+        $this->pixPaymentState = 'success';
+        $this->pixPaymentMessage = 'Parabéns! Sua assinatura foi ativada!';
         $this->showSuccessModal = false;
         $this->isProcessing = false;
 

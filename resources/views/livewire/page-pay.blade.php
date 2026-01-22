@@ -2726,11 +2726,11 @@ function startTimer(timerEl) {
             return;
         }
         
-        // Pequeno delay para garantir que Livewire processou tudo
+        // Aguardar 3.5 segundos para o usuário ver a tela de sucesso antes de redirecionar
         setTimeout(() => {
             console.log('🔴 [PagePay] REDIRECTING NOW to:', event.url);
             window.location.href = event.url;
-        }, 100);
+        }, 3500);
     });
 
     // ============ POLLING PARA DETECTAR PAGAMENTO PIX ============
