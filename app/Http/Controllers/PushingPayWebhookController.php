@@ -129,12 +129,17 @@ class PushingPayWebhookController extends Controller
                 if (!Cache::has($cacheKey)) {
                     $backendUrl = env('SNAPHUBB_API_URL');
                     if ($backendUrl) {
-                        Http::timeout(5)->post($backendUrl . '/api/webhook/pushinpay', [
-                            'event' => 'payment.refunded',
-                            'payment_id' => $paymentId,
-                            'order_id' => $order->id,
-                            'data' => $data,
-                        ]);
+                        $webhookToken = env('PP_WEBHOOK_TOKEN');
+                        Http::timeout(5)
+                            ->withHeaders([
+                                'x-pushinpay-token' => $webhookToken,
+                            ])
+                            ->post($backendUrl . '/api/webhook/pushinpay', [
+                                'event' => 'payment.refunded',
+                                'payment_id' => $paymentId,
+                                'order_id' => $order->id,
+                                'data' => $data,
+                            ]);
                     }
                     Cache::put($cacheKey, true, now()->addDays(7));
                 }
@@ -238,8 +243,12 @@ class PushingPayWebhookController extends Controller
                     // Backend criará subscription, enviará email, tudo
                     try {
                         $notifyUrl = $backendUrl . '/api/webhook/pushinpay';
+                        $webhookToken = env('PP_WEBHOOK_TOKEN');
                         
                         \Illuminate\Support\Facades\Http::timeout(10)
+                            ->withHeaders([
+                                'x-pushinpay-token' => $webhookToken,
+                            ])
                             ->post($notifyUrl, [
                                 'event' => 'payment.approved',
                                 'order_id' => $order->id,
