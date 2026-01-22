@@ -249,13 +249,13 @@ class PushingPayPixService
 
             Log::info('PushingPayPixService: Consultando status do PIX', [
                 'payment_id' => $paymentId,
-                'url' => "{$this->baseUrl}/pix/{$paymentId}",
+                'url' => "{$this->baseUrl}/transactions/{$paymentId}",
             ]);
 
             $response = Http::withHeaders([
                 'Authorization' => 'Bearer ' . $this->accessToken,
                 'Accept' => 'application/json',
-            ])->withoutVerifying()->get("{$this->baseUrl}/pix/{$paymentId}");
+            ])->withoutVerifying()->get("{$this->baseUrl}/transactions/{$paymentId}");
 
             $responseData = $response->json();
 
