@@ -50,14 +50,7 @@ class PainelVotingCheckout extends PagePay
     }
 
     /**
-     * Render - Usa a mesma view do PagePay, mas com filtro de voting
+     * Render - Usa a mesma view do PagePay
+     * Não precisa de render() customizado - herda do PagePay
      */
-    public function render()
-    {
-        return view('livewire.painel-voting-checkout', [
-            'plans' => $this->plans,
-            'selectedPlan' => $this->selectedPlan,
-            'selectedPaymentMethod' => $this->selectedPaymentMethod,
-        ]);
-    }
 }
