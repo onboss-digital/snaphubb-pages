@@ -12,6 +12,9 @@ use Illuminate\Support\Facades\Route;
 // Página principal (checkout) - Livewire Component
 Route::get('/', PagePay::class)->name('home');
 
+// Rota para comprar acesso ao Painel de Voting (compra única, vitalícia)
+Route::get('/buy-painel', \App\Livewire\PainelVotingCheckout::class)->name('buy.painel');
+
 // Upsell routes
 Route::get('/upsell/painel-das-garotas', function(){
 	return view('upsell.painel');
