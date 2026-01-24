@@ -23,13 +23,13 @@ class PainelVotingCheckout extends PagePay
         // Identifiers válidos: voting, voting-br, voting-en, voting-es, community-voting
         if (is_array($this->plans) && !empty($this->plans)) {
             $this->plans = array_filter($this->plans, function($plan) {
-                $identifier = strtolower($plan['id'] ?? '');
+                $identifier = strtolower($plan['id'] ?? $plan['identifier'] ?? '');
                 $name = strtolower($plan['name'] ?? '');
                 
                 return (
                     str_contains($identifier, 'voting') ||
-                    str_contains($identifier, 'community-voting') ||
                     str_contains($name, 'voting') ||
+                    str_contains($name, 'painel das garotas') ||
                     str_contains($name, 'painel')
                 );
             });
