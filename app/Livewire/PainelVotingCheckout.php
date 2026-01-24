@@ -22,7 +22,21 @@ class PainelVotingCheckout extends PagePay
         // FILTRAR: Manter apenas planos de voting
         // Identifiers válidos: voting, voting-br, voting-en, voting-es, community-voting
         if (is_array($this->plans) && !empty($this->plans)) {
+            $firstPlan = reset($this->plans);
+            \Illuminate\Support\Facades\Log::info('PainelVotingCheckout: Plans estrutura completa', [
+                'type' => gettype($this->plans),
+                'count' => count($this->plans),
+                'keys' => array_keys($this->plans),
+                'first_plan_full' => json_encode($firstPlan, JSON_UNESCAPED_UNICODE),
+            ]);
+            
             $this->plans = array_filter($this->plans, function($plan) {
+                // Log completo da estrutura do plano
+                \Illuminate\Support\Facades\Log::info('PainelVotingCheckout: Estrutura do plano', [
+                    'plan_json' => json_encode($plan, JSON_UNESCAPED_UNICODE),
+                    'plan_keys' => is_array($plan) ? array_keys($plan) : 'NOT_ARRAY',
+                ]);
+                
                 // Usar identifier primeiro (vem do banco), depois id (Stripe)
                 $identifier = strtolower($plan['identifier'] ?? $plan['id'] ?? '');
                 $name = strtolower($plan['name'] ?? '');
