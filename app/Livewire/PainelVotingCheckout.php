@@ -20,41 +20,33 @@ class PainelVotingCheckout extends PagePay
         parent::mount($paymentGateway);
 
         // FILTRAR: Manter apenas planos de voting
-        // Identifiers válidos: voting, voting-br, voting-en, voting-es, community-voting
+        // A chave do array é o identificador: painel_das_garotas_-_voting
+        // O label contém o nome do plano
         if (is_array($this->plans) && !empty($this->plans)) {
+            $firstKey = array_key_first($this->plans);
             $firstPlan = reset($this->plans);
-            \Illuminate\Support\Facades\Log::info('PainelVotingCheckout: Plans estrutura completa', [
-                'type' => gettype($this->plans),
+            \Illuminate\Support\Facades\Log::info('PainelVotingCheckout: Plans estrutura', [
                 'count' => count($this->plans),
                 'keys' => array_keys($this->plans),
-                'first_plan_full' => json_encode($firstPlan, JSON_UNESCAPED_UNICODE),
+                'first_key' => $firstKey,
+                'first_label' => $firstPlan['label'] ?? 'N/A',
             ]);
             
-            $this->plans = array_filter($this->plans, function($plan) {
-                // Log completo da estrutura do plano
-                \Illuminate\Support\Facades\Log::info('PainelVotingCheckout: Estrutura do plano', [
-                    'plan_json' => json_encode($plan, JSON_UNESCAPED_UNICODE),
-                    'plan_keys' => is_array($plan) ? array_keys($plan) : 'NOT_ARRAY',
-                ]);
-                
-                // Usar identifier primeiro (vem do banco), depois id (Stripe)
-                $identifier = strtolower($plan['identifier'] ?? $plan['id'] ?? '');
-                $name = strtolower($plan['name'] ?? '');
+            // Usar ARRAY_FILTER_USE_BOTH para ter acesso tanto à chave quanto ao valor
+            $this->plans = array_filter($this->plans, function($plan, $key) {
+                $identifier = strtolower($key);
+                $label = strtolower($plan['label'] ?? '');
                 
                 \Illuminate\Support\Facades\Log::info('PainelVotingCheckout: Filtrando plano', [
+                    'key' => $key,
                     'identifier' => $identifier,
-                    'name' => $name,
-                    'matches_voting' => str_contains($identifier, 'voting'),
-                    'matches_name' => str_contains($name, 'voting')
+                    'label' => $label,
+                    'matches_voting_key' => str_contains($identifier, 'voting'),
+                    'matches_voting_label' => str_contains($label, 'voting')
                 ]);
                 
-                return (
-                    str_contains($identifier, 'voting') ||
-                    str_contains($name, 'voting') ||
-                    str_contains($name, 'painel das garotas') ||
-                    str_contains($name, 'painel')
-                );
-            });
+                return str_contains($identifier, 'voting') || str_contains($label, 'voting');
+            }, ARRAY_FILTER_USE_BOTH);
 
             // Se ainda temos planos, selecionar o primeiro
             if (!empty($this->plans)) {
