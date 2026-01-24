@@ -36,6 +36,18 @@ $gateway = config('services.default_payment_gateway', 'stripe');
         }
     }
 
+    @keyframes fadeOut {
+        from {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        to {
+            opacity: 0;
+            transform: scale(0.98);
+        }
+    }
+
     /* PIX Modal Responsive Styles */
     #pix-modal {
         animation: fadeIn 0.5s ease-in-out;
@@ -2129,56 +2141,78 @@ document.addEventListener('DOMContentLoaded', function(){
 </div>
 
 <script>
-let pixQRTimer = 300; // 5 minutes
-
 // Debug: log bumps state toda vez que muda
-Livewire.on('updated', (propertyName, value) => {
-    if (propertyName === 'bumps') {
-        console.log('✅ Bumps atualizados:', value);
-        console.log('📊 Bumps ativos:', value.filter(b => b.active));
-    }
-});
-
-// Debug no console quando modal abre
-document.addEventListener('DOMContentLoaded', () => {
-    console.log('🔍 [PIX Modal] Iniciado');
-    console.log('🔍 $bumps data:', @json($bumps ?? []));
-    console.log('🔍 $totals data:', @json($totals ?? []));
-});
-
-// Observar mudanças no modal
-const observer = new MutationObserver(() => {
-    const modal = document.getElementById('pixModalBackdrop');
-    if (modal && modal.offsetParent !== null) { // offsetParent !== null significa que está visível
-        console.log('✅ [PIX Modal] Visível');
-        console.log('✅ Bumps ativos no modal:', @json($bumps ?? []));
-        // Iniciar timer quando modal fica visível
-        const timerEl = document.getElementById('timerValue');
-        if (timerEl && !timerStarted) {
-            timerStarted = true;
-            startTimer(timerEl);
-            console.log('✅ Timer iniciado!');
+if (window.Livewire) {
+    Livewire.on('updated', (propertyName, value) => {
+        if (propertyName === 'bumps') {
+            console.log('✅ Bumps atualizados:', value);
+            console.log('📊 Bumps ativos:', value.filter(b => b.active));
         }
-    } else {
-        // Modal foi fechado
-        timerStarted = false;
-        if (timerInterval) {
-            clearInterval(timerInterval);
-            timerInterval = null;
-            console.log('⏹️ Timer parado');
+        
+        // Quando showPixModal é atualizado, iniciar timer
+        if (propertyName === 'showPixModal' && value === true) {
+            console.log('✅ [PIX Modal] Vai ser exibida - Iniciando timer');
+            setTimeout(() => {
+                const timerEl = document.getElementById('timerValue');
+                if (timerEl && !timerStarted) {
+                    timerStarted = true;
+                    startTimer(timerEl);
+                    console.log('✅ Timer iniciado via Livewire update!');
+                }
+            }, 100);
         }
-    }
-});
+    });
+}
 
-observer.observe(document.body, { subtree: true, attributes: true, childList: true });
+// Fallback: Observar mudanças no modal usando MutationObserver
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initModalObserver);
+} else {
+    initModalObserver();
+}
+
+function initModalObserver() {
+    const observer = new MutationObserver(() => {
+        const modal = document.getElementById('pixModalBackdrop');
+        if (modal) {
+            const isVisible = modal.offsetParent !== null && getComputedStyle(modal).display !== 'none';
+            
+            if (isVisible) {
+                // Modal ficou visível
+                const timerEl = document.getElementById('timerValue');
+                if (timerEl && !timerStarted) {
+                    console.log('✅ [PIX Modal] Visível via MutationObserver - Iniciando timer');
+                    timerStarted = true;
+                    startTimer(timerEl);
+                    console.log('✅ Timer iniciado!');
+                }
+            } else if (timerStarted) {
+                // Modal foi fechado
+                console.log('⏹️ Modal foi fechada - Parando timer');
+                timerStarted = false;
+                if (timerInterval) {
+                    clearInterval(timerInterval);
+                    timerInterval = null;
+                }
+            }
+        }
+    });
+
+    observer.observe(document.body, { 
+        subtree: true, 
+        attributes: true, 
+        attributeFilter: ['style', 'class'],
+        childList: false 
+    });
+    
+    console.log('🔍 MutationObserver iniciado para PIX Modal');
+}
 </script>
 
 
 
 <!-- Global Scripts para PIX Modal -->
 <script>
-let pixQRTimer = 300; // 5 minutes
-
 function copyPixCode(e) {
     if (e) e.preventDefault();
     
@@ -2212,24 +2246,37 @@ function copyPixCode(e) {
 }
 
 function showCopySuccess(copyMessage, copyText, originalText) {
-    if (copyText) {
-        copyText.textContent = '✓ Copiado!';
-    }
-    
+    // Mostrar mensagem de sucesso
     if (copyMessage) {
         copyMessage.classList.remove('hidden');
+        copyMessage.style.display = 'block';
+        
+        // Animar entrada
+        copyMessage.style.animation = 'none';
         setTimeout(() => {
-            copyMessage.classList.add('hidden');
-            if (copyText) {
-                copyText.textContent = originalText;
+            copyMessage.style.animation = 'fadeIn 0.3s ease-in-out';
+        }, 10);
+    }
+    
+    // Atualizar texto do botão
+    if (copyText) {
+        const originalHTML = copyText.innerHTML;
+        copyText.innerHTML = '<svg class="w-5 h-5 inline mr-1" fill="currentColor" viewBox="0 0 20 20"><path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/></path></svg> Copiado!';
+        copyText.style.color = '#10b981';
+        
+        setTimeout(() => {
+            copyText.innerHTML = originalHTML;
+            copyText.style.color = 'white';
+            
+            // Esconder mensagem
+            if (copyMessage) {
+                copyMessage.style.animation = 'fadeOut 0.3s ease-in-out forwards';
+                setTimeout(() => {
+                    copyMessage.classList.add('hidden');
+                    copyMessage.style.animation = '';
+                }, 300);
             }
-        }, 3000);
-    } else {
-        if (copyText) {
-            setTimeout(() => {
-                copyText.textContent = originalText;
-            }, 3000);
-        }
+        }, 2000);
     }
 }
 
@@ -2261,6 +2308,7 @@ function fallbackCopy(pixCode, copyMessage, copyText, originalText) {
 // Iniciar timer quando modal aparecer
 let timerInterval = null;
 let timerStarted = false;
+let pixQRTimer = 300; // 5 minutes in seconds
 
 function startTimer(timerEl) {
     function formatTime(seconds) {
@@ -2276,32 +2324,45 @@ function startTimer(timerEl) {
     
     console.log('⏱️ Timer iniciado: 5:00');
     
+    // Atualizar display imediatamente (não esperar 1 segundo)
+    if (timerEl) {
+        timerEl.textContent = formatTime(pixQRTimer);
+    }
+    
     function updateTimer() {
-        if (timerEl && pixQRTimer >= 0) {
+        pixQRTimer--;
+        
+        if (timerEl) {
             const timeString = formatTime(pixQRTimer);
             timerEl.textContent = timeString;
             
             // Mudar cor conforme o tempo passa
-            if (pixQRTimer === 0) {
+            if (pixQRTimer <= 0) {
                 timerEl.style.color = '#ef4444';
                 timerEl.style.fontSize = '3rem';
-                timerEl.parentElement.parentElement.style.borderColor = '#dc2626';
+                const parent = timerEl.parentElement?.parentElement;
+                if (parent) {
+                    parent.style.borderColor = '#dc2626';
+                    parent.style.backgroundColor = 'rgba(239, 68, 68, 0.1)';
+                }
                 console.log('⏰ PIX expirado!');
                 clearInterval(timerInterval);
                 timerInterval = null;
             } else if (pixQRTimer <= 60) {
                 // Piscar nos últimos 60 segundos
                 timerEl.style.color = '#ff6b6b';
-                timerEl.style.animation = 'pulse 1s infinite';
+                if (!timerEl.style.animation.includes('pulse')) {
+                    timerEl.style.animation = 'pulse 1s infinite';
+                }
+            } else {
+                // Cor normal quando ainda há mais de 60 segundos
+                timerEl.style.color = '#f87171';
+                timerEl.style.animation = 'none';
             }
-            
-            pixQRTimer--;
         }
     }
     
-    // Executar uma vez imediatamente
-    updateTimer();
-    // Depois executar a cada segundo
+    // Executar atualização a cada segundo
     timerInterval = setInterval(updateTimer, 1000);
 }
 </script>

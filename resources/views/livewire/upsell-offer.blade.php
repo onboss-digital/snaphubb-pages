@@ -36,8 +36,8 @@
             <!-- Spinner de carregamento -->
             <div class="loader-spinner"></div>
             
-            <div class="loader-text">Processando seu pagamento…</div>
-            <div class="loader-sub">Isso pode levar alguns segundos.</div>
+            <div class="loader-text">{{ __('upsell.processando_pagamento') }}</div>
+            <div class="loader-sub">{{ __('upsell.processando_segundos') }}</div>
         </div>
     </div>
     
@@ -45,7 +45,7 @@
     <div class="border-b border-red-900/30 px-6 py-4">
         <div class="max-w-5xl mx-auto flex justify-between items-center">
             <h1 class="text-2xl font-bold text-red-600">SNAPHUBB</h1>
-            <span class="text-sm text-gray-400">pt-Português</span>
+            <span class="text-sm text-gray-400">{{ app()->getLocale() === 'br' ? 'pt-Português' : (app()->getLocale() === 'en' ? 'en-English' : 'es-Español') }}</span>
         </div>
     </div>
 
@@ -54,14 +54,14 @@
     <div class="max-w-5xl mx-auto px-6 py-12">
         <!-- Title -->
         <div class="text-center mb-12">
-            <h2 class="text-4xl font-bold mb-2">Finalize seu Pagamento com PIX</h2>
-            <p class="text-gray-400">Confirmação instantânea • Sem taxas adicionais</p>
+            <h2 class="text-4xl font-bold mb-2">{{ __('upsell.finalize_pagamento_pix') }}</h2>
+            <p class="text-gray-400">{{ __('upsell.confirmacao_instantanea') }}</p>
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 mb-12">
             <!-- Left: Resumo do Pedido -->
             <div>
-                <h3 class="text-2xl font-bold mb-6">Resumo do Pedido</h3>
+                <h3 class="text-2xl font-bold mb-6">{{ __('upsell.resumo_do_pedido') }}</h3>
                 
                 <div class="space-y-6">
                     <!-- Produto Upsell -->
@@ -71,7 +71,7 @@
                                 <svg class="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
                             </div>
                             <div class="flex-1">
-                                <p class="text-red-500 text-sm font-semibold"><svg class="w-4 h-4 sm:w-5 sm:h-5 inline" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10"></circle><path d="M10.39 12.65l2.45 2.45 5.92-5.92" stroke="white" stroke-width="2" fill="none"></path></svg> Oferta Exclusiva</p>
+                                <p class="text-red-500 text-sm font-semibold"><svg class="w-4 h-4 sm:w-5 sm:h-5 inline" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10"></circle><path d="M10.39 12.65l2.45 2.45 5.92-5.92" stroke="white" stroke-width="2" fill="none"></path></svg> {{ __('upsell.oferta_exclusiva') }}</p>
                                 <p class="font-bold">{{ $product['label'] }}</p>
                                 <p class="text-gray-500 text-sm mt-2">R$ {{ number_format(($product['price'] ?? 3700)/100, 2, ',', '.') }}</p>
                             </div>
@@ -80,33 +80,33 @@
 
                     <!-- Discount -->
                     <div class="bg-green-600/10 border border-green-600/30 rounded-xl p-4">
-                        <p class="text-green-500 font-semibold text-sm mb-2">🎉 Desconto PIX aplicado!</p>
-                        <p class="text-gray-400 text-sm">Você economiza R$ {{ number_format((($product['origin_price'] ?? 97) - (($product['price'] ?? 3700)/100)), 2, ',', '.') }}</p>
+                        <p class="text-green-500 font-semibold text-sm mb-2">🎉 {{ __('upsell.desconto_pix_aplicado') }}</p>
+                        <p class="text-gray-400 text-sm">{{ __('upsell.voce_economiza') }} R$ {{ number_format((($product['origin_price'] ?? 97) - (($product['price'] ?? 3700)/100)), 2, ',', '.') }}</p>
                     </div>
 
                     <!-- Total -->
                     <div class="bg-gradient-to-r from-red-600/20 to-red-600/10 border border-red-600/40 rounded-xl p-6">
-                        <p class="text-gray-400 text-sm mb-2">Total a Pagar</p>
+                        <p class="text-gray-400 text-sm mb-2">{{ __('upsell.total_a_pagar') }}</p>
                         <p class="text-4xl font-bold text-white">R$ {{ number_format(($product['price'] ?? 3700)/100, 2, ',', '.') }}</p>
-                        <p class="text-gray-500 text-sm mt-3">Acesso imediato após confirmação</p>
+                        <p class="text-gray-500 text-sm mt-3">{{ __('upsell.acesso_imediato_apos_confirmacao') }}</p>
                     </div>
 
                     <!-- Trust -->
                     <div class="flex items-center gap-2 text-blue-400 text-sm bg-blue-600/10 border border-blue-600/30 rounded-lg p-3">
                         <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
-                        <span>Seus dados estão 100% seguros e criptografados</span>
+                        <span>{{ __('upsell.dados_seguros_criptografados') }}</span>
                     </div>
                 </div>
             </div>
 
             <!-- Right: QR Code -->
             <div>
-                <h3 class="text-2xl font-bold mb-6">Pagar com PIX</h3>
+                <h3 class="text-2xl font-bold mb-6">{{ __('upsell.pagar_com_pix') }}</h3>
 
                 <div class="space-y-6">
                     <!-- QR Code -->
                     <div class="bg-gradient-to-br from-gray-900 to-black border border-gray-800 rounded-2xl p-8">
-                        <p class="text-center text-gray-400 text-sm mb-6">Escaneie com seu celular</p>
+                        <p class="text-center text-gray-400 text-sm mb-6">{{ __('upsell.escanear_celular') }}</p>
                         
                         <div class="bg-white p-4 rounded-xl mb-4 flex justify-center">
                             @php
@@ -116,7 +116,7 @@
                             <img src="{{ $imgSrc }}" alt="QR PIX" class="w-48 h-48 object-contain">
                         </div>
 
-                        <p class="text-center text-gray-500 text-sm">Abra seu app bancário e escaneie</p>
+                        <p class="text-center text-gray-500 text-sm">{{ __('upsell.abra_app_bancario') }}</p>
                     </div>
 
                     <!-- Divider -->
@@ -128,7 +128,7 @@
 
                     <!-- Copia e Cola -->
                     <div>
-                        <p class="text-gray-400 text-sm mb-3">Copie o código PIX</p>
+                        <p class="text-gray-400 text-sm mb-3">{{ __('upsell.copie_codigo_pix') }}</p>
                         
                         <div id="pix-code-container" class="bg-gray-900 border border-gray-800 rounded-lg p-4 mb-4 font-mono text-gray-400 text-xs break-all select-all overflow-x-auto max-h-24">
                             {{ $pixQrCodeText }}
@@ -136,22 +136,22 @@
 
                         <button id="copy-pix-btn" onclick="copyPixCode()" class="w-full py-4 px-6 rounded-lg font-bold transition-all duration-300 flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 text-white">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
-                            <span id="copy-text">Copiar Código PIX</span>
+                            <span id="copy-text">{{ __('upsell.ativar_painel') === 'Copiar Código PIX' ? __('upsell.ativar_painel') : __('upsell.ativar_painel') }}</span>
                         </button>
 
-                        <p class="text-center text-gray-500 text-xs mt-3">Cole no seu app bancário para pagar</p>
+                        <p class="text-center text-gray-500 text-xs mt-3">{{ __('upsell.cole_app_bancario') }}</p>
                     </div>
 
                     <!-- Status -->
                     <div class="bg-yellow-600/10 border border-yellow-600/30 rounded-lg p-4 mb-6">
-                        <p class="text-yellow-500 font-semibold text-sm mb-1"><svg class="w-4 h-4 sm:w-5 sm:h-5 inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> Aguardando Pagamento</p>
-                        <p class="text-gray-400 text-sm">Você será redirecionado automaticamente ao confirmar</p>
-                        <p class="text-gray-500 text-xs mt-2">Status: <strong id="pix-status">{{ $pixStatus }}</strong></p>
+                        <p class="text-yellow-500 font-semibold text-sm mb-1"><svg class="w-4 h-4 sm:w-5 sm:h-5 inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> {{ __('upsell.aguardando_pagamento') }}</p>
+                        <p class="text-gray-400 text-sm">{{ __('upsell.sera_redirecionado_automaticamente') }}</p>
+                        <p class="text-gray-500 text-xs mt-2">{{ __('upsell.status') }}: <strong id="pix-status">{{ $pixStatus }}</strong></p>
                     </div>
 
                     <!-- Botão: Continuar apenas com streaming -->
                     <button onclick="window.location.href='/upsell/thank-you-recused-qr'" class="w-full bg-gray-900 hover:bg-gray-800 text-gray-300 font-semibold py-4 rounded-lg transition-all duration-300 border border-gray-700 cursor-pointer">
-                        Continuar apenas com streaming
+                        {{ __('upsell.continuar_apenas_streaming') }}
                     </button>
                 </div>
             </div>
@@ -159,7 +159,7 @@
 
         <!-- Footer -->
         <div class="text-center text-gray-500 text-xs">
-            <p><svg class="w-4 h-4 sm:w-5 sm:h-5 inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg> Você está seguro com Snaphubb • Política de Privacidade • Termos de Serviço</p>
+            <p><svg class="w-4 h-4 sm:w-5 sm:h-5 inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg> {{ __('upsell.voce_esta_seguro') }} • {{ __('upsell.privacy_policy') }} • {{ __('upsell.terms_of_service') }}</p>
         </div>
     </div>
 @else
@@ -168,11 +168,11 @@
         <!-- Email Confirmation Header -->
         <div class="text-center mb-12">
             <div class="inline-block bg-red-600/10 border border-red-600/30 rounded-full px-6 py-2 mb-4">
-                <p class="text-red-500 text-sm font-semibold"><svg class="w-4 h-4 sm:w-5 sm:h-5 inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg> Email de Confirmação Enviado</p>
+                <p class="text-red-500 text-sm font-semibold"><svg class="w-4 h-4 sm:w-5 sm:h-5 inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg> {{ __('upsell.email_confirmation_sent') }}</p>
             </div>
-            <h2 class="text-4xl font-bold mb-4">Parabéns! Sua compra foi confirmada</h2>
-            <p class="text-gray-400 text-lg mb-2">streaming.snaphubb — 1x mês</p>
-            <p class="text-green-500 font-semibold text-xl">R$ 24,90 pago com sucesso</p>
+            <h2 class="text-4xl font-bold mb-4">{{ __('upsell.parabens_compra_confirmada') }}</h2>
+            <p class="text-gray-400 text-lg mb-2">{{ __('upsell.streaming_pago') }}</p>
+            <p class="text-green-500 font-semibold text-xl">R$ 24,90 {{ __('upsell.pago_com_sucesso') }}</p>
         </div>
 
         <!-- Divider -->
@@ -181,19 +181,19 @@
         <!-- Upsell Offer Section -->
         <div class="mb-12">
             <h3 class="text-center text-3xl font-bold mb-12">
-                <svg class="w-5 h-5 sm:w-6 sm:h-6 inline" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10"></circle><path d="M9 12l2 2 4-4" stroke="white" stroke-width="2" fill="none"></path></svg> Espera! Você tem uma oferta <span class="text-red-600">EXCLUSIVA</span>
+                <svg class="w-5 h-5 sm:w-6 sm:h-6 inline" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10"></circle><path d="M9 12l2 2 4-4" stroke="white" stroke-width="2" fill="none"></path></svg> {{ __('upsell.wait_exclusive_offer') }}
             </h3>
 
             <!-- Offer Card -->
             <div class="bg-gradient-to-br from-red-600/20 via-black to-black border border-red-600/40 rounded-2xl p-8 md:p-12 mb-8">
                 <div class="mb-8">
                     <!-- Headline -->
-                    <h4 class="text-2xl md:text-3xl font-bold mb-6 leading-tight">Descubra Quem São as Garotas que a Comunidade Está Elegendo como as "Melhores do Mês" (Sem Censura)</h4>
+                    <h4 class="text-2xl md:text-3xl font-bold mb-6 leading-tight">{{ __('upsell.discover_girls') }}</h4>
                     
                     <!-- Subtítulo -->
                     <div class="mb-6">
-                        <p class="text-red-500 font-semibold text-lg mb-2">Adicione o "Filtro da Elite" ao seu pedido:</p>
-                        <p class="text-gray-300">Tenha acesso imediato à playlist das garotas mais votadas pela comunidade e elimine 100% do risco de escolher conteúdo ruim.</p>
+                        <p class="text-red-500 font-semibold text-lg mb-2">{{ __('upsell.add_elite_filter') }}</p>
+                        <p class="text-gray-300">{{ __('upsell.acesso_imediato_playlist') }}</p>
                     </div>
 
                     <!-- Video Section - Mobile Maior -->
@@ -214,43 +214,43 @@
                     <div class="space-y-3 mb-8">
                         <button id="upsell-checkout-button" wire:click="aproveOffer" @onclick="window.showPaymentLoader && window.showPaymentLoader()" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-4 rounded-lg transition-all duration-300 flex items-center justify-center gap-2 text-lg group cursor-pointer">
                             <svg class="w-5 h-5 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
-                            Ativar Painel
+                            {{ __('upsell.ativar_painel') }}
                         </button>
                         <button wire:click="declineOffer" class="w-full bg-gray-900 hover:bg-gray-800 text-gray-300 font-semibold py-4 rounded-lg transition-all duration-300 border border-gray-700 cursor-pointer">
-                            Continuar apenas com streaming
+                            {{ __('upsell.continuar_apenas_streaming') }}
                         </button>
                     </div>
 
                     <!-- Corpo do Texto -->
                     <div class="mb-6 space-y-4">
-                        <p class="text-gray-300">Você já garantiu seu acesso, mas deixe-me te fazer uma pergunta rápida:</p>
-                        <p class="text-white font-semibold text-lg">Por que perder horas procurando o que assistir, se você pode ir direto ao "Pote de Ouro"?</p>
-                        <p class="text-gray-300">No Painel das Garotas, nós removemos a dúvida.<br>Você não recebe apenas "mais conteúdo".<br><strong class="text-white">Você recebe a Nata da Nata</strong>, filtrada por quem mais entende do assunto: a própria comunidade.</p>
+                        <p class="text-gray-300">{{ __('upsell.ja_garantiu') ?? 'Você já garantiu seu acesso, mas deixe-me te fazer uma pergunta rápida:' }}</p>
+                        <p class="text-white font-semibold text-lg">{{ __('upsell.por_que_perder_horas') }}</p>
+                        <p class="text-gray-300">{{ __('upsell.painel_garotas_remove_duvida') }}<br>{{ __('upsell.nao_recebe_mais_conteudo') }}<br><strong class="text-white">{{ __('upsell.recebe_nata_nata') }}</strong>, {{ __('upsell.filtrada_comunidade') }}</p>
                     </div>
 
                     <!-- Como Funciona -->
                     <div class="mb-8">
-                        <h5 class="text-xl font-bold text-white mb-4">Como funciona o Sistema de Elite:</h5>
+                        <h5 class="text-xl font-bold text-white mb-4">{{ __('upsell.como_funciona_elite') }}</h5>
                         <div class="space-y-3">
                             <div class="flex items-start gap-3">
                                 <span class="text-2xl flex-shrink-0">🗳️</span>
                                 <div>
-                                    <p class="text-white font-semibold">Votação Ativa:</p>
-                                    <p class="text-gray-300 text-sm">Durante o mês, milhares de membros votam na criadora que mais desejam ver.</p>
+                                    <p class="text-white font-semibold">{{ __('upsell.votacao_ativa') }}</p>
+                                    <p class="text-gray-300 text-sm">{{ __('upsell.votacao_ativa_desc') }}</p>
                                 </div>
                             </div>
                             <div class="flex items-start gap-3">
                                 <span class="text-2xl flex-shrink-0">🏆</span>
                                 <div>
-                                    <p class="text-white font-semibold">A Seleção:</p>
-                                    <p class="text-gray-300 text-sm">A vencedora entra automaticamente na Playlist VIP <strong class="text-red-500">"AS MAIS VOTADAS"</strong>.</p>
+                                    <p class="text-white font-semibold">{{ __('upsell.a_selecao') }}</p>
+                                    <p class="text-gray-300 text-sm">{{ __('upsell.vencedora_entra_playlist') }}</p>
                                 </div>
                             </div>
                             <div class="flex items-start gap-3">
                                 <span class="text-2xl flex-shrink-0">🔥</span>
                                 <div>
-                                    <p class="text-white font-semibold">O Acesso:</p>
-                                    <p class="text-gray-300 text-sm">Você recebe o catálogo completo com os vídeos mais quentes daquela criadora — sem precisar caçar links por aí.</p>
+                                    <p class="text-white font-semibold">{{ __('upsell.o_acesso') }}</p>
+                                    <p class="text-gray-300 text-sm">{{ __('upsell.catalogo_completo_vencedora') }}</p>
                                 </div>
                             </div>
                         </div>
@@ -258,33 +258,33 @@
 
                     <!-- Benefício Principal -->
                     <div class="bg-gradient-to-r from-yellow-600/20 to-yellow-500/10 border border-yellow-500/40 rounded-xl p-6 mb-8">
-                        <h5 class="text-xl font-bold text-yellow-400 mb-3">O Grande Segredo:</h5>
-                        <p class="text-white font-bold text-lg mb-3">Garantia Blindada de Acesso Vitalício.</p>
-                        <p class="text-gray-300 text-sm mb-4">A maioria das assinaturas corta seu acesso assim que você para de pagar. Nós não.</p>
-                        <p class="text-gray-300 text-sm mb-4">Ao adicionar isso ao seu pedido hoje, você garante uma vantagem "injusta":</p>
-                        <p class="text-white font-semibold">Você pode cancelar a assinatura mensal e ainda assim continuar com acesso ao Painel de Votações, ao ranking e às Mais Votadas — enquanto o painel existir.</p>
-                        <p class="text-gray-400 text-xs mt-4 italic">É a única assinatura que te recompensa pela fidelidade… e até pela desistência.</p>
+                        <h5 class="text-xl font-bold text-yellow-400 mb-3">{{ __('upsell.grande_segredo') }}</h5>
+                        <p class="text-white font-bold text-lg mb-3">{{ __('upsell.garantia_blindada_acesso_vitalicio') }}</p>
+                        <p class="text-gray-300 text-sm mb-4">{{ __('upsell.maioria_assinaturas_corta') }}</p>
+                        <p class="text-gray-300 text-sm mb-4">{{ __('upsell.ao_adicionar_hoje') }}</p>
+                        <p class="text-white font-semibold">{{ __('upsell.pode_cancelar_assinatura') }}</p>
+                        <p class="text-gray-400 text-xs mt-4 italic">{{ __('upsell.unica_assinatura_recompensa') }}</p>
                     </div>
 
                     <!-- Pricing Section -->
                     <div class="bg-black/50 border border-gray-700 rounded-xl p-6 mb-8">
                         <div class="grid grid-cols-2 gap-4 mb-6">
                             <div>
-                                <p class="text-gray-500 text-sm mb-1">Preço Original</p>
+                                <p class="text-gray-500 text-sm mb-1">{{ __('upsell.preco_original') }}</p>
                                 <p class="text-xl line-through text-gray-500">R$ {{ number_format($product['origin_price'] ?? 97, 2, ',', '.') }}</p>
                             </div>
                             <div>
-                                <p class="text-gray-500 text-sm mb-1">Desconto PIX</p>
+                                <p class="text-gray-500 text-sm mb-1">{{ __('upsell.desconto_pix') }}</p>
                                 <p class="text-xl font-bold text-red-500">-R$ {{ number_format((($product['origin_price'] ?? 97) - (($product['price'] ?? 3700)/100)), 2, ',', '.') }}</p>
                             </div>
                         </div>
 
                         <div class="border-t border-gray-700 pt-6">
-                            <p class="text-gray-400 mb-2">Você vai pagar</p>
+                            <p class="text-gray-400 mb-2">{{ __('upsell.voce_vai_pagar') }}</p>
                             <div class="flex items-baseline gap-2">
                                 <p class="text-5xl font-bold text-white">R$ {{ number_format(($product['price'] ?? 3700)/100, 2, ',', '.') }}</p>
                             </div>
-                            <p class="text-green-500 font-semibold mt-4"><svg class="w-4 h-4 sm:w-5 sm:h-5 inline" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10"></circle><path d="M9 12l2 2 4-4" stroke="white" stroke-width="2" fill="none"></path></svg> Você economiza R$ {{ number_format((($product['origin_price'] ?? 97) - (($product['price'] ?? 3700)/100)), 2, ',', '.') }}</p>
+                            <p class="text-green-500 font-semibold mt-4"><svg class="w-4 h-4 sm:w-5 sm:h-5 inline" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10"></circle><path d="M9 12l2 2 4-4" stroke="white" stroke-width="2" fill="none"></path></svg> {{ __('upsell.voce_economiza') }} R$ {{ number_format((($product['origin_price'] ?? 97) - (($product['price'] ?? 3700)/100)), 2, ',', '.') }}</p>
                         </div>
                     </div>
 
@@ -294,8 +294,8 @@
                         <div class="bg-red-600/10 border border-red-600/30 rounded-lg p-4 flex items-center gap-3">
                             <svg class="w-5 h-5 text-red-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
                             <div>
-                                <p class="text-red-500 font-semibold text-sm">⏰ OFERTA LIMITADA</p>
-                                <p class="text-gray-300 text-xs mt-1"><strong class="text-red-400">Apenas para quem compra agora</strong><br>Bônus válido por 30 dias</p>
+                                <p class="text-red-500 font-semibold text-sm">⏰ {{ __('upsell.oferta_limitada') }}</p>
+                                <p class="text-gray-300 text-xs mt-1"><strong class="text-red-400">{{ __('upsell.apenas_quem_compra_agora') }}</strong><br>{{ __('upsell.bonus_valido') }}</p>
                             </div>
                         </div>
 
@@ -306,10 +306,10 @@
                                 <span class="text-yellow-400 font-bold text-sm">4.9/5</span>
                             </div>
                             <div>
-                                <p class="text-yellow-400 font-semibold text-sm">MELHOR AVALIADO</p>
+                                <p class="text-yellow-400 font-semibold text-sm">{{ __('upsell.melhor_avaliado') }}</p>
                                 <p class="text-gray-300 text-xs mt-1">
                                     <svg class="w-3 h-3 inline text-green-500 mr-1" fill="currentColor" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></svg>
-                                    1.200+ pessoas adicionaram
+                                    1.200+ {{ __('upsell.pessoas_adicionaram') }}
                                 </p>
                             </div>
                         </div>
@@ -319,10 +319,10 @@
                     <div class="space-y-3">
                         <button id="upsell-checkout-button" wire:click="aproveOffer" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-4 rounded-lg transition-all duration-300 flex items-center justify-center gap-2 text-lg group cursor-pointer">
                             <svg class="w-5 h-5 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
-                            Ativar Painel
+                            {{ __('upsell.ativar_painel') }}
                         </button>
                         <button wire:click="declineOffer" class="w-full bg-gray-900 hover:bg-gray-800 text-gray-300 font-semibold py-4 rounded-lg transition-all duration-300 border border-gray-700 cursor-pointer">
-                            Continuar apenas com streaming
+                            {{ __('upsell.continuar_apenas_streaming') }}
                         </button>
                     </div>
 
@@ -336,9 +336,9 @@
                     <div class="mt-8 pt-8 border-t border-gray-800 space-y-2 text-sm text-gray-400">
                         <p class="flex items-center gap-2">
                             <svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
-                            Pagamento 100% seguro com PIX
+                            {{ __('upsell.pagamento_seguro_pix') }}
                         </p>
-                        <p><svg class="w-4 h-4 sm:w-5 sm:h-5 inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg> Sem compromisso • Cancele quando quiser • Suporte 24/7</p>
+                        <p><svg class="w-4 h-4 sm:w-5 sm:h-5 inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg> {{ __('upsell.sem_compromisso') }}</p>
                     </div>
                 </div>
             </div>
@@ -346,8 +346,8 @@
 
         <!-- Social Proof -->
         <div class="text-center text-gray-500 text-sm">
-            <p><svg class="w-4 h-4 sm:w-5 sm:h-5 inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg> 2.847 pessoas aprovaram essa oferta nos últimos 7 dias</p>
-            <p>⭐ 4.8/5 de satisfação</p>
+            <p><svg class="w-4 h-4 sm:w-5 sm:h-5 inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg> 2.847 {{ __('upsell.pessoas_aprovaram_oferta') }}</p>
+            <p>⭐ 4.8/5 {{ __('upsell.satisfacao') }}</p>
         </div>
     </div>
     @endif
@@ -361,9 +361,9 @@
             var lang = document.documentElement.lang || 'br';
             
             var strings = {
-                processing: {br: 'Aguarde, estamos processando o pagamento…', en: 'Please wait, processing payment…', es: 'Aguarde, estamos procesando el pago…'},
-                success: {br: 'Parabéns! Compra aprovada.', en: 'Success! Payment approved.', es: '¡Felicidades! Compra aprobada.'},
-                failed: {br: 'Pagamento não aprovado. Verifique os dados e tente novamente.', en: 'Payment failed. Please verify details and try again.', es: 'Pago no aprobado. Verifique y vuelva a intentar.'}
+                processing: {br: '{{ __("upsell.processando_pagamento") }}', en: '{{ __("upsell.processando_pagamento") }}', es: '{{ __("upsell.processando_pagamento") }}'},
+                success: {br: '{{ __("upsell.parabens_compra_aprovada") }}', en: '{{ __("upsell.parabens_compra_aprovada") }}', es: '{{ __("upsell.parabens_compra_aprovada") }}'},
+                failed: {br: '{{ __("upsell.pagamento_nao_aprovado") }}', en: '{{ __("upsell.pagamento_nao_aprovado") }}', es: '{{ __("upsell.pagamento_nao_aprovado") }}'}
             };
             
             window.showPaymentLoader = function() {
