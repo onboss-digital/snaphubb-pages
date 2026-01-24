@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="{{ app()->getLocale() }}">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Parabéns - Snaphubb</title>
+    <title>{{ __('upsell.congratulations') }} - Snaphubb</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @include('partials.analytics')
 </head>
@@ -31,19 +31,19 @@
             </div>
 
             <h2 class="text-5xl md:text-6xl font-bold mb-4">
-                Parabéns! 🎉
+                {{ __('upsell.congratulations') }}
             </h2>
             <p class="text-xl md:text-2xl text-gray-300 mb-2">
-                Sua compra foi confirmada com sucesso
+                {{ __('upsell.purchase_confirmed') }}
             </p>
             <p class="text-gray-500 mb-8">
-                Prepare-se para descobrir um mundo de entretenimento sem limites
+                {{ __('upsell.get_ready') }}
             </p>
         </div>
 
         <!-- Order Summary Card -->
         <div class="bg-gradient-to-br from-gray-900 to-black border border-red-600/40 rounded-2xl p-8 md:p-12 mb-12">
-            <h3 class="text-2xl font-bold mb-8">Resumo da sua Compra</h3>
+            <h3 class="text-2xl font-bold mb-8">{{ __('upsell.order_summary') }}</h3>
 
             <div class="space-y-6 mb-8 pb-8 border-b border-gray-800">
                 <!-- Item 1 -->
@@ -56,8 +56,8 @@
                             </svg>
                         </div>
                         <div>
-                            <p class="font-bold text-white">Streaming Snaphubb — 1x mês</p>
-                            <p class="text-gray-500 text-sm">Acesso imediato</p>
+                            <p class="font-bold text-white">{{ __('upsell.streaming_plan') }}</p>
+                            <p class="text-gray-500 text-sm">{{ __('upsell.immediate_access') }}</p>
                         </div>
                     </div>
                     <p class="text-lg font-bold text-white">R$ 24,90</p>
