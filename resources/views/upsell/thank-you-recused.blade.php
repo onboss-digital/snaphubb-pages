@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="{{ app()->getLocale() }}">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Parabéns — Snaphubb</title>
+    <title>{{ __('upsell.congratulations') }} — Snaphubb</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @include('partials.analytics')
 </head>
@@ -29,14 +29,14 @@
         <svg class="w-12 h-12 text-white" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </div>
 
-      <h2 class="text-5xl md:text-6xl font-bold mb-4">Parabéns! 🎉</h2>
-      <p class="text-xl md:text-2xl text-gray-300 mb-2">Sua compra foi confirmada com sucesso</p>
-      <p class="text-gray-500 mb-8">Prepare-se para descobrir um mundo de entretenimento latino</p>
+      <h2 class="text-5xl md:text-6xl font-bold mb-4">{{ __('upsell.congratulations') }}</h2>
+      <p class="text-xl md:text-2xl text-gray-300 mb-2">{{ __('upsell.purchase_confirmed') }}</p>
+      <p class="text-gray-500 mb-8">{{ __('upsell.get_ready') }}</p>
     </div>
 
     <!-- Order Summary Card - Simple Version -->
     <div class="bg-gradient-to-br from-gray-900 to-black border border-red-600/40 rounded-2xl p-8 md:p-12 mb-12">
-      <h3 class="text-2xl font-bold mb-8">Resumo da sua Compra</h3>
+      <h3 class="text-2xl font-bold mb-8">{{ __('upsell.order_summary') }}</h3>
 
       <div class="space-y-6 mb-8 pb-8 border-b border-gray-800">
         <!-- Single Item -->
@@ -47,8 +47,8 @@
               <svg class="w-8 h-8 text-red-500" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5 3v18l15-9L5 3z" fill="currentColor"/></svg>
             </div>
             <div>
-              <p class="font-bold text-white">Streaming Snaphubb — 1x mês</p>
-              <p class="text-gray-500 text-sm">Acesso imediato</p>
+              <p class="font-bold text-white">{{ __('upsell.streaming_plan') }}</p>
+              <p class="text-gray-500 text-sm">{{ __('upsell.immediate_access') }}</p>
             </div>
           </div>
           <p class="text-lg font-bold text-white">R$ 24,90</p>
@@ -58,11 +58,11 @@
       <!-- Total -->
       <div class="flex justify-between items-end mb-8">
         <div>
-          <p class="text-gray-500 text-sm mb-2">Total Pago</p>
+          <p class="text-gray-500 text-sm mb-2">{{ __('upsell.total_paid') }}</p>
           <p class="text-4xl font-bold text-white">R$ 24,90</p>
         </div>
         <div class="text-right">
-          <p class="bg-green-600/20 border border-green-600/40 text-green-400 px-4 py-2 rounded-lg text-sm font-semibold">✓ Pagamento Confirmado</p>
+          <p class="bg-green-600/20 border border-green-600/40 text-green-400 px-4 py-2 rounded-lg text-sm font-semibold">{{ __('upsell.payment_confirmed') }}</p>
         </div>
       </div>
 
@@ -71,7 +71,7 @@
         <!-- Mail Icon -->
         <svg class="w-5 h-5 text-blue-400 flex-shrink-0" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
         <div class="text-sm text-gray-400">
-          <p class="mb-1">Um email de confirmação foi enviado para</p>
+          <p class="mb-1">{{ __('upsell.confirmation_email_sent') }}</p>
           <p class="font-semibold text-white">{{ session('last_order_customer.email') ?? 'usuario@email.com' }}</p>
         </div>
       </div>
@@ -83,9 +83,9 @@
         <!-- Zap Icon -->
         <svg class="w-6 h-6 text-amber-500 flex-shrink-0 mt-1" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M13 2L3 14h7l-1 8L21 10h-7l-1-8z" fill="currentColor"/></svg>
         <div>
-          <h4 class="font-bold text-white mb-2">💡 Quer aproveitar mais?</h4>
-          <p class="text-gray-400 text-sm mb-4">A oferta especial de upgrade para Premium está ainda disponível! Garanta 3 meses + 30 dias grátis com desconto PIX.</p>
-          <button class="text-amber-500 hover:text-amber-400 font-semibold text-sm flex items-center gap-2 transition-all">Ver Oferta Especial
+          <h4 class="font-bold text-white mb-2">{{ __('upsell.want_more') }}</h4>
+          <p class="text-gray-400 text-sm mb-4">{{ __('upsell.special_offer_available') }}</p>
+          <button class="text-amber-500 hover:text-amber-400 font-semibold text-sm flex items-center gap-2 transition-all">{{ __('upsell.see_special_offer') }}
             <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5 3v18l15-9L5 3z" fill="currentColor"/></svg>
           </button>
         </div>
@@ -96,18 +96,18 @@
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
       <div class="bg-gray-900/50 border border-gray-800 rounded-xl p-6 hover:border-red-600/40 transition-all">
         <div class="w-12 h-12 bg-red-600/20 rounded-lg flex items-center justify-center mb-4"><span class="text-red-500 font-bold text-lg">1</span></div>
-        <h4 class="font-bold text-white mb-2">Faça Login</h4>
-        <p class="text-gray-400 text-sm">Use o email e sua vinculador em seu e-mail de compra para acessar a plataforma</p>
+        <h4 class="font-bold text-white mb-2">{{ __('upsell.login_to_account') }}</h4>
+        <p class="text-gray-400 text-sm">{{ __('upsell.login_account_desc') }}</p>
       </div>
       <div class="bg-gray-900/50 border border-gray-800 rounded-xl p-6 hover:border-red-600/40 transition-all">
         <div class="w-12 h-12 bg-red-600/20 rounded-lg flex items-center justify-center mb-4"><span class="text-red-500 font-bold text-lg">2</span></div>
-        <h4 class="font-bold text-white mb-2">Valide sua conta</h4>
-        <p class="text-gray-400 text-sm">Faça a verificação da conta</p>
+        <h4 class="font-bold text-white mb-2">{{ __('upsell.validate_account') }}</h4>
+        <p class="text-gray-400 text-sm">{{ __('upsell.validate_account_desc') }}</p>
       </div>
       <div class="bg-gray-900/50 border border-gray-800 rounded-xl p-6 hover:border-red-600/40 transition-all">
         <div class="w-12 h-12 bg-red-600/20 rounded-lg flex items-center justify-center mb-4"><span class="text-red-500 font-bold text-lg">3</span></div>
-        <h4 class="font-bold text-white mb-2">Aproveite!</h4>
-        <p class="text-gray-400 text-sm">Explore as mais vidades da plataforma</p>
+        <h4 class="font-bold text-white mb-2">{{ __('upsell.enjoy') }}</h4>
+        <p class="text-gray-400 text-sm">{{ __('upsell.enjoy_desc') }}</p>
       </div>
     </div>
 
@@ -115,7 +115,7 @@
     <div class="mb-12">
       <a href="https://snaphubb.com/login" class="w-full inline-flex justify-center bg-red-600 hover:bg-red-700 text-white font-bold py-4 px-6 rounded-lg transition-all duration-300 items-center gap-2 text-lg"> 
         <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5 3v18l15-9L5 3z" fill="currentColor"/></svg>
-        Ir para Plataforma
+        {{ __('upsell.go_to_platform') }}
       </a>
     </div>
 
@@ -123,26 +123,26 @@
     <div class="bg-blue-600/10 border border-blue-600/30 rounded-lg p-6 text-center mb-12">
       <div class="flex items-center justify-center gap-2 text-blue-400 font-semibold mb-2">
         <svg class="w-5 h-5 animate-spin" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 2a10 10 0 100 20 10 10 0 000-20z" stroke="currentColor" stroke-width="2"/></svg>
-        Redirecionando em <span id="redirect-seconds">5</span>s
+        {{ __('upsell.redirecting_in') }} <span id="redirect-seconds">5</span>s
       </div>
-      <p class="text-gray-400 text-sm">ou clique em "Ir para Plataforma" para começar agora</p>
+      <p class="text-gray-400 text-sm">{{ __('upsell.redirecting_or_click') }}</p>
     </div>
 
     <!-- What You Get -->
     <div class="bg-gradient-to-r from-red-600/20 to-red-600/10 border border-red-600/40 rounded-2xl p-8 mb-12">
-      <h3 class="text-2xl font-bold mb-6">O que você desbloqueou:</h3>
+      <h3 class="text-2xl font-bold mb-6">{{ __('upsell.unlocked_benefits') }}</h3>
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div class="flex items-center gap-3"><svg class="w-5 h-5 text-green-500" viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="text-gray-300">+1.000 conteúdos liberados.</span></div>
-        <div class="flex items-center gap-3"><svg class="w-5 h-5 text-green-500" viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="text-gray-300">Zero anúncios, zero pop-ups, zero travs.</span></div>
-        <div class="flex items-center gap-3"><svg class="w-5 h-5 text-green-500" viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="text-gray-300">Um único PIX substituir assinaturas que custavam uma fortuna.</span></div>
-        <div class="flex items-center gap-3"><svg class="w-5 h-5 text-green-500" viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="text-gray-300">Acesso a +10.000 produções latinas</span></div>
+        <div class="flex items-center gap-3"><svg class="w-5 h-5 text-green-500" viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="text-gray-300">{{ __('upsell.benefit_1') }}</span></div>
+        <div class="flex items-center gap-3"><svg class="w-5 h-5 text-green-500" viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="text-gray-300">{{ __('upsell.benefit_2') }}</span></div>
+        <div class="flex items-center gap-3"><svg class="w-5 h-5 text-green-500" viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="text-gray-300">{{ __('upsell.benefit_3') }}</span></div>
+        <div class="flex items-center gap-3"><svg class="w-5 h-5 text-green-500" viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="text-gray-300">{{ __('upsell.benefit_latin') }}</span></div>
       </div>
     </div>
 
     <!-- Support Section -->
     <div class="bg-gray-900/50 border border-gray-800 rounded-xl p-8">
-      <h3 class="text-xl font-bold mb-4">Precisa de Ajuda?</h3>
-      <p class="text-gray-400 mb-6">Nosso time de suporte está disponível 24/7 para te ajudar com qualquer dúvida</p>
+      <h3 class="text-xl font-bold mb-4">{{ __('upsell.need_help_title') }}</h3>
+      <p class="text-gray-400 mb-6">{{ __('upsell.help_24_7') }}</p>
       <div class="flex flex-col sm:flex-row gap-4">
         <button id="copy-email-btn" class="px-6 py-3 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 bg-gray-800 hover:bg-gray-700 text-gray-300">
           <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none"><path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -157,8 +157,8 @@
 
     <!-- Footer -->
     <div class="text-center mt-12 pt-8 border-t border-gray-800 text-gray-500 text-sm space-y-2">
-      <p>🔒 Você está seguro com Snaphubb</p>
-      <p>Política de Privacidade • Termos de Serviço • Central de Ajuda</p>
+      <p>{{ __('upsell.secure_with_snaphubb') }}</p>
+      <p>{{ __('upsell.privacy_policy') }} • {{ __('upsell.terms_of_service') }} • {{ __('upsell.help_center') }}</p>
     </div>
   </div>
 
