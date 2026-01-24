@@ -1965,7 +1965,7 @@ document.addEventListener('DOMContentLoaded', function(){
     <!-- Modal Container - Premium Design -->
     <div class="bg-gradient-to-b from-gray-950 via-gray-900 to-gray-950 rounded-2xl shadow-2xl max-w-2xl w-full max-h-[95vh] overflow-y-auto border border-gray-800">
         
-        <!-- Header - Clean & Minimal -->
+        <!-- Header -->
         <div class="sticky top-0 bg-gradient-to-r from-green-600 to-emerald-600 px-6 sm:px-8 py-6 sm:py-7 flex items-center justify-between z-10 rounded-t-2xl">
             <div class="flex items-center gap-3">
                 <div class="w-8 h-8 bg-white bg-opacity-20 rounded-full flex items-center justify-center backdrop-blur-md">
@@ -1985,7 +1985,13 @@ document.addEventListener('DOMContentLoaded', function(){
                 
                 <!-- QR Code Section - Left Column -->
                 <div class="md:col-span-2 flex flex-col items-center justify-center">
-                    <div class="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-5">Scan para pagar</div>
+                    <div class="flex items-center gap-2 mb-5">
+                        <div class="text-xs font-semibold text-gray-500 uppercase tracking-widest">Scan para pagar</div>
+                        <div class="text-xs font-semibold text-orange-500 bg-orange-500/10 px-3 py-1 rounded-full" id="timerDisplay">
+                            <svg class="w-3 h-3 inline mr-1" fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14" fill="none" stroke="currentColor" stroke-width="1.5"/></polyline></svg>
+                            5:00
+                        </div>
+                    </div>
                     <div class="w-40 h-40 sm:w-48 sm:h-48 bg-white rounded-2xl p-4 shadow-lg flex items-center justify-center relative">
                         @if(!empty($pixQrImage))
                             @php
@@ -2108,39 +2114,63 @@ document.addEventListener('DOMContentLoaded', function(){
                     </div>
                 </div>
             </div>
-
-            <!-- Timer - Premium Design -->
-            <div class="relative overflow-hidden rounded-2xl bg-gradient-to-br from-red-600/20 via-orange-600/20 to-amber-600/20 border border-red-500/40 p-6 sm:p-7">
-                <!-- Background gradient animation -->
-                <div class="absolute inset-0 bg-gradient-to-r from-red-500/5 via-transparent to-orange-500/5 animate-pulse"></div>
-                
-                <div class="relative flex flex-col sm:flex-row items-center justify-center sm:justify-between gap-4">
-                    <!-- Left: Icon + Label -->
-                    <div class="flex items-center gap-3">
-                        <div class="relative w-12 h-12 bg-red-500/20 rounded-full flex items-center justify-center border border-red-500/50">
-                            <svg class="w-6 h-6 text-red-400 animate-spin" fill="none" stroke="currentColor" stroke-width="2.5">
-                                <circle cx="12" cy="12" r="10"></circle>
-                                <polyline points="12 6 12 12 16 14"></polyline>
-                            </svg>
-                        </div>
-                        <div class="flex flex-col">
-                            <span class="text-xs font-semibold text-gray-400 uppercase tracking-widest">Oferta expira em</span>
-                            <span class="text-sm text-gray-300">Aproveite agora</span>
-                        </div>
-                    </div>
-                    
-                    <!-- Right: Timer Value -->
-                    <div class="flex items-baseline gap-2">
-                        <span id="timerValue" class="text-4xl sm:text-5xl font-black text-red-400 font-mono tracking-tighter">05:00</span>
-                        <span class="text-xs font-semibold text-gray-400 uppercase mb-1">minutos</span>
-                    </div>
-                </div>
-            </div>
         </div>
     </div>
 </div>
 
 <script>
+// Timer para PIX - Discreto com cor laranja/vermelha
+let pixTimerRemaining = 300; // 5 minutos em segundos
+let pixTimerInterval = null;
+
+function formatPixTime(seconds) {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+}
+
+function updatePixTimer() {
+    const timerDisplay = document.getElementById('timerDisplay');
+    if (!timerDisplay) return;
+
+    timerDisplay.innerHTML = '<svg class="w-3 h-3 inline mr-1" fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14" fill="none" stroke="currentColor" stroke-width="1.5"/></polyline></svg>' + formatPixTime(pixTimerRemaining);
+
+    // Mudar cor quando falta 1 minuto (60 segundos)
+    if (pixTimerRemaining <= 60) {
+        timerDisplay.className = 'text-xs font-semibold text-red-400 bg-red-500/10 px-3 py-1 rounded-full animate-pulse';
+    } else {
+        timerDisplay.className = 'text-xs font-semibold text-orange-500 bg-orange-500/10 px-3 py-1 rounded-full';
+    }
+
+    pixTimerRemaining--;
+
+    // Se chegou a 0, parar o timer
+    if (pixTimerRemaining < 0) {
+        clearInterval(pixTimerInterval);
+        timerDisplay.className = 'text-xs font-semibold text-red-600 bg-red-600/20 px-3 py-1 rounded-full';
+        timerDisplay.innerHTML = '<svg class="w-3 h-3 inline mr-1" fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14" fill="none" stroke="currentColor" stroke-width="1.5"/></polyline></svg>00:00';
+    }
+}
+
+// Função para iniciar o timer do PIX
+function startPixTimer() {
+    console.log('⏱️ Iniciando timer PIX de 5 minutos');
+    pixTimerRemaining = 300;
+    clearInterval(pixTimerInterval);
+    updatePixTimer(); // Mostrar valor inicial
+    pixTimerInterval = setInterval(updatePixTimer, 1000);
+}
+
+// Iniciar timer quando modal abre (listener do Livewire)
+if (window.Livewire) {
+    Livewire.on('updated', (propertyName, value) => {
+        if (propertyName === 'showPixModal' && value === true) {
+            setTimeout(() => {
+                startPixTimer();
+            }, 100);
+        }
+    });
+}
 // ===== DECLARAÇÕES GLOBAIS - DEVEM ESTAR NO INÍCIO =====
 let timerInterval = null;
 let timerStarted = false;
