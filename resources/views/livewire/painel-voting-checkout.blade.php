@@ -43,8 +43,8 @@
 
             {{-- Componente Livewire do PagePay (aqui renderiza o checkout) --}}
             <div class="checkout-section">
-                {{-- O formulário de checkout do PagePay será renderizado aqui --}}
-                @livewire('painel-voting-checkout')
+                {{-- Usar a view parent do PagePay, não renderizar o componente novamente --}}
+                @include('livewire.page-pay')
             </div>
 
             {{-- Footer Info --}}

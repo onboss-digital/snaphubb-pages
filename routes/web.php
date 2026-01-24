@@ -1,6 +1,7 @@
 <?php
 
 use App\Livewire\PagePay;
+use App\Livewire\StreamingCheckout;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -10,7 +11,7 @@ use Illuminate\Support\Facades\Route;
 */
 
 // Página principal (checkout) - Livewire Component
-Route::get('/', PagePay::class)->name('home');
+Route::get('/', StreamingCheckout::class)->name('home');
 
 // Rota para comprar acesso ao Painel de Voting (compra única, vitalícia)
 Route::get('/buy-painel', \App\Livewire\PainelVotingCheckout::class)->name('buy.painel');
