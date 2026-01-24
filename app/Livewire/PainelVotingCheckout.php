@@ -23,8 +23,16 @@ class PainelVotingCheckout extends PagePay
         // Identifiers válidos: voting, voting-br, voting-en, voting-es, community-voting
         if (is_array($this->plans) && !empty($this->plans)) {
             $this->plans = array_filter($this->plans, function($plan) {
-                $identifier = strtolower($plan['id'] ?? $plan['identifier'] ?? '');
+                // Usar identifier primeiro (vem do banco), depois id (Stripe)
+                $identifier = strtolower($plan['identifier'] ?? $plan['id'] ?? '');
                 $name = strtolower($plan['name'] ?? '');
+                
+                \Illuminate\Support\Facades\Log::info('PainelVotingCheckout: Filtrando plano', [
+                    'identifier' => $identifier,
+                    'name' => $name,
+                    'matches_voting' => str_contains($identifier, 'voting'),
+                    'matches_name' => str_contains($name, 'voting')
+                ]);
                 
                 return (
                     str_contains($identifier, 'voting') ||
@@ -41,10 +49,13 @@ class PainelVotingCheckout extends PagePay
                 
                 \Illuminate\Support\Facades\Log::info('PainelVotingCheckout: Plano de voting selecionado', [
                     'selectedPlan' => $this->selectedPlan,
-                    'totalPlans' => count($this->plans)
+                    'totalPlans' => count($this->plans),
+                    'planos_disponiveis' => array_keys($this->plans)
                 ]);
             } else {
-                \Illuminate\Support\Facades\Log::warning('PainelVotingCheckout: Nenhum plano de voting encontrado');
+                \Illuminate\Support\Facades\Log::warning('PainelVotingCheckout: Nenhum plano de voting encontrado', [
+                    'plans_recebidos' => array_keys($this->plans ?? [])
+                ]);
             }
         }
     }
