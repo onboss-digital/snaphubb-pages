@@ -2141,6 +2141,11 @@ document.addEventListener('DOMContentLoaded', function(){
 </div>
 
 <script>
+// ===== DECLARAÇÕES GLOBAIS - DEVEM ESTAR NO INÍCIO =====
+let timerInterval = null;
+let timerStarted = false;
+let pixQRTimer = 300; // 5 minutes in seconds
+
 // Debug: log bumps state toda vez que muda
 if (window.Livewire) {
     Livewire.on('updated', (propertyName, value) => {
@@ -2214,15 +2219,20 @@ function initModalObserver() {
 <!-- Global Scripts para PIX Modal -->
 <script>
 function copyPixCode(e) {
+    console.log('📋 copyPixCode chamada!');
     if (e) e.preventDefault();
     
     const pixCodeDisplay = document.getElementById('pixCodeDisplay');
+    console.log('pixCodeDisplay elemento:', pixCodeDisplay);
+    
     if (!pixCodeDisplay) {
         console.error('❌ Elemento pixCodeDisplay não encontrado');
+        alert('Código não encontrado');
         return;
     }
     
     const pixCode = pixCodeDisplay.textContent.trim();
+    console.log('Código obtido:', pixCode ? pixCode.substring(0, 20) + '...' : 'vazio');
     
     if (!pixCode || pixCode === 'Código PIX') {
         alert('Código PIX não disponível');
@@ -2233,84 +2243,105 @@ function copyPixCode(e) {
     const copyMessage = document.getElementById('copyMessage');
     const originalText = copyText ? copyText.textContent : 'Copiar Código';
 
+    console.log('Tentando copiar com Clipboard API...');
+    
     // Tentar com Clipboard API (navegadores modernos)
     if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(pixCode).then(() => {
+            console.log('✅ Copiado com sucesso via Clipboard API');
             showCopySuccess(copyMessage, copyText, originalText);
-        }).catch(() => {
+        }).catch((err) => {
+            console.warn('⚠️ Clipboard API falhou:', err);
             fallbackCopy(pixCode, copyMessage, copyText, originalText);
         });
     } else {
+        console.log('Clipboard API não disponível, usando fallback');
         fallbackCopy(pixCode, copyMessage, copyText, originalText);
     }
 }
 
 function showCopySuccess(copyMessage, copyText, originalText) {
-    // Mostrar mensagem de sucesso
+    console.log('✅ showCopySuccess chamada');
+    
+    // Atualizar botão
+    if (copyText) {
+        const btn = copyText.closest('button');
+        if (btn) {
+            // Salvar classes originais
+            const originalClasses = btn.className;
+            
+            // Mudar para verde escuro
+            btn.className = 'w-full bg-green-700 text-white font-semibold py-3 sm:py-3.5 rounded-lg transition-all duration-200 flex items-center justify-center gap-2 shadow-lg';
+            
+            // Mudar texto
+            copyText.innerHTML = 'Código Copiado';
+            copyText.style.color = 'white';
+            copyText.style.fontWeight = 'bold';
+            
+            console.log('✅ Botão mudou para verde - aguardando 2 segundos');
+            
+            // Voltar ao normal após 2 segundos
+            setTimeout(() => {
+                btn.className = originalClasses;
+                copyText.innerHTML = 'Copiar Código';
+                copyText.style.color = '';
+                copyText.style.fontWeight = '';
+                console.log('✅ Botão voltou ao normal');
+            }, 2000);
+        }
+    }
+    
+    // Mostrar mensagem abaixo (opcional)
     if (copyMessage) {
         copyMessage.classList.remove('hidden');
         copyMessage.style.display = 'block';
-        
-        // Animar entrada
-        copyMessage.style.animation = 'none';
-        setTimeout(() => {
-            copyMessage.style.animation = 'fadeIn 0.3s ease-in-out';
-        }, 10);
-    }
-    
-    // Atualizar texto do botão
-    if (copyText) {
-        const originalHTML = copyText.innerHTML;
-        copyText.innerHTML = '<svg class="w-5 h-5 inline mr-1" fill="currentColor" viewBox="0 0 20 20"><path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/></path></svg> Copiado!';
-        copyText.style.color = '#10b981';
+        console.log('✅ Mensagem exibida');
         
         setTimeout(() => {
-            copyText.innerHTML = originalHTML;
-            copyText.style.color = 'white';
-            
-            // Esconder mensagem
-            if (copyMessage) {
-                copyMessage.style.animation = 'fadeOut 0.3s ease-in-out forwards';
-                setTimeout(() => {
-                    copyMessage.classList.add('hidden');
-                    copyMessage.style.animation = '';
-                }, 300);
-            }
+            copyMessage.classList.add('hidden');
         }, 2000);
     }
 }
 
 function fallbackCopy(pixCode, copyMessage, copyText, originalText) {
+    console.log('🔄 Usando fallback copy (execCommand)');
     try {
         const textarea = document.createElement('textarea');
         textarea.value = pixCode;
         textarea.style.position = 'fixed';
         textarea.style.left = '-9999px';
         textarea.style.top = '-9999px';
+        textarea.style.opacity = '0';
         document.body.appendChild(textarea);
         textarea.focus();
         textarea.select();
         
         const successful = document.execCommand('copy');
+        console.log('execCommand copy resultado:', successful);
+        
         document.body.removeChild(textarea);
         
         if (successful) {
+            console.log('✅ Copiado com sucesso via execCommand');
             showCopySuccess(copyMessage, copyText, originalText);
         } else {
+            console.error('❌ execCommand retornou false');
             alert('Falha ao copiar. Por favor, copie manualmente.');
         }
     } catch (err) {
-        console.error('Erro ao copiar:', err);
-        alert('Erro ao copiar o código.');
+        console.error('❌ Erro no fallbackCopy:', err);
+        alert('Erro ao copiar: ' + err.message);
     }
 }
 
-// Iniciar timer quando modal aparecer
-let timerInterval = null;
-let timerStarted = false;
-let pixQRTimer = 300; // 5 minutes in seconds
-
 function startTimer(timerEl) {
+    console.log('🕐 startTimer() chamada com elemento:', timerEl);
+    
+    if (!timerEl) {
+        console.error('❌ timerEl é null!');
+        return;
+    }
+    
     function formatTime(seconds) {
         const mins = Math.floor(seconds / 60);
         const secs = seconds % 60;
@@ -2322,11 +2353,13 @@ function startTimer(timerEl) {
     
     clearInterval(timerInterval); // Limpar interval anterior se existir
     
-    console.log('⏱️ Timer iniciado: 5:00');
+    console.log('⏱️ Timer iniciado: 5:00, pixQRTimer =', pixQRTimer);
     
     // Atualizar display imediatamente (não esperar 1 segundo)
     if (timerEl) {
-        timerEl.textContent = formatTime(pixQRTimer);
+        const initialTime = formatTime(pixQRTimer);
+        timerEl.textContent = initialTime;
+        console.log('⏱️ Display inicial:', initialTime);
     }
     
     function updateTimer() {
@@ -2335,6 +2368,10 @@ function startTimer(timerEl) {
         if (timerEl) {
             const timeString = formatTime(pixQRTimer);
             timerEl.textContent = timeString;
+            
+            if (pixQRTimer % 10 === 0) {
+                console.log('⏱️ Timer:', timeString, '(pixQRTimer =', pixQRTimer + ')');
+            }
             
             // Mudar cor conforme o tempo passa
             if (pixQRTimer <= 0) {
@@ -2364,6 +2401,7 @@ function startTimer(timerEl) {
     
     // Executar atualização a cada segundo
     timerInterval = setInterval(updateTimer, 1000);
+    console.log('⏱️ setInterval iniciado, timerInterval ID:', timerInterval);
 }
 </script>
 @endif
